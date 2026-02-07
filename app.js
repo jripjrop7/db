@@ -1259,56 +1259,54 @@ const app = {
     },
 
     // 1. Brainwallet
-        calcBrainwallet: () => {
-        // 1. Safety Check
-        if (typeof bitcoin === 'undefined') return alert("Error: bitcoin.js not loaded.");
-        
+            calcBrainwallet: () => {
+        // 1. Safety Check: Is the library even there?
+        if (typeof bitcoin === 'undefined') {
+            alert("CRITICAL ERROR: bitcoin.js file is missing or empty.");
+            return;
+        }
+
         const pass = document.getElementById('btc-pass').value;
         if (!pass) { document.getElementById('btc-keys').style.display = 'none'; return; }
 
         try {
-            // 2. Handle Text-to-Buffer (Fixes "Buffer is not defined")
+            // 2. The "Buffer" Fix (This stops the silent crash)
+            // Browsers don't have 'Buffer', so we check where it is hiding.
             let hash;
-            // Try standard Buffer (Node/Browserify) or bitcoin.Buffer
-            const bufferFn = (typeof Buffer !== 'undefined') ? Buffer.from : ((bitcoin.Buffer && bitcoin.Buffer.from) ? bitcoin.Buffer.from : null);
-            
-            if (bufferFn) {
-                hash = bitcoin.crypto.sha256(bufferFn(pass));
-            } else {
-                // Fallback for modern browsers if Buffer is missing
-                const encoder = new TextEncoder();
-                const data = encoder.encode(pass);
-                // Note: older bitcoin libs might not accept Uint8Array directly, but we try:
-                hash = bitcoin.crypto.sha256(data); 
-            }
+            const textToBuffer = (text) => {
+                if (typeof Buffer !== 'undefined') return Buffer.from(text); // Standard
+                if (bitcoin.Buffer && bitcoin.Buffer.from) return bitcoin.Buffer.from(text); // Coinbin Version
+                return new TextEncoder().encode(text); // Modern Browser Fallback
+            };
 
-            // 3. Generate Key Pair
+            // 3. Generate the Private Key
+            hash = bitcoin.crypto.sha256(textToBuffer(pass));
             const keyPair = bitcoin.ECPair.fromPrivateKey(hash);
 
-            // 4. Generate Address (Fixes "getAddress is not a function")
+            // 4. Generate the Address (Handles different library versions)
             let address = '';
             if (typeof keyPair.getAddress === 'function') {
-                // Old Syntax (Coinb.in / v4)
-                address = keyPair.getAddress();
+                address = keyPair.getAddress(); // Old Coinbin Style
             } else if (bitcoin.payments && bitcoin.payments.p2pkh) {
-                // New Syntax (v5+)
-                const { address: addr } = bitcoin.payments.p2pkh({ pubkey: keyPair.publicKey });
+                const { address: addr } = bitcoin.payments.p2pkh({ pubkey: keyPair.publicKey }); // New Style
                 address = addr;
             } else {
-                address = "Error: Unknown Lib Version";
+                address = "Error: Library incompatible";
             }
 
-            // 5. Display Results
+            // 5. Open the Drawer (Success!)
             document.getElementById('btc-keys').style.display = 'block';
             document.getElementById('btc-wif').innerText = keyPair.toWIF();
             document.getElementById('btc-addr').innerText = address;
             document.getElementById('btc-pub').innerText = keyPair.publicKey.toString('hex');
 
         } catch(e) {
-            console.error("Brainwallet Error:", e);
-            alert("Error: " + e.message + ". Check Console for details.");
+            // If it still fails, this alert will tell us EXACTLY why.
+            alert("Brainwallet Crash: " + e.message);
+            console.error(e);
         }
     },
+
     // 2. Timelock Generator (CLTV)
     calcTimelock: () => {
         if (typeof bitcoin === 'undefined') return alert("Error: Bitcoin Library not loaded.");
@@ -1513,4 +1511,5 @@ const app = {
 };
 
 window.onload = app.init;
+
 
