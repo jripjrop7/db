@@ -1308,7 +1308,7 @@ const app = {
     },
 
         // 2. Timelock Generator (CLTV) - FIXED
-    calcTimelock: () => {
+        calcTimelock: () => {
         if (typeof bitcoin === 'undefined') return alert("Error: Bitcoin Library not loaded.");
 
         const dateStr = document.getElementById('tl-date').value;
@@ -1317,21 +1317,40 @@ const app = {
         if (!dateStr || !pubKeyHex) return alert("Please enter a Date and a Public Key.");
 
         try {
-            // --- BUFFER FIX START ---
-            // Find the Buffer tool wherever it is hiding
+            // --- BUFFER FIX ---
             const B = (typeof Buffer !== 'undefined') ? Buffer : ((bitcoin.Buffer) ? bitcoin.Buffer : null);
-            if (!B) throw new Error("Browser environment missing Buffer support.");
-            // ------------------------
+            if (!B) throw new Error("Buffer missing.");
+            // ------------------
 
-            // 1. Convert Date to Unix Timestamp
+            // 1. Timestamp
             const lockTime = Math.floor(new Date(dateStr).getTime() / 1000);
             document.getElementById('tl-unix').innerText = lockTime;
 
-            // 2. Create the CLTV Script
-            // We use 'B.from' instead of just 'Buffer.from'
+            // 2. Create Script
+            // We use the older 'bitcoin.script.compile' which usually accepts numbers directly for ops
             const pubKeyBuffer = B.from(pubKeyHex, 'hex');
-            const lockTimeBuffer = bitcoin.script.number.encode(lockTime);
             
+            // Note: In older libs, 'bitcoin.script.number.encode' might be hidden or named differently.
+            // We can often pass the integer directly if the lib supports it, or use this manual encode:
+            const encodeNum = (n) => {
+                if (n === 0) return B.from([]);
+                let arr = [];
+                while (n > 0) {
+                    arr.push(n & 0xff);
+                    n >>= 8;
+                }
+                // Check if the most significant bit is set (needs padding for signed magnitude)
+                if (arr[arr.length - 1] & 0x80) {
+                    arr.push(0x00);
+                }
+                return B.from(arr);
+            };
+
+            // Try standard lib encoder, fallback to manual
+            const lockTimeBuffer = (bitcoin.script.number && bitcoin.script.number.encode) 
+                ? bitcoin.script.number.encode(lockTime) 
+                : encodeNum(lockTime);
+
             const redeemScript = bitcoin.script.compile([
                 lockTimeBuffer,
                 bitcoin.opcodes.OP_CHECKLOCKTIMEVERIFY,
@@ -1340,11 +1359,26 @@ const app = {
                 bitcoin.opcodes.OP_CHECKSIG
             ]);
 
-            // 3. Hash the script to get P2SH Address
-            const scriptPubKey = bitcoin.script.scriptHash.output.encode(bitcoin.crypto.hash160(redeemScript));
-            const address = bitcoin.address.fromOutputScript(scriptPubKey);
+            // 3. Generate Address (The part that was breaking)
+            // OLDER SYNTAX (Coinbin/v3/v4):
+            const scriptHash = bitcoin.crypto.hash160(redeemScript);
+            const scriptPubKey = bitcoin.script.scriptHash.output.encode(scriptHash); 
+            // ^ If this failed, we try the 'address.fromOutputScript' shortcut directly or manual P2SH
+            
+            let address = "";
+            if (bitcoin.address && bitcoin.address.toBase58Check) {
+                // Manual P2SH construction for very old libs
+                // 0x05 is Mainnet Script Hash (3...)
+                address = bitcoin.address.toBase58Check(scriptHash, 0x05);
+            } else if (bitcoin.address && bitcoin.address.fromOutputScript) {
+                address = bitcoin.address.fromOutputScript(scriptPubKey, bitcoin.networks.bitcoin);
+            } else {
+                // Fallback for v5+ if the above failed (but you likely have v4)
+                const { address: addr } = bitcoin.payments.p2sh({ redeem: { output: redeemScript, network: bitcoin.networks.bitcoin }, network: bitcoin.networks.bitcoin });
+                address = addr;
+            }
 
-            // Display Results
+            // Display
             document.getElementById('tl-res').style.display = 'block';
             document.getElementById('tl-addr').innerText = address;
             document.getElementById('tl-script').innerText = redeemScript.toString('hex');
@@ -1354,6 +1388,7 @@ const app = {
             alert("Timelock Error: " + e.message);
         }
     },
+
 
     // --- RAW TRANSACTION BUILDER (SPEND) - FIXED ---
     buildRawTx: () => {
@@ -1506,6 +1541,7 @@ const app = {
 };
 
 window.onload = app.init;
+
 
 
 
