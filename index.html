@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>BankrollOS</title>
+    <meta http-equiv="content-type" content="text/html;charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" href="css/bootstrap.min.css" media="screen">
+    <link rel="stylesheet" href="css/bootstrap-datetimepicker.min.css">
+    <link rel="stylesheet" href="css/style.css" media="screen">
+
+    <script type="text/javascript" src="js/jquery-1.9.1.min.js"></script>
+    <script type="text/javascript" src="js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="js/transition.js"></script>
+    <script type="text/javascript" src="js/collapse.js"></script>
+    
+    <script src="bitcoin.js"></script>
+</head>
+
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+
+<meta name="apple-mobile-web-app-status-bar-style" content="black"> 
+<meta name="theme-color" content="#050505">
+
+<link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIkJBTktST0xMIE9TIiwKICAic2hvcnRfbmFtZSI6ICJCQU5LUk9MTCIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzA1MDUwNSIsCiAgInRoZW1lX2NvbG9yIjogIiMwNTA1MDUiCn0=">
+
+    <link href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
+    <style>
+        :root {
+            --bg: #050505; --surface: #121212; --primary: #00E676; --success: #00C853; --error: #D50000; 
+            --text: #E0E0E0; --sub: #757575; --intense-orange: #FF3D00;
+            --poker: #00E5FF; --pokerT: #2979FF; --bets: #FF9100; --job: #E91E63; 
+            --sales: #D500F9; --crypto: #FFEA00; --dice: #2196F3; --casino: #009688; 
+            --kalshi: #651FFF; --expense: #EF5350; --misc: #9E9E9E;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Martian Mono', monospace; -webkit-tap-highlight-color: transparent; }
+        body { background-color: var(--bg); color: var(--text); padding-bottom: 90px; }
+        
+        .container { max-width: 600px; margin: 0 auto; padding: 3px; }
+        
+        .card { background: var(--surface); border: 1px solid #222; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .row { display: flex; justify-content: space-between; align-items: center; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+        
+        h1 { color: var(--intense-orange); font-size: 1.1rem; margin: 0; letter-spacing: -1px; text-shadow: 0 0 10px rgba(255, 61, 0, 0.2); }
+        h2 { font-size: 0.75rem; color: var(--intense-orange); margin-bottom: 12px; letter-spacing: 1px; text-transform: uppercase; font-weight: bold; }
+        .big-val { font-size: 2.2rem; font-weight: bold; color: var(--success); text-shadow: 0 0 20px rgba(0,200,83,0.15); }
+        .sub-val { font-size: 1.1rem; font-weight: bold; color: #fff; }
+        .neg { color: var(--error) !important; text-shadow: 0 0 20px rgba(213,0,0,0.15); }
+        .pos { color: var(--success) !important; }
+
+        .filter-bar { display: flex; flex-direction: column; gap: 6px; padding: 4px 4px; background: #0a0a0a; border-bottom: 1px solid #222; }
+        .filter-row-top { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; align-items: center; }
+        .filter-chip { white-space: nowrap; padding: 4px 10px; border-radius: 20px; background: #222; color: #777; font-size: 0.65rem; border: 1px solid #333; cursor: pointer; transition: 0.2s; }
+        .filter-chip.active { background: rgba(255, 61, 0, 0.15); color: var(--intense-orange); border-color: var(--intense-orange); }
+        
+        .search-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 2px; }
+        .search-input { background: #1a1a1a; border: 1px solid #333; color: white; padding: 0 10px; height: 32px; border-radius: 6px; font-family: inherit; font-size: 0.75rem; width: 100%; display: flex; align-items: center; }
+        .filter-btn { background: #222; border: 1px solid #333; color: var(--sub); padding: 0 12px; height: 32px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        
+        .date-range-container { display: none; align-items: center; gap: 5px; background: #222; padding: 4px; border-radius: 6px; border: 1px solid #333; }
+        .date-range-container.show { display: flex; }
+        .date-input-sm { background: transparent; border: none; color: white; font-family: inherit; font-size: 0.7rem; width: 85px; }
+
+        .nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #000; border-top: 1px solid #222; display: flex; justify-content: space-around; padding: 8px 0 20px 0; z-index: 100; }
+        .nav-item { color: var(--sub); text-align: center; font-size: 0.65rem; background: none; border: none; transition: 0.3s; }
+        .nav-item i { display: block; font-size: 22px; margin-bottom: 4px; }
+        .nav-item.active { color: var(--intense-orange); text-shadow: 0 0 10px rgba(255, 61, 0, 0.4); }
+        .fab { position: fixed; bottom: 85px; right: 15px; background: var(--intense-orange); color: #000; border: none; width: 55px; height: 55px; border-radius: 50%; box-shadow: 0 4px 12px rgba(255, 61, 0, 0.4); display: flex; align-items: center; justify-content: center; font-size: 28px; z-index: 99; }
+        
+        input, select, textarea { width: 100%; background: #1A1A1A; border: 1px solid #333; color: white; padding: 12px; border-radius: 8px; margin-bottom: 10px; font-family: inherit; font-size: 15px; appearance: none; }
+        input:focus, select:focus, textarea:focus { border-color: var(--intense-orange); outline: none; }
+        label { display: block; color: var(--sub); font-size: 0.65rem; margin-bottom: 4px; margin-left: 4px; text-transform: uppercase; font-weight: bold; }
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; margin-top: 8px; cursor: pointer; }
+        .btn-primary { background: var(--intense-orange); color: black; }
+        .btn-danger { background: var(--error); color: white; margin-top: 20px; }
+        .btn-sec { background: #333; color: white; }
+        .type-toggle { display: flex; margin-bottom: 15px; border-radius: 8px; overflow: hidden; border: 1px solid #333; }
+        .type-opt { flex: 1; padding: 12px; text-align: center; background: #111; color: #555; cursor: pointer; font-weight: bold; font-size: 0.8rem; }
+        .type-opt.inc.active { background: rgba(0,200,83,0.2); color: var(--success); border-bottom: 2px solid var(--success); }
+        .type-opt.exp.active { background: rgba(213,0,0,0.2); color: var(--error); border-bottom: 2px solid var(--error); }
+        
+        .tx-item { display: flex; align-items: center; padding: 14px; border-bottom: 1px solid #222; background: var(--surface); margin-bottom: 6px; border-radius: 6px; border-left-width: 6px; border-left-style: solid; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .tx-icon { width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px; font-size: 20px; font-weight: bold; flex-shrink: 0; }
+        .tx-info { flex-grow: 1; }
+        .tx-title { font-weight: bold; font-size: 0.9rem; margin-bottom: 3px; display:block; }
+        .tx-meta { font-size: 0.65rem; color: var(--sub); display: flex; flex-wrap: wrap; gap: 6px; }
+        .tx-tag { background: #222; padding: 2px 5px; border-radius: 3px; font-size: 0.6rem; color: #ccc; }
+        .tx-amt { font-weight: bold; font-size: 0.95rem; color: #fff; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 200; overflow-y: auto; padding: 10px; }
+        .modal.open { display: block; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .field-group { border: 1px solid #333; padding: 12px; border-radius: 8px; margin-bottom: 10px; background: #0A0A0A; }
+        .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; background: #1A1A1A; padding: 10px; border-radius: 8px; border: 1px solid #333; }
+        .toggle-switch { position: relative; width: 46px; height: 24px; background: #333; border-radius: 12px; cursor: pointer; transition: 0.3s; }
+        .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: white; border-radius: 50%; transition: 0.3s; }
+        .toggle-checkbox:checked + .toggle-switch { background: var(--intense-orange); }
+        .toggle-checkbox:checked + .toggle-switch::after { transform: translateX(22px); }
+        .toggle-checkbox { display: none; }
+
+        .heatmap-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-bottom: 20px; }
+        .heatmap-day { aspect-ratio: 1; border-radius: 3px; background: #222; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.6rem; color: #555; position: relative; cursor: pointer; }
+        .heatmap-day.win { background: rgba(0,230,118,0.2); border: 1px solid rgba(0,230,118,0.5); color: #fff; }
+        .heatmap-day.loss { background: rgba(213,0,0,0.2); border: 1px solid rgba(213,0,0,0.5); color: #fff; }
+        .hm-tooltip { display: none; position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%); background: #000; border: 1px solid #444; padding: 8px; border-radius: 6px; font-size: 0.7rem; color: white; white-space: pre-wrap; text-align: left; z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.9); min-width: 120px; line-height: 1.4; }
+        .heatmap-day:hover .hm-tooltip, .heatmap-day:active .hm-tooltip { display: block; }
+        .hm-date { font-size: 0.55rem; color: var(--sub); margin-bottom: 2px; }
+        .hm-val { font-weight: bold; font-size: 0.45rem; letter-spacing: -0.5px; }
+
+        .ticket-card { background: #1a1a1a; padding: 12px; margin-bottom: 8px; border-radius: 6px; position: relative; border: none; border-left-width: 6px; border-left-style: solid; border-right-width: 6px; border-right-style: solid; box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+        .ticket-status { position: absolute; top: 8px; right: 8px; font-size: 0.65rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; background: #333; z-index:10; } 
+        .ticket-status.won { background: var(--success); color:black; }
+        .ticket-status.lost { background: var(--error); color:white; }
+        .ticket-status.pending { background: #FF9100; color: black; }
+        .ticket-status.early { background: #FFEA00; color: black; }
+        .ticket-note { font-size: 0.7rem; color: #aaa; margin-top: 6px; font-style: italic; border-top: 1px solid #333; padding-top: 4px; }
+
+        .inv-card { background: #1a1a1a; border-left: 4px solid var(--sales); padding: 14px; margin-bottom: 8px; border-radius: 6px; position: relative; display: flex; justify-content: space-between; align-items: center; }
+        .inv-title { font-weight: bold; font-size: 0.9rem; color: var(--sales); margin-bottom: 4px; }
+        .inv-meta { font-size: 0.7rem; color: var(--sub); }
+        .inv-qty { font-size: 1.1rem; font-weight: bold; color: white; text-align: right; }
+        .inv-btn { background: var(--sales); color: black; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; margin-top: 6px; cursor: pointer; }
+
+        .note-card { background: #1A1A1A; padding: 12px; border-radius: 6px; margin-bottom: 8px; border-left-width: 6px; border-left-style: solid; position: relative; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .note-date { font-size: 0.6rem; color: var(--sub); margin-bottom: 4px; display: block; }
+        .note-header { font-weight: bold; font-size: 0.85rem; margin-bottom: 4px; color: #fff; }
+        .note-body { font-size: 0.75rem; color: #ccc; white-space: pre-wrap; line-height: 1.4; }
+        .color-opt { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; display: inline-block; margin-right: 5px; }
+        .color-opt.selected { border-color: white; transform: scale(1.1); }
+        
+        .filter-opt-row { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid #222; }
+        .filter-opt-label { font-size: 0.85rem; color: #ddd; display: flex; align-items: center; gap: 10px; }
+
+        #live-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 9999; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .live-minimize-btn { position: absolute; top: 20px; left: 20px; background: none; border: none; color: var(--sub); font-size: 30px; cursor: pointer; }
+        .timer { font-size: 3.5rem; font-weight: bold; color: white; margin: 20px 0; font-variant-numeric: tabular-nums; }
+        .timer.paused { color: var(--sub); animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+        
+        .calc-result-box { margin-top: 20px; padding: 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; text-align: center; }
+        .calc-res-label { font-size: 0.7rem; color: var(--sub); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .calc-res-val { font-size: 1.4rem; color: var(--intense-orange); font-weight: bold; }
+        .res-green { color: var(--success); } .res-red { color: var(--error); }
+
+        .stats-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; color: #ccc; white-space: nowrap; }
+        .stats-table th { text-align: left; border-bottom: 1px solid #333; padding: 6px 4px; color: var(--sub); font-weight: bold; }
+        .stats-table td { border-bottom: 1px solid #222; padding: 8px 4px; }
+        .stats-row-sport { border-left: 3px solid transparent; }
+
+        /* CALENDAR STYLES */
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .calendar-day-header { text-align: center; font-size: 0.6rem; color: var(--sub); padding: 5px 0; }
+        .calendar-day { aspect-ratio: 1; border-radius: 6px; background: #222; border: 1px solid #333; display: flex; flex-direction: column; padding: 4px; cursor: pointer; position: relative; }
+        .calendar-day.empty { background: transparent; border: none; cursor: default; }
+        .calendar-day.today { border-color: var(--intense-orange); }
+        .cal-num { font-size: 0.7rem; color: #777; font-weight: bold; }
+        .cal-val { font-size: 0.55rem; font-weight: bold; position: absolute; bottom: 4px; right: 4px; }
+        .cal-green { background: rgba(0, 200, 83, 0.15); border-color: rgba(0, 200, 83, 0.4); color: var(--success); }
+        .cal-red { background: rgba(213, 0, 0, 0.15); border-color: rgba(213, 0, 0, 0.4); color: var(--error); }
+
+        /* DRAWDOWN CHART STYLES */
+        .drawdown-chart-container { position: relative; height: 200px; width: 100%; }
+
+        /* PROGRESS BAR & HOF STYLES */
+        .progress-container { width: 100%; background: #222; height: 12px; border-radius: 6px; overflow: hidden; margin-top: 8px; border: 1px solid #333; }
+        .progress-bar { height: 100%; background: linear-gradient(90deg, var(--intense-orange), var(--success)); width: 0%; transition: width 0.5s ease-in-out; }
+        
+        .hof-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+        .hof-item { background: #1a1a1a; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #333; }
+        .hof-label { font-size: 0.6rem; color: var(--sub); text-transform: uppercase; margin-bottom: 4px; letter-spacing: 1px; }
+        .hof-val { font-size: 1.1rem; font-weight: bold; color: #fff; }
+        .hof-icon { font-size: 24px; margin-bottom: 5px; color: var(--intense-orange); }
+/* --- NEW TOOL STYLES --- */
+.research-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 15px; }
+.research-btn { background: #222; border: 1px solid #333; color: white; padding: 10px; border-radius: 6px; font-size: 0.75rem; text-align: center; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.research-btn:hover { background: #333; border-color: #00E676; }
+
+.parlay-leg-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; background: #0A0A0A; padding: 6px; border-radius: 6px; border: 1px solid #333; }
+.parlay-stats { margin-top: 15px; background: #000; padding: 10px; border-radius: 6px; border: 1px solid #333; }
+.parlay-stat-row { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px; color: #ccc; }
+.parlay-val-highlight { color: #FF3D00; font-weight: bold; }
+
+/* --- RECURRING EXPENSES STYLES --- */
+.bill-row { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 8px; align-items: center; margin-bottom: 8px; padding: 8px; background: #0A0A0A; border: 1px solid #333; border-radius: 6px; }
+.bill-row input { margin-bottom: 0; padding: 8px; font-size: 0.75rem; }
+.bill-btn-del { background: none; border: none; color: #555; cursor: pointer; padding: 0 5px; }
+.bill-btn-del:hover { color: var(--error); }
+
+.rec-stats-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; color: #ccc; }
+.rec-stats-table th { text-align: left; color: var(--sub); padding: 6px 4px; border-bottom: 1px solid #333; }
+.rec-stats-table td { padding: 8px 4px; border-bottom: 1px solid #222; vertical-align: middle; }
+.rec-pay-btn { background: var(--primary); color: #000; border: none; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.65rem; }
+
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; background: var(--surface); border-bottom: 1px solid #222; height: 48px;">
+            <button onclick="app.toggleLive()" style="background:none; border:none; color:var(--intense-orange);"><i class="material-icons-round" style="font-size:24px;">play_circle_filled</i></button>
+            <h1>BANKROLL OS</h1>
+            <button onclick="app.openSettings()" style="background:none; border:none; color:var(--sub);"><i class="material-icons-round" style="font-size:20px;">settings</i></button>
+        </div>
+
+        <div class="filter-bar">
+            <div class="filter-row-top">
+                <div class="filter-chip active" id="filter-all" onclick="app.setFilter('all')">ALL</div>
+                <div class="filter-chip" id="filter-day" onclick="app.setFilter('day')">DAY</div>
+                <div class="filter-chip" id="filter-week" onclick="app.setFilter('week')">WEEK</div>
+                <div class="filter-chip" id="filter-month" onclick="app.setFilter('month')">MONTH</div>
+                <div class="filter-chip" id="filter-year" onclick="app.setFilter('year')">YEAR</div>
+                <div class="filter-chip" id="filter-custom" onclick="app.toggleCustomDate()">RANGE</div>
+                
+                <div id="custom-date-range" class="date-range-container">
+                    <input type="date" id="date-start" class="date-input-sm" onchange="app.setFilter('custom')">
+                    <span style="color:#555; font-size:10px;">to</span>
+                    <input type="date" id="date-end" class="date-input-sm" onchange="app.setFilter('custom')">
+                </div>
+            </div>
+            
+            <div class="search-row">
+                <input type="text" id="search-term" class="search-input" placeholder="Search titles, notes, desc..." oninput="app.render()">
+                <button class="filter-btn" onclick="app.openFilterModal()"><i class="material-icons-round" style="font-size:18px;">filter_list</i></button>
+            </div>
+        </div>
+        <div id="view-dash" class="container">
+            <div class="card" id="goal-card">
+                <div class="row">
+                    <h2 style="margin:0;" id="goal-label">BANKROLL GOAL</h2>
+                    <button onclick="app.openGoalModal()" style="background:none; border:none; color:var(--sub); font-size:16px;"><i class="material-icons-round">edit</i></button>
+                </div>
+                <div class="row" style="margin-top:8px;">
+                    <span style="font-size:0.8rem; color:#fff;" id="goal-current">$0</span>
+                    <span style="font-size:0.8rem; color:var(--sub);" id="goal-target">/ $10,000</span>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar" id="goal-bar"></div>
+                </div>
+                <div style="text-align:right; font-size:0.6rem; color:var(--primary); margin-top:4px;" id="goal-pct">0%</div>
+            </div>
+
+            <div class="card">
+                <h2 style="margin-bottom:5px;">NET LIQUIDITY (TOTAL)</h2>
+                <div class="big-val" id="total-liquidity">$0.00</div>
+                <div style="margin-top: 15px; border-top: 1px solid #333; padding-top: 10px;">
+                    <div class="row">
+                        <span style="font-size:0.8rem; color:var(--sub); text-transform:uppercase;">Period P/L</span>
+                        <span id="period-profit" class="sub-val">$0.00</span>
+                    </div>
+                </div>
+                <div class="row" style="margin-top: 10px;">
+                    <div><span style="font-size:0.7rem; color:var(--crypto);">CRYPTO</span> <span id="crypto-mini" style="font-weight:bold;">$0</span></div>
+                    <div><span style="font-size:0.7rem; color:var(--job);">401K</span> <span id="401k-mini" style="font-weight:bold;">$0</span></div>
+                </div>
+            </div>
+                <div id="tx-list"></div>
+</div>  <div id="view-tickets" class="container" style="display:none;">
+            <div class="row" style="margin-bottom:10px; padding: 0 4px;">
+                <h2 style="margin:0;">ACTIVE TICKETS</h2>
+                <button onclick="app.openTicketModal()" style="background:none; border:none; color:var(--intense-orange); font-size:24px;">+</button>
+            </div>
+            <div id="ticket-list"></div>
+        </div>
+        <div id="view-tools" class="container" style="display:none;">
+            <div class="row" style="margin-bottom:10px; padding:0 4px;">
+                <h2 style="margin:0;">QUICK NOTES</h2>
+                <button onclick="app.openNoteModal()" style="background:none; border:none; color:var(--primary); font-size:12px; font-weight:bold;">+ ADD NOTE</button>
+            </div>
+            <div id="notes-list" style="margin-bottom: 30px;"></div>
+
+            <div class="row" style="margin-bottom:10px; padding:0 4px;">
+                <h2 style="margin:0;">INVENTORY</h2>
+                <button onclick="app.openInvAddModal()" style="background:none; border:none; color:var(--sales); font-size:24px;">+</button>
+            </div>
+            <div id="inventory-list"></div>
+       
+<div class="card">
+    <h2>RECURRING BILLS & EXPENSES</h2>
+    <div style="display:grid; grid-template-columns: 2fr 1fr 1fr auto; gap:8px; margin-bottom:5px; padding:0 8px;">
+        <label>NAME</label><label>COST ($)</label><label>DUE (1-31)</label><label></label>
+    </div>
+    <div id="recurring-tools-list"></div>
+    <button class="btn btn-sec" onclick="app.addRecurring()">+ ADD BILL</button>
+</div>
+     
+<div class="card" style="border-color: #00E676;">
+    <h2>PROP INTELLIGENCE HUB</h2>
+    <div class="grid">
+        <div>
+            <label>LEAGUE</label>
+            <select id="res-league">
+                <option value="NBA">NBA</option>
+                <option value="NFL">NFL</option>
+                <option value="MLB">MLB</option>
+                <option value="NHL">NHL</option>
+            </select>
+        </div>
+        <div>
+            <label>PLAYER NAME</label>
+            <input type="text" id="res-player" placeholder="e.g. Jokic">
+        </div>
+    </div>
+    <div class="research-grid">
+        <div class="research-btn" onclick="app.launchResearch('L10')">Last 10 Games</div>
+        <div class="research-btn" onclick="app.launchResearch('H/A')">Home/Away</div>
+        <div class="research-btn" onclick="app.launchResearch('VS')">Vs Opponent</div>
+        <div class="research-btn" onclick="app.launchResearch('OVER')">Hit Rate (Google)</div>
+    </div>
+</div>
+
+<div class="card" style="border-top: 4px solid #FF9100;">
+    <h2>BITCOIN CRYPTO VAULT</h2>
+    <div style="background:rgba(213,0,0,0.2); color:#ff8a80; padding:8px; font-size:0.7rem; border-radius:4px; margin-bottom:15px; border:1px solid #D50000;">
+        <strong>WARNING:</strong> Brainwallets are insecure. Use high-entropy passphrases only. For Timelocks, you <u>MUST</u> save the Redeem Script, or your funds will be lost forever.
+    </div>
+
+    <h3 style="color:#fff; font-size:0.85rem; margin-bottom:8px;">1. BRAINWALLET CONVERTER</h3>
+    <label>PASSPHRASE (Brainwallet)</label>
+    <input type="text" id="btc-pass" placeholder="Enter a long, complex phrase..." oninput="app.calcBrainwallet()">
+    
+    <div id="btc-keys" style="display:none; margin-top:10px;">
+        <label>PRIVATE KEY (WIF)</label>
+        <div class="code-box" id="btc-wif" onclick="app.copyText(this.innerText)">-</div>
+        <label>PUBLIC ADDRESS</label>
+        <div class="code-box" id="btc-addr" onclick="app.copyText(this.innerText)">-</div>
+        <label>PUBLIC KEY (HEX) - Use for Timelock</label>
+        <div class="code-box" id="btc-pub" onclick="app.copyText(this.innerText)" style="color:#FFEA00;">-</div>
+    </div>
+
+    <hr style="border:0; border-top:1px solid #333; margin:20px 0;">
+
+    <h3 style="color:#fff; font-size:0.85rem; margin-bottom:8px;">2. TIMELOCK ADDRESS GENERATOR</h3>
+    <label>UNLOCK DATE</label>
+    <input type="date" id="tl-date">
+    <label>RECIPIENT PUBLIC KEY (HEX)</label>
+    <input type="text" id="tl-pub" placeholder="Paste Public Key from above (starts with 02 or 03)">
+    
+    <button class="btn btn-primary" onclick="app.calcTimelock()">GENERATE CLTV ADDRESS</button>
+
+    <div id="tl-res" style="display:none; margin-top:15px; background:#111; padding:10px; border-radius:6px; border:1px solid #FF9100;">
+        <label style="color:#FF9100">PAY TO THIS ADDRESS (P2SH)</label>
+        <div class="code-box" id="tl-addr" style="font-size:0.9rem; color:#fff; word-break:break-all;">-</div>
+        
+        <label style="color:#FF3D00; margin-top:10px;">REDEEM SCRIPT (SAVE THIS!)</label>
+        <div class="code-box" id="tl-script" style="font-size:0.65rem; color:#aaa; word-break:break-all;">-</div>
+        
+        <div style="margin-top:10px; font-size:0.7rem; color:#777;">
+            <strong>To Spend:</strong> Use Coinb.in > New Transaction.<br>
+            1. Load this Redeem Script.<br>
+            2. Set "LockTime" to <span id="tl-unix" style="color:#fff">-</span>.<br>
+            3. Sign with the Private Key.
+        </div>
+    </div>
+</div>
+
+<style>
+.code-box { background: #000; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.75rem; color: #00E676; cursor: pointer; border: 1px solid #333; margin-bottom: 8px; word-break: break-all; }
+.code-box:active { background: #222; }
+</style>
+
+<div class="card" style="border-top: 4px solid #D50000;">
+    <h2>RAW TRANSACTION BUILDER (SPEND)</h2>
+    <div style="background:rgba(255, 61, 0, 0.1); padding:8px; border-radius:4px; font-size:0.7rem; color:#aaa; margin-bottom:15px; border:1px solid #333;">
+        <strong>Use this to spend Time-Locked funds.</strong><br>
+        You need the <u>Redeem Script</u> and the original <u>Unlock Date</u> (Unix Timestamp).
+    </div>
+
+    <h3 style="color:#fff; font-size:0.85rem; margin-bottom:8px;">1. INPUT (SOURCE FUNDS)</h3>
+    <div class="grid">
+        <div><label>PREV TX ID (HEX)</label><input type="text" id="rt-txid" placeholder="Paste Tx ID of funding transaction"></div>
+        <div><label>OUTPUT INDEX (N)</label><input type="number" id="rt-n" placeholder="0"></div>
+    </div>
+    <label>REDEEM SCRIPT (HEX)</label>
+    <input type="text" id="rt-script" placeholder="Paste the long script from the Vault tool">
+    
+    <div class="grid">
+        <div><label>LOCKTIME (UNIX)</label><input type="number" id="rt-lock" placeholder="e.g. 1767225600"></div>
+        <div><label>SEQUENCE</label><input type="text" id="rt-seq" value="0xfffffffe" readonly style="color:#555;"></div>
+    </div>
+
+    <hr style="border:0; border-top:1px solid #333; margin:20px 0;">
+
+    <h3 style="color:#fff; font-size:0.85rem; margin-bottom:8px;">2. OUTPUT (DESTINATION)</h3>
+    <div class="grid">
+        <div><label>DESTINATION ADDRESS</label><input type="text" id="rt-dest" placeholder="1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2"></div>
+        <div><label>AMOUNT (SATOSHIS)</label><input type="number" id="rt-sats" placeholder="e.g. 50000"></div>
+    </div>
+    <div style="font-size:0.7rem; color:#777; margin-top:-5px; margin-bottom:15px;">Note: 1 BTC = 100,000,000 Satoshis. Ensure you leave room for fees (e.g. 500-1000 sats).</div>
+
+    <h3 style="color:#fff; font-size:0.85rem; margin-bottom:8px;">3. SIGN & BUILD</h3>
+    <label>PRIVATE KEY (WIF)</label>
+    <input type="password" id="rt-wif" placeholder="Private Key (starts with 5, L, or K)">
+    
+    <button class="btn btn-primary" onclick="app.buildRawTx()">BUILD TRANSACTION</button>
+
+                <div id="rt-res" style="display:none; margin-top:15px; background:#111; padding:10px; border-radius:6px; border:1px solid #D50000;">
+        <label style="color:#D50000">SIGNED RAW TRANSACTION (HEX)</label>
+        <div class="code-box" id="rt-hex" onclick="app.copyText(this.innerText)" style="font-size:0.65rem; color:#fff; word-break:break-all;">-</div>
+        
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="btn btn-primary" id="btn-broadcast" onclick="app.broadcastTx()" style="background:#D50000; color:#fff; flex:1;">
+                🚀 BROADCAST TO NETWORK
+            </button>
+            <button class="btn btn-sec" onclick="app.copyText(document.getElementById('rt-hex').innerText)" style="flex:1;">
+                COPY HEX
+            </button>
+        </div>
+        
+                <div id="bc-status" style="margin-top:10px; font-size:0.7rem; color:#aaa; font-weight:bold; text-align:center;"></div>
+    </div>
+</div> <div class="card">
+    <h2>STRATEGY SIMULATOR (1,000 RUNS)</h2>
+    <div class="grid">
+        <div><label>WAGER ($)</label><input type="number" id="mc-wager" placeholder="100"></div>
+        <div><label>ODDS (AM)</label><input type="text" id="mc-odds" placeholder="-110"></div>
+    </div>
+    <label>WIN PROBABILITY (%)</label><input type="number" id="mc-prob" placeholder="55">
+    <button class="btn btn-primary" onclick="app.runMonteCarlo()">RUN SIMULATION</button>
+    <div id="mc-res" style="margin-top:10px; display:none; border:1px solid #333; padding:10px; border-radius:6px; font-size:0.75rem;"></div>
+</div>
+
+<div class="card">
+    <h2>PARLAY ARCHITECT & VALUE CHECKER</h2>
+    <div id="parlay-legs-container"></div>
+    <button class="btn btn-sec" onclick="app.addParlayLeg()" style="margin-bottom:15px;">+ ADD LEG</button>
+    
+    <label>SPORTSBOOK OFFERED PAYOUT (+)</label>
+    <input type="number" id="parlay-offer" placeholder="e.g. +400" oninput="app.calcParlay()">
+
+    <div class="parlay-stats" id="parlay-results" style="display:none;">
+        <div class="parlay-stat-row"><span>True Odds:</span> <span id="pl-true" class="parlay-val-highlight">-</span></div>
+        <div class="parlay-stat-row"><span>Implied Prob:</span> <span id="pl-prob">-</span></div>
+        <div class="parlay-stat-row"><span>EV / Value:</span> <span id="pl-ev">-</span></div>
+        <div class="parlay-stat-row" style="margin-top:8px; padding-top:8px; border-top:1px solid #333; color:#00E676;">
+            <span>Kelly Bet:</span> <span id="pl-kelly" style="font-weight:bold;">-</span>
+        </div>
+    </div>
+</div>
+<div class="card">
+    <h2>ARBITRAGE SNIPER (RISK FREE)</h2>
+    <div class="grid">
+        <div><label>ODDS A (American)</label><input type="text" id="arb-odds-a" placeholder="-110" oninput="app.calcArb()"></div>
+        <div><label>ODDS B (American)</label><input type="text" id="arb-odds-b" placeholder="+105" oninput="app.calcArb()"></div>
+    </div>
+    <label>TOTAL STAKE ($)</label><input type="number" id="arb-stake" placeholder="100" oninput="app.calcArb()">
+    
+    <div id="arb-result" style="display:none; background:#111; padding:10px; border-radius:6px; margin-top:10px; border:1px solid #333;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+            <span>Bet on A:</span><span id="arb-bet-a" style="font-weight:bold; color:#fff;">-</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+            <span>Bet on B:</span><span id="arb-bet-b" style="font-weight:bold; color:#fff;">-</span>
+        </div>
+        <div style="text-align:center; font-weight:bold; font-size:1.1rem; margin-top:10px;" id="arb-profit">-</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>BREAK-EVEN % CALCULATOR</h2>
+    <label>ODDS (American or Decimal)</label>
+    <div style="display:flex; gap:10px;">
+        <input type="text" id="be-odds" placeholder="-110" style="margin:0;">
+        <button class="btn btn-primary" style="margin:0; width:auto;" onclick="app.calcBreakEven()">CALC</button>
+    </div>
+    <div id="be-res" style="margin-top:10px; text-align:center; font-size:1.2rem; font-weight:bold; color:#fff; display:none;">
+        Need <span id="be-val" style="color:#FF3D00;">52.4%</span> Win Rate
+    </div>
+</div>
+<div class="card">
+    <h2>POKER POT ODDS & DECISION</h2>
+    <div class="grid">
+        <div><label>CURRENT POT ($)</label><input type="number" id="po-pot" placeholder="100"></div>
+        <div><label>TO CALL ($)</label><input type="number" id="po-call" placeholder="50"></div>
+    </div>
+    <div class="grid">
+        <div><label>OUTS (Cards helping you)</label><input type="number" id="po-outs" placeholder="9"></div>
+        <div><label>STREET</label><select id="po-street"><option value="4">Flop (2 Cards to come)</option><option value="2">Turn (1 Card to come)</option></select></div>
+    </div>
+    <button class="btn btn-sec" onclick="app.calcPotOdds()">ANALYZE CALL</button>
+    <div id="po-res" style="margin-top:10px; padding:10px; border-radius:6px; display:none; border:1px solid #333;"></div>
+</div>
+
+<div class="card">
+    <h2>EXPECTED VALUE (EV)</h2>
+    <div class="grid">
+        <div><label>WAGER ($)</label><input type="number" id="ev-wager" placeholder="100"></div>
+        <div><label>ODDS (American)</label><input type="text" id="ev-odds" placeholder="+120"></div>
+    </div>
+    <label>YOUR WIN PROBABILITY (%)</label><input type="number" id="ev-prob" placeholder="50">
+    <button class="btn btn-primary" onclick="app.calcEV()">CALCULATE EV</button>
+    <div id="ev-res" style="margin-top:10px; text-align:center; font-size:1.3rem; font-weight:bold; color:#fff;"></div>
+</div>
+
+<div class="card">
+    <h2>BANKROLL GROWTH PROJECTOR</h2>
+    <div class="grid">
+        <div><label>START BANKROLL</label><input type="number" id="cg-start" placeholder="1000"></div>
+        <div><label>DAILY GROWTH %</label><input type="number" id="cg-pct" placeholder="1.5"></div>
+    </div>
+    <label>DAYS TO SIMULATE</label><input type="number" id="cg-days" placeholder="30">
+    <button class="btn btn-sec" onclick="app.calcGrowth()">PROJECT FUTURE</button>
+    <div id="cg-res" style="margin-top:10px; text-align:center; font-size:1.1rem; color:#fff;"></div>
+</div>
+
+<div class="card">
+    <h2>LOSING STREAK PROBABILITY</h2>
+    <label>MY WIN RATE (%)</label><input type="number" id="sv-rate" placeholder="55">
+    <label>SAMPLE SIZE (Games)</label><input type="number" id="sv-sample" placeholder="100">
+    <button class="btn btn-sec" style="background:#333; color:#aaa;" onclick="app.calcStreak()">CALCULATE RISK</button>
+    <div id="sv-res" style="margin-top:10px; font-size:0.8rem; color:#ccc; line-height:1.6;"></div>
+</div>
+
+<div class="card">
+    <h2>POKER M-RATIO (TOURNAMENT)</h2>
+    <div class="grid">
+        <div><label>STACK</label><input type="number" id="pm-stack" placeholder="15000"></div>
+        <div><label>ANTE (TOTAL)</label><input type="number" id="pm-ante" placeholder="0"></div>
+    </div>
+    <div class="grid">
+        <div><label>SMALL BLIND</label><input type="number" id="pm-sb" placeholder="100"></div>
+        <div><label>BIG BLIND</label><input type="number" id="pm-bb" placeholder="200"></div>
+    </div>
+    <button class="btn btn-sec" onclick="app.calcM()">CALCULATE STATUS</button>
+    <div id="pm-res" style="margin-top:10px; text-align:center; padding:10px; border-radius:6px; font-weight:bold; display:none;"></div>
+</div>
+
+<div class="card">
+    <h2>UNIT SIZER (BANKROLL PROTECTOR)</h2>
+    <div class="grid">
+        <div><label>TOTAL BANKROLL</label><input type="number" id="us-bank" placeholder="5000"></div>
+        <div><label>RISK %</label><input type="number" id="us-pct" placeholder="1"></div>
+    </div>
+    <button class="btn btn-sec" onclick="app.calcUnit()">GET MAX BET</button>
+    <div id="us-res" style="margin-top:10px; text-align:center; font-size:1.3rem; font-weight:bold; color:#fff;"></div>
+</div>
+
+            <div class="card" style="margin-top:30px;">
+                <h2>HEDGE CALCULATOR (PARLAY)</h2>
+                <label>POTENTIAL PARLAY PAYOUT ($)</label><input type="number" id="hedge-win" placeholder="e.g. 1000">
+                <label>HEDGE ODDS (AMERICAN + / -)</label><input type="text" id="hedge-odds" placeholder="e.g. +150">
+                <button class="btn btn-primary" onclick="app.calcHedge()">CALCULATE HEDGE</button>
+                <div id="hedge-result-box" class="calc-result-box" style="display:none;">
+                    <div class="calc-res-label">HEDGE BET AMOUNT</div><div id="hedge-bet" class="calc-res-val">$0.00</div>
+                    <div class="calc-res-label" style="margin-top:15px;">GUARANTEED RETURN</div><div id="hedge-guaranteed" class="calc-res-val" style="color:var(--success);">$0.00</div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:10px;">
+                <h2>KELLY CALCULATOR</h2>
+                <label>BANKROLL ($)</label><input type="number" id="kelly-bank" placeholder="e.g. 5000">
+                <label>ODDS (AMERICAN + / -)</label><input type="text" id="kelly-odds" placeholder="e.g. +110 or -200">
+                <label>WIN PROBABILITY (%)</label><input type="number" id="kelly-win" placeholder="e.g. 55">
+                <button class="btn btn-primary" onclick="app.calcKelly()">CALCULATE BET</button>
+                <div id="kelly-result-box" class="calc-result-box" style="display:none;">
+                    <div class="calc-res-label">RECOMMENDED BET</div><div id="kelly-final" class="calc-res-val">$0.00</div>
+                    <div id="kelly-pct" style="color:var(--sub); font-size:0.8rem; margin-top:5px;">0%</div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:10px;">
+                <h2>FAIR ODDS (NO VIG) CALCULATOR</h2>
+                <div class="grid">
+                    <div><label>SIDE A ODDS (AM)</label><input type="text" id="fv-odds-a" placeholder="-110"></div>
+                    <div><label>SIDE B ODDS (AM)</label><input type="text" id="fv-odds-b" placeholder="-110"></div>
+                </div>
+                <button class="btn btn-primary" onclick="app.calcFairValue()">CALCULATE TRUE ODDS</button>
+                <div id="fv-result-box" class="calc-result-box" style="display:none;">
+                    <div class="grid">
+                        <div><div class="calc-res-label">FAIR SIDE A</div><div id="fv-res-a" class="calc-res-val" style="font-size:1.1rem;">-</div></div>
+                                                <div><div class="calc-res-label">FAIR SIDE B</div><div id="fv-res-b" class="calc-res-val" style="font-size:1.1rem;">-</div></div>
+                        
+            </div> </div> </div> </div> <div id="view-stats" class="container" style="display:none;">
+
+            <div class="card">
+                <h2>GROWTH CHART</h2>
+                <canvas id="mainChart" height="250"></canvas>
+            </div>
+
+<div class="card">
+    <h2>RECURRING EXPENSES TRACKER</h2>
+    <div style="overflow-x:auto;">
+        <table class="rec-stats-table">
+            <thead>
+                <tr><th>BILL</th><th>COST</th><th>DUE</th><th>PAID (PERIOD)</th><th>ACTION</th></tr>
+            </thead>
+            <tbody id="recurring-stats-body"></tbody>
+        </table>
+    </div>
+</div>
+
+            <div class="card">
+                <h2>HALL OF FAME</h2>
+                <div id="hof-grid" class="hof-grid"></div>
+            </div>
+
+            <div class="card">
+                <h2>PERFORMANCE / ROI</h2>
+                <div style="overflow-x:auto;">
+                    <table class="stats-table" id="roi-table">
+                        <thead><tr><th>CAT/SPORT</th><th>ROI</th><th>WIN%</th><th>NET</th></tr></thead>
+                        <tbody id="roi-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>MAX DRAWDOWN % (FROM ATH)</h2>
+                <div class="drawdown-chart-container">
+                    <canvas id="drawdownChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="calendar-header">
+                    <h2 id="cal-month-label" style="margin:0;">MONTH YEAR</h2>
+                    <div>
+                        <button onclick="app.changeMonth(-1)" style="background:none; border:none; color:var(--sub); font-size:24px; cursor:pointer;"><i class="material-icons-round">chevron_left</i></button>
+                        <button onclick="app.changeMonth(1)" style="background:none; border:none; color:var(--sub); font-size:24px; cursor:pointer;"><i class="material-icons-round">chevron_right</i></button>
+                    </div>
+                </div>
+                <div class="calendar-grid" id="calendar-grid"></div>
+            </div>
+
+            <div class="card">
+                <h2>DAILY NET (35-DAY)</h2>
+                <div id="heatmap" class="heatmap-grid"></div>
+            </div>
+            <div class="card">
+                <h2>DAILY EXPENSE MAGNITUDE</h2>
+                <canvas id="expenseChart" height="200"></canvas>
+            </div>
+            <div class="card">
+                <h2>SPORTS PERFORMANCE (P/L)</h2>
+                <canvas id="sportsBarChart" height="200"></canvas>
+            </div>
+            <div class="card">
+                <h2>INCOME SOURCES</h2>
+                <canvas id="pieIncome" height="200"></canvas>
+            </div>
+            <div class="card">
+                <h2>LEAKS</h2>
+                <canvas id="pieLeaks" height="200"></canvas>
+            </div>
+            <div class="card">
+                <h2>EXPENSES</h2>
+                <canvas id="pieExpenses" height="200"></canvas>
+            </div>
+            <button class="btn btn-primary" onclick="app.copyReport()">COPY REPORT</button></div>
+        </div>
+        <div id="view-crypto" class="container" style="display:none;">
+            <div class="card"><h2>CRYPTO PORTFOLIO</h2><div class="big-val" id="crypto-total-display">$0</div></div>
+            <div class="card"><label>BITCOIN (BTC)</label><div class="row"><span id="btc-price" style="color:var(--sub);">Loading...</span></div><input type="number" id="btc-holdings" placeholder="0.00" oninput="app.calcCrypto()"></div>
+            <div class="card"><label>ETHEREUM (ETH)</label><div class="row"><span id="eth-price" style="color:var(--sub);">Loading...</span></div><input type="number" id="eth-holdings" placeholder="0.00" oninput="app.calcCrypto()"></div>
+        </div>
+        <div id="modal-settings" class="modal">
+            <div class="container">
+                <div class="modal-header"><h1>SETTINGS</h1><i class="material-icons-round" style="color:white; cursor:pointer;" onclick="document.getElementById('modal-settings').classList.remove('open')">close</i></div>
+                <div class="card">
+                    <h2>DATA MANAGEMENT</h2>
+                    <button class="btn btn-primary" onclick="app.downloadBackup()">DOWNLOAD JSON BACKUP</button>
+                    <button class="btn btn-sec" style="margin-top:10px;" onclick="app.downloadCSV()">DOWNLOAD CSV (EXCEL)</button>
+                </div>
+                <div class="card"><h2>MANUAL EXPORT (COPY)</h2><textarea id="export-area" rows="5" readonly onclick="this.select()"></textarea><button class="btn btn-sec" onclick="app.copyExport()">COPY TO CLIPBOARD</button></div>
+                <div class="card"><h2>IMPORT DATA</h2><textarea id="import-area" rows="5" placeholder='Paste JSON here'></textarea><button class="btn btn-primary" onclick="app.importData()">IMPORT & OVERWRITE</button></div>
+            </div>
+        </div>
+
+        <div id="modal-filter" class="modal">
+            <div class="container">
+                <div class="modal-header"><h1>FILTER CATEGORIES</h1><i class="material-icons-round" style="color:white; cursor:pointer;" onclick="app.closeFilterModal()">close</i></div>
+                <div class="card" id="filter-options-list"></div>
+                <button class="btn btn-primary" onclick="app.applyFilters()">APPLY FILTERS</button>
+            </div>
+        </div>
+
+        <div id="modal-note" class="modal">
+            <div class="container">
+                <div class="modal-header"><h1 id="note-modal-title">EDIT NOTE</h1><i class="material-icons-round" style="color:white; cursor:pointer;" onclick="document.getElementById('modal-note').classList.remove('open')">close</i></div>
+                <label>DATE & TIME</label><input type="datetime-local" id="note-date">
+                <label>TITLE</label><input type="text" id="note-title" placeholder="Note Title">
+                <label>COLOR</label>
+                <div id="note-color-selector" style="margin-bottom:15px; display:flex; gap:10px;"></div>
+                <label>CONTENT</label><textarea id="note-body" rows="6" placeholder="Type here..."></textarea>
+                <button class="btn btn-primary" onclick="app.saveNote()">SAVE NOTE</button>
+                <button class="btn btn-danger" id="btn-delete-note" onclick="app.deleteNote()">DELETE NOTE</button>
+            </div>
+        </div>
+
+        <div id="modal-inv-add" class="modal">
+            <div class="container">
+                <div class="modal-header"><h1>ADD INVENTORY</h1><i class="material-icons-round" style="color:white; cursor:pointer;" onclick="document.getElementById('modal-inv-add').classList.remove('open')">close</i></div>
+                <label>ITEM NAME</label><input type="text" id="inv-name">
+                <div class="grid"><div><label>QTY</label><input type="number" id="inv-qty"></div><div><label>TOTAL COST ($)</label><input type="number" id="inv-cost"></div></div>
+                <button class="btn" style="background:var(--sales); color:black;" onclick="app.saveInventory()">ADD TO STOCK</button>
+            </div>
+        </div>
+
+        <div id="modal-inv-sell" class="modal">
+            <div class="container">
+                <div class="modal-header"><h1>SELL ITEM</h1><i class="material-icons-round" style="color:white; cursor:pointer;" onclick="document.getElementById('modal-inv-sell').classList.remove('open')">close</i></div>
+                <h2 id="sell-item-title" style="color:white; margin-bottom:20px;"></h2>
+                <div class="grid"><div><label>QTY SOLD</label><input type="number" id="sell-qty"></div><div><label>PRICE PER ITEM ($)</label><input type="number" id="sell-price"></div></div>
+                <button class="btn" style="background:var(--sales); color:black;" onclick="app.processSale()">COMPLETE SALE</button>
+            </div>
+        </div>
+
+        <div id="modal-goal" class="modal">
+            <div class="container">
+                <div class="modal-header"><h1>SET TARGET</h1><i class="material-icons-round" style="color:white; cursor:pointer;" onclick="document.getElementById('modal-goal').classList.remove('open')">close</i></div>
+                <label>BANKROLL GOAL ($)</label>
+                <input type="number" id="goal-target-input" placeholder="e.g. 10000">
+                <button class="btn btn-primary" onclick="app.saveGoal()">UPDATE GOAL</button>
+            </div>
+        </div>
+
+        <div id="modal-form" class="modal">
+            <div class="container">
+                <div class="modal-header"><h1 id="modal-title">NEW RECORD</h1><i class="material-icons-round" style="color:white; cursor:pointer;" onclick="app.closeModal()">close</i></div>
+                <div class="type-toggle" id="type-toggle-container"><div class="type-opt inc active" id="btn-inc" onclick="app.setType('inc')">INCOME (+)</div><div class="type-opt exp" id="btn-exp" onclick="app.setType('exp')">EXPENSE (-)</div></div>
+                <label>CATEGORY</label>
+                <select id="inp-cat" onchange="app.renderDynamicFields()">
+                    <option value="expenses">Expense / Bill</option>
+                    <option value="bets">Sports Betting</option>
+                    <option value="kalshi">Kalshi (Prediction Mkt)</option>
+                    <option value="dice">Dice</option>
+                    <option value="casino">Casino</option>
+                    <option value="job">Job / Paycheck</option>
+                    <option value="miscIncome">Misc Income</option>
+                    <option value="pokerCash">Poker (Cash Game)</option>
+                    <option value="pokerTourney">Poker (Tournament)</option>
+                    <option value="sales">Reselling / Business</option>
+                    <option value="crypto">Crypto Trade</option>
+                </select>
+                <label>DATE & TIME</label><input type="datetime-local" id="inp-date">
+                <div id="dynamic-area"></div>
+                <div id="basic-fields"><label>NET AMOUNT ($)</label><input type="number" id="inp-amt" inputmode="decimal" placeholder="0.00"><label>DESCRIPTION</label><input type="text" id="inp-desc" placeholder="Notes, Location, etc."></div>
+                <button class="btn btn-primary" onclick="app.saveTx()">SAVE RECORD</button><button class="btn btn-danger" id="btn-delete" style="display:none;" onclick="app.deleteTx()">DELETE RECORD</button>
+            </div>
+        </div>
+
+        <div id="modal-ticket" class="modal">
+            <div class="container">
+                <div class="modal-header"><h1>EDIT TICKET</h1><i class="material-icons-round" style="color:white; cursor:pointer;" onclick="document.getElementById('modal-ticket').classList.remove('open')">close</i></div>
+                <label>SPORT</label>
+                <select id="tick-sport">
+                    <option value="NBA">NBA</option>
+                    <option value="NCAAB">NCAAB</option>
+                    <option value="NFL">NFL</option>
+                    <option value="NCAAF">NCAAF</option>
+                    <option value="MLB">MLB</option>
+                    <option value="Golf">Golf</option>
+                    <option value="Tennis">Tennis</option>
+                    <option value="MMA">MMA/Boxing</option>
+                    <option value="Soccer">Soccer</option>
+                    <option value="Mix">Mix (Parlay)</option>
+                    <option value="Kalshi">Kalshi</option>
+                    <option value="Other">Other</option>
+                </select>
+                <div class="toggle-row">
+                    <label style="margin:0; color:white;">BONUS BET?</label>
+                    <input type="checkbox" id="tick-bonus" class="toggle-checkbox" onchange="app.renderTickets()"> 
+                    <label for="tick-bonus" class="toggle-switch"></label>
+                </div>
+                <div class="grid">
+                    <div><label>WAGER</label><input type="number" id="tick-wager"></div>
+                    <div>
+                        <label>STATUS</label>
+                        <select id="tick-status" onchange="app.calcLegs()">
+                            <option value="Pending">Pending</option>
+                            <option value="Won">Won</option>
+                            <option value="Lost">Lost</option>
+                            <option value="Early Cash">Early Cash</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid"><div><label>ODDS (AM)</label><input type="text" id="tick-odds-am" onchange="app.convertOdds('am')"></div><div><label>ODDS (DEC)</label><input type="number" id="tick-odds-dec" onchange="app.convertOdds('dec')"></div></div>
+                <div class="grid-3"><div><label>LEGS</label><input type="number" id="tick-legs" oninput="app.calcLegs()"></div><div><label>WON</label><input type="number" id="tick-legs-won" oninput="app.calcLegs()"></div><div><label>LOST</label><input type="number" id="tick-legs-lost" readonly></div></div>
+                <label>NOTES</label><input type="text" id="tick-notes">
+                <button class="btn btn-primary" onclick="app.saveTicket()">UPDATE TICKET</button><button class="btn btn-danger" onclick="app.deleteTicket()">DELETE TICKET</button>
+            </div>
+        </div>
+
+        <div id="live-overlay">
+            <button class="live-minimize-btn" onclick="app.minimizeLive()"><i class="material-icons-round">expand_more</i></button>
+            <div class="container">
+                <h2 style="color: var(--primary); letter-spacing: 2px;">LIVE SESSION</h2>
+                <div id="live-timer" class="timer">00:00:00</div>
+                <h2 style="letter-spacing: 2px;">INVESTED</h2>
+                <div id="live-buyin" class="big-val" style="color:var(--error);">$0</div>
+                <div class="grid" style="margin-top:40px;">
+                    <button class="btn" style="background: #333; color: white;" onclick="app.liveRebuy()">REBUY / ADD</button>
+                    <button class="btn" id="btn-pause" style="background: #333; color: white;" onclick="app.liveTogglePause()">PAUSE</button>
+                </div>
+                <button class="btn btn-primary" style="margin-top:10px;" onclick="app.liveFinish()">CASH OUT</button>
+            </div>
+        </div>
+
+        <nav class="nav">
+            <button class="nav-item active" id="nav-dash" onclick="app.nav('dash')"><i class="material-icons-round">dashboard</i>Dash</button>
+            <button class="nav-item" id="nav-tickets" onclick="app.nav('tickets')"><i class="material-icons-round">receipt</i>Tickets</button>
+            <button class="nav-item" id="nav-crypto" onclick="app.nav('crypto')"><i class="material-icons-round">currency_bitcoin</i>Crypto</button>
+            <button class="nav-item" id="nav-stats" onclick="app.nav('stats')"><i class="material-icons-round">bar_chart</i>Stats</button>
+            <button class="nav-item" id="nav-tools" onclick="app.nav('tools')"><i class="material-icons-round">build</i>Tools</button>
+        </nav>
+        <button class="fab" onclick="app.openModal()">+</button>
+</div><script src="app.js"></script>
+</body>
+</html>
