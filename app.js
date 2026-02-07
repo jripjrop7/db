@@ -4,8 +4,6 @@ Chart.defaults.color = "#FF3D00";
 Chart.defaults.borderColor = "#333";
 Chart.register(ChartDataLabels);
 
-$(document).ready(function() {
-    // ... rest of your code ...
 const app = {
     charts: {},
     data: { 
@@ -1501,4 +1499,5 @@ const app = {
         }
     },    
 };
+
 window.onload = app.init;
