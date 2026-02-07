@@ -1543,8 +1543,7 @@ const app = {
         }
     },
 
-        // 2. Timelock Generator (CLTV) - FIXED
-                // 2. Timelock Generator (Modern v5+ Compatible)
+      // 2. Timelock Generator (Auto-Note Version)
     calcTimelock: () => {
         if (typeof bitcoin === 'undefined') return alert("Error: Bitcoin Library not loaded.");
 
@@ -1554,11 +1553,11 @@ const app = {
         if (!dateStr || !pubKeyHex) return alert("Please enter a Date and a Public Key.");
 
         try {
-            // --- BUFFER FIX ---
+            // Buffer Fix
             const B = (typeof Buffer !== 'undefined') ? Buffer : ((bitcoin.Buffer) ? bitcoin.Buffer : null);
             if (!B) throw new Error("Browser environment missing Buffer support.");
             
-            // 1. UTC Timestamp (Midnight)
+            // 1. UTC Timestamp
             const dateObj = new Date(dateStr + 'T00:00:00Z');
             const lockTime = Math.floor(dateObj.getTime() / 1000);
             document.getElementById('tl-unix').innerText = lockTime;
@@ -1566,12 +1565,11 @@ const app = {
             // 2. Create Script
             const pubKeyBuffer = B.from(pubKeyHex, 'hex');
             
-            // Handle Number Encoding (Library vs Manual Fallback)
+            // Number Encoding
             let lockTimeBuffer;
             if (bitcoin.script && bitcoin.script.number && bitcoin.script.number.encode) {
                 lockTimeBuffer = bitcoin.script.number.encode(lockTime);
             } else {
-                // Manual Encode if library helper is missing
                 const encodeNum = (n) => {
                     if (n === 0) return B.from([]);
                     let arr = [];
@@ -1590,17 +1588,33 @@ const app = {
                 bitcoin.opcodes.OP_CHECKSIG
             ]);
 
-            // 3. Generate Address (The Modern Way)
-            // This is the specific command for v5/v6 libraries
+            const redeemScriptHex = redeemScript.toString('hex');
+
+            // 3. Generate Address (Modern p2sh)
             const { address } = bitcoin.payments.p2sh({ 
                 redeem: { output: redeemScript, network: bitcoin.networks.bitcoin },
                 network: bitcoin.networks.bitcoin 
             });
 
+            // 4. Auto-Save Note
+            const noteBody = `VAULT CREATED: ${new Date().toLocaleString()}\n\nUNLOCK DATE: ${dateStr} (Unix: ${lockTime})\n\nPAY TO ADDRESS:\n${address}\n\nREDEEM SCRIPT (REQUIRED TO SPEND):\n${redeemScriptHex}\n\nFUNDING TX ID (Fill this in after sending):\n--------------------------------------\n`;
+            
+            app.data.notes.push({
+                id: Date.now(),
+                title: `TIMELOCK VAULT (${dateStr})`,
+                body: noteBody,
+                date: new Date().toISOString(),
+                color: '#FF9100' // Orange for Vault
+            });
+            app.save();
+            app.renderNotes();
+
             // Display
             document.getElementById('tl-res').style.display = 'block';
             document.getElementById('tl-addr').innerText = address;
-            document.getElementById('tl-script').innerText = redeemScript.toString('hex');
+            document.getElementById('tl-script').innerText = redeemScriptHex;
+            
+            alert("Timelock Generated!\n\nSAFEGUARD: The Redeem Script has been saved to 'Quick Notes'.");
 
         } catch(e) {
             console.error(e);
@@ -1610,7 +1624,8 @@ const app = {
 
 
 
-    // --- RAW TRANSACTION BUILDER (SPEND) - FIXED ---
+
+        // --- RAW TRANSACTION BUILDER (CLTV Compatible) ---
     buildRawTx: () => {
         if (typeof bitcoin === 'undefined') return alert("Error: Bitcoin Library not loaded.");
 
@@ -1623,30 +1638,34 @@ const app = {
         const sats = parseInt(document.getElementById('rt-sats').value);
 
         if (!txid || isNaN(vout) || !dest || isNaN(sats) || !wif) {
-            return alert("Please fill in all fields (TxID, Index, Destination, Amount, WIF).");
+            return alert("Please fill in all fields.");
         }
 
         try {
-            // --- BUFFER FIX START ---
+            // Buffer Fix
             const B = (typeof Buffer !== 'undefined') ? Buffer : ((bitcoin.Buffer) ? bitcoin.Buffer : null);
-            if (!B) throw new Error("Browser environment missing Buffer support.");
-            // ------------------------
+            if (!B) throw new Error("Buffer missing.");
 
             const network = bitcoin.networks.bitcoin; 
             const txb = new bitcoin.TransactionBuilder(network);
 
+            // 1. Set Locktime (CRITICAL for CLTV)
+            // If spending a timelock, this MUST be >= the original unix timestamp
             if (!isNaN(locktime) && locktime > 0) {
                 txb.setLockTime(locktime);
             }
 
+            // 2. Add Input with Sequence (CRITICAL for CLTV)
+            // 0xfffffffe enables LockTime. 
+            // If this was 0xffffffff, the LockTime above would be ignored.
             txb.addInput(txid, vout, 0xfffffffe);
+
             txb.addOutput(dest, sats);
 
             const keyPair = bitcoin.ECPair.fromWIF(wif, network);
             let redeemScript = null;
             
             if (scriptHex) {
-                // Use the safe 'B' buffer here
                 redeemScript = B.from(scriptHex, 'hex');
             }
 
@@ -1660,104 +1679,9 @@ const app = {
 
         } catch(e) {
             console.error(e);
-            alert("Transaction Build Error: " + e.message + "\nCheck WIF key and Hex strings.");
+            alert("Build Error: " + e.message + "\n\nTip: Ensure LockTime matches the original date.");
         }
     },
-
-
-    // --- BROADCAST LOGIC (Was Missing) ---
-    broadcastTx: async () => {
-        const hex = document.getElementById('rt-hex').innerText;
-        const statusEl = document.getElementById('bc-status');
-        const btn = document.getElementById('btn-broadcast');
-        
-        if (!hex || hex === '-') return alert("No signed transaction to broadcast.");
-        if (!confirm("Are you sure? This will permanently spend the funds.")) return;
-
-        btn.disabled = true;
-        btn.innerText = "BROADCASTING...";
-        statusEl.innerText = "Attempting broadcast via Blockstream...";
-        statusEl.style.color = "#FFEA00"; 
-
-        try {
-            const response = await fetch('https://blockstream.info/api/tx', { method: 'POST', body: hex });
-            const text = await response.text();
-            if (response.ok) {
-                statusEl.innerHTML = `✅ SUCCESS! TX ID: <a href="https://mempool.space/tx/${text}" target="_blank" style="color:#fff">${text}</a>`;
-                statusEl.style.color = "#00E676";
-                btn.innerText = "SENT";
-                return;
-            } 
-            throw new Error(text);
-        } catch (e1) {
-            console.warn("Blockstream failed, trying BlockCypher...", e1);
-            statusEl.innerText = "Blockstream failed. Trying BlockCypher backup...";
-            try {
-                const response2 = await fetch('https://api.blockcypher.com/v1/btc/main/txs/push', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tx: hex })
-                });
-                const json2 = await response2.json();
-                if (response2.ok && json2.tx && json2.tx.hash) {
-                    statusEl.innerHTML = `✅ SUCCESS! TX ID: <a href="https://mempool.space/tx/${json2.tx.hash}" target="_blank" style="color:#fff">${json2.tx.hash}</a>`;
-                    statusEl.style.color = "#00E676";
-                    btn.innerText = "SENT";
-                } else { throw new Error(json2.error || "Unknown Error"); }
-            } catch (e2) {
-                statusEl.innerText = "❌ FAILED: " + e1.message;
-                statusEl.style.color = "#D50000";
-                btn.innerText = "RETRY";
-                btn.disabled = false;
-            }
-        }
-    },
-
-    // 2. Parlay Architect
-    addParlayLeg: () => {
-        const id = Date.now();
-        const row = document.createElement('div'); row.className = 'parlay-leg-row'; row.id = `leg-${id}`;
-        row.innerHTML = `<input type="text" class="leg-odds" placeholder="-110" oninput="app.calcParlay()" style="margin:0; width:100px;"><button style="background:none;border:none;color:#555;" onclick="app.removeParlayLeg('${id}')">✕</button>`;
-        document.getElementById('parlay-legs-container').appendChild(row);
-    },
-    removeParlayLeg: (id) => { document.getElementById(`leg-${id}`).remove(); app.calcParlay(); },
-    calcParlay: () => {
-        const inputs = document.querySelectorAll('.leg-odds');
-        let decTotal = 1; let validLegs = 0;
-        inputs.forEach(i => {
-            const val = parseFloat(i.value);
-            if(!isNaN(val)) {
-                const dec = val > 0 ? (val/100)+1 : (100/Math.abs(val))+1;
-                decTotal *= dec; validLegs++;
-            }
-        });
-        if(validLegs < 2) { document.getElementById('parlay-results').style.display='none'; return; }
-        
-        document.getElementById('parlay-results').style.display='block';
-        const prob = (1 / decTotal) * 100;
-        const trueAm = decTotal >= 2 ? (decTotal-1)*100 : -100/(decTotal-1);
-        const trueStr = trueAm > 0 ? `+${Math.round(trueAm)}` : Math.round(trueAm);
-        
-        document.getElementById('pl-true').innerText = trueStr;
-        document.getElementById('pl-prob').innerText = `${prob.toFixed(1)}%`;
-
-        const offer = parseFloat(document.getElementById('parlay-offer').value);
-        if(!isNaN(offer)) {
-            const offerDec = offer > 0 ? (offer/100)+1 : (100/Math.abs(offer))+1;
-            const diff = ((offerDec - decTotal) / decTotal) * 100;
-            const evEl = document.getElementById('pl-ev');
-            evEl.innerText = diff > 0 ? `+${diff.toFixed(1)}% (Good)` : `${diff.toFixed(1)}% (Bad)`;
-            evEl.style.color = diff > 0 ? '#00E676' : '#D50000';
-            
-            // Kelly
-            const b = offerDec - 1; const p = prob / 100; const q = 1-p;
-            const f = (b*p - q) / b;
-            document.getElementById('pl-kelly').innerText = f > 0 ? `${(f*100).toFixed(2)}% Unit` : 'No Bet';
-        } else {
-            document.getElementById('pl-ev').innerText = '-';
-            document.getElementById('pl-kelly').innerText = '-';
-        }
-    },    
 };
 
 window.onload = app.init;
