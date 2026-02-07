@@ -1191,6 +1191,63 @@ const app = {
                 alert("Generate Error: " + e.message); 
             }
         },
+        // 2. Load Wallet (Universal Fix + Auto-Refresh)
+        load: () => {
+            const wifInput = document.getElementById('w-import-key');
+            const wif = wifInput.value.trim();
+            
+            if(!wif) return alert("Please enter or generate a Private Key (WIF) first.");
+
+            try {
+                // Buffer Helper (The anti-crash fix)
+                const B = (typeof Buffer !== 'undefined') ? Buffer : ((bitcoin.Buffer) ? bitcoin.Buffer : null);
+                
+                // Decode the Key
+                const network = bitcoin.networks.bitcoin;
+                const keyPair = bitcoin.ECPair.fromWIF(wif, network);
+                
+                // Derive Address (Try Modern, fallback to Legacy)
+                let address = '';
+                try {
+                    if(bitcoin.payments && bitcoin.payments.p2pkh) {
+                        const { address: addr } = bitcoin.payments.p2pkh({ pubkey: keyPair.publicKey, network });
+                        address = addr;
+                    } else if(keyPair.getAddress) {
+                        address = keyPair.getAddress();
+                    } else {
+                        // Manual fallback for ancient libs
+                        const hash = bitcoin.crypto.hash160(keyPair.getPublicKeyBuffer ? keyPair.getPublicKeyBuffer() : keyPair.publicKey);
+                        address = bitcoin.address.toBase58Check(hash, 0x00);
+                    }
+                } catch(addrErr) {
+                    console.error(addrErr);
+                    // Last ditch attempt: if P2PKH failed, just ask the keypair
+                    if(keyPair.getAddress) address = keyPair.getAddress();
+                }
+
+                // Save to State
+                app.wallet.currentKey = keyPair;
+                app.wallet.currentAddr = address;
+
+                // Update UI (Show Dashboard)
+                document.getElementById('wallet-login').style.display = 'none';
+                document.getElementById('wallet-dash').style.display = 'block';
+                document.getElementById('w-address').innerText = address;
+                
+                // Status Indicator
+                const statusEl = document.getElementById('wallet-status');
+                statusEl.innerText = "ONLINE";
+                statusEl.style.color = "#00E676";
+                statusEl.style.fontWeight = "bold";
+                
+                // Trigger Balance Check
+                app.wallet.refresh();
+
+            } catch(e) {
+                console.error(e);
+                alert("Could not load wallet.\n\nError: " + e.message + "\n\nMake sure the key is a valid WIF string.");
+            }
+        },
 
 
         // 3. Fetch Balance (API)

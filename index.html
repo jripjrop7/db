@@ -195,6 +195,21 @@
         .rec-stats-table th { text-align: left; color: var(--sub); padding: 6px 4px; border-bottom: 1px solid #333; }
         .rec-stats-table td { padding: 8px 4px; border-bottom: 1px solid #222; vertical-align: middle; }
         .rec-pay-btn { background: var(--primary); color: #000; border: none; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.65rem; }
+        /* FORCE TEXT WRAPPING */
+.code-box, .tx-title, .note-body, #w-address, #wallet-dash div {
+    white-space: pre-wrap !important;      /* Preserve spacing but wrap */
+    word-wrap: break-word !important;      /* Break long words */
+    word-break: break-all !important;      /* Force break if needed (for keys) */
+    overflow-wrap: anywhere !important;    /* Modern wrapping */
+    max-width: 100%;                       /* Never exceed screen */
+}
+
+/* FIX INPUTS EXTENDING SCREEN */
+input, select, textarea {
+    max-width: 100%;                       /* strict width limit */
+    min-width: 0;                          /* allow shrinking */
+}
+
     </style>
 </head>
 <body>
@@ -282,7 +297,7 @@
     <div id="wallet-login">
         <label>PRIVATE KEY (WIF)</label>
         <div style="display:flex; gap:8px;">
-            <input type="password" id="w-import-key" placeholder="Paste WIF Key (starts with 5, K, or L)">
+            <input type="text" id="w-import-key" placeholder="Paste WIF Key (starts with 5, K, or L)" style="font-family:'Martian Mono'; font-size:0.7rem;">
             <button class="btn btn-sec" style="width:auto; padding:0 12px;" onclick="app.wallet.generate()">NEW</button>
         </div>
         <button class="btn btn-primary" onclick="app.wallet.load()">OPEN WALLET</button>
@@ -855,5 +870,4 @@
 
 </body>
 </html>
-
 
