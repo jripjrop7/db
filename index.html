@@ -273,6 +273,44 @@
                 <button onclick="app.openNoteModal()" style="background:none; border:none; color:var(--primary); font-size:12px; font-weight:bold;">+ ADD NOTE</button>
             </div>
             <div id="notes-list" style="margin-bottom: 30px;"></div>
+<div class="card" style="border-top: 4px solid #FFEA00;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2 style="margin:0;">BITCOIN WALLET (HOT)</h2>
+        <div id="wallet-status" style="font-size:0.7rem; color:#555;">OFFLINE</div>
+    </div>
+
+    <div id="wallet-login">
+        <label>PRIVATE KEY (WIF)</label>
+        <div style="display:flex; gap:8px;">
+            <input type="password" id="w-import-key" placeholder="Paste WIF Key (starts with 5, K, or L)">
+            <button class="btn btn-sec" style="width:auto; padding:0 12px;" onclick="app.wallet.generate()">NEW</button>
+        </div>
+        <button class="btn btn-primary" onclick="app.wallet.load()">OPEN WALLET</button>
+    </div>
+
+    <div id="wallet-dash" style="display:none;">
+        <div style="background:#111; padding:15px; border-radius:8px; text-align:center; margin-bottom:15px; border:1px solid #333;">
+            <div style="font-size:0.7rem; color:#aaa; margin-bottom:4px;">AVAILABLE BALANCE</div>
+            <div id="w-balance" style="font-size:2rem; font-weight:bold; color:#fff;">0.00000000 <span style="font-size:1rem; color:#FFEA00;">BTC</span></div>
+            <div id="w-address" onclick="app.copyText(this.innerText)" style="font-size:0.65rem; color:#00E676; margin-top:5px; word-break:break-all; cursor:pointer;">-</div>
+        </div>
+
+        <div class="grid">
+            <button class="btn btn-sec" onclick="app.wallet.refresh()">REFRESH</button>
+            <button class="btn btn-sec" onclick="app.wallet.logout()">CLOSE</button>
+        </div>
+
+        <h3 style="color:#fff; font-size:0.85rem; margin:15px 0 8px 0;">SEND BITCOIN</h3>
+        <label>DESTINATION ADDRESS</label>
+        <input type="text" id="w-dest" placeholder="1... or 3... or bc1...">
+        <div class="grid">
+            <div><label>AMOUNT (BTC)</label><input type="number" id="w-amt" placeholder="0.001"></div>
+            <div><label>FEE (SATS/BYTE)</label><input type="number" id="w-fee" value="20"></div>
+        </div>
+        <button class="btn btn-primary" onclick="app.wallet.send()">SEND FUNDS</button>
+        <div id="w-msg" style="margin-top:10px; font-size:0.7rem; text-align:center;"></div>
+    </div>
+</div>
 
             <div class="row" style="margin-bottom:10px; padding:0 4px;">
                 <h2 style="margin:0;">INVENTORY</h2>
@@ -817,4 +855,5 @@
 
 </body>
 </html>
+
 
