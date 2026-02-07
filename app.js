@@ -1307,7 +1307,7 @@ const app = {
         }
     },
 
-    // 2. Timelock Generator (CLTV)
+        // 2. Timelock Generator (CLTV) - FIXED
     calcTimelock: () => {
         if (typeof bitcoin === 'undefined') return alert("Error: Bitcoin Library not loaded.");
 
@@ -1317,18 +1317,21 @@ const app = {
         if (!dateStr || !pubKeyHex) return alert("Please enter a Date and a Public Key.");
 
         try {
+            // --- BUFFER FIX START ---
+            // Find the Buffer tool wherever it is hiding
+            const B = (typeof Buffer !== 'undefined') ? Buffer : ((bitcoin.Buffer) ? bitcoin.Buffer : null);
+            if (!B) throw new Error("Browser environment missing Buffer support.");
+            // ------------------------
+
             // 1. Convert Date to Unix Timestamp
             const lockTime = Math.floor(new Date(dateStr).getTime() / 1000);
             document.getElementById('tl-unix').innerText = lockTime;
 
             // 2. Create the CLTV Script
-            // OP_CHECKLOCKTIMEVERIFY requires the locktime in little-endian format if constructing manually,
-            // but bitcoinjs-lib handles the number encoding for us via 'bitcoin.script.number.encode'
-            
-            const pubKeyBuffer = Buffer.from(pubKeyHex, 'hex');
+            // We use 'B.from' instead of just 'Buffer.from'
+            const pubKeyBuffer = B.from(pubKeyHex, 'hex');
             const lockTimeBuffer = bitcoin.script.number.encode(lockTime);
             
-            // Script: <expiry> OP_CLTV OP_DROP <pubKey> OP_CHECKSIG
             const redeemScript = bitcoin.script.compile([
                 lockTimeBuffer,
                 bitcoin.opcodes.OP_CHECKLOCKTIMEVERIFY,
@@ -1348,16 +1351,14 @@ const app = {
 
         } catch(e) {
             console.error(e);
-            alert("Error generating timelock: " + e.message + "\nCheck that your Public Key is valid hex.");
+            alert("Timelock Error: " + e.message);
         }
     },
 
-        // --- RAW TRANSACTION BUILDER ---
-
+    // --- RAW TRANSACTION BUILDER (SPEND) - FIXED ---
     buildRawTx: () => {
         if (typeof bitcoin === 'undefined') return alert("Error: Bitcoin Library not loaded.");
 
-        // 1. Gather Inputs
         const txid = document.getElementById('rt-txid').value.trim();
         const vout = parseInt(document.getElementById('rt-n').value);
         const scriptHex = document.getElementById('rt-script').value.trim();
@@ -1371,49 +1372,43 @@ const app = {
         }
 
         try {
-            // 2. Initialize Network & Builder
-            const network = bitcoin.networks.bitcoin; // Mainnet
+            // --- BUFFER FIX START ---
+            const B = (typeof Buffer !== 'undefined') ? Buffer : ((bitcoin.Buffer) ? bitcoin.Buffer : null);
+            if (!B) throw new Error("Browser environment missing Buffer support.");
+            // ------------------------
+
+            const network = bitcoin.networks.bitcoin; 
             const txb = new bitcoin.TransactionBuilder(network);
 
-            // 3. Set Locktime (Crucial for CLTV)
-            // If spending a timelock, this MUST be set to the original date or higher.
             if (!isNaN(locktime) && locktime > 0) {
                 txb.setLockTime(locktime);
             }
 
-            // 4. Add Input
-            // Sequence 0xfffffffe enables LockTime but disables RBF (usually standard for CLTV)
             txb.addInput(txid, vout, 0xfffffffe);
-
-            // 5. Add Output
             txb.addOutput(dest, sats);
 
-            // 6. Sign
             const keyPair = bitcoin.ECPair.fromWIF(wif, network);
             let redeemScript = null;
             
-            // If a redeem script is provided (P2SH/Timelock), we must use it to sign
             if (scriptHex) {
-                redeemScript = Buffer.from(scriptHex, 'hex');
+                // Use the safe 'B' buffer here
+                redeemScript = B.from(scriptHex, 'hex');
             }
 
-            // Sign Input 0
-            // txb.sign(inputIndex, keyPair, redeemScript)
             txb.sign(0, keyPair, redeemScript);
 
-            // 7. Build
             const tx = txb.build();
             const hex = tx.toHex();
 
-            // Display
             document.getElementById('rt-res').style.display = 'block';
             document.getElementById('rt-hex').innerText = hex;
 
         } catch(e) {
             console.error(e);
-            alert("Transaction Failed: " + e.message + "\n\nCommon errors:\n- Incorrect WIF Key\n- Wrong Network (Testnet vs Mainnet)\n- Invalid Hex");
+            alert("Transaction Build Error: " + e.message + "\nCheck WIF key and Hex strings.");
         }
     },
+
 
     // --- BROADCAST LOGIC (Was Missing) ---
     broadcastTx: async () => {
@@ -1511,5 +1506,6 @@ const app = {
 };
 
 window.onload = app.init;
+
 
 
