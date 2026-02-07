@@ -1359,24 +1359,20 @@ const app = {
                 bitcoin.opcodes.OP_CHECKSIG
             ]);
 
-            // 3. Generate Address (The part that was breaking)
-            // OLDER SYNTAX (Coinbin/v3/v4):
+                        // 3. Generate Address (Universal / Old School)
             const scriptHash = bitcoin.crypto.hash160(redeemScript);
-            const scriptPubKey = bitcoin.script.scriptHash.output.encode(scriptHash); 
-            // ^ If this failed, we try the 'address.fromOutputScript' shortcut directly or manual P2SH
             
+            // Try standard address generation
             let address = "";
-            if (bitcoin.address && bitcoin.address.toBase58Check) {
-                // Manual P2SH construction for very old libs
-                // 0x05 is Mainnet Script Hash (3...)
-                address = bitcoin.address.toBase58Check(scriptHash, 0x05);
-            } else if (bitcoin.address && bitcoin.address.fromOutputScript) {
-                address = bitcoin.address.fromOutputScript(scriptPubKey, bitcoin.networks.bitcoin);
+            // Most coinbin forks use this:
+            if (bitcoin.address.toBase58Check) {
+                address = bitcoin.address.toBase58Check(scriptHash, 0x05); // 0x05 = '3' addresses
             } else {
-                // Fallback for v5+ if the above failed (but you likely have v4)
-                const { address: addr } = bitcoin.payments.p2sh({ redeem: { output: redeemScript, network: bitcoin.networks.bitcoin }, network: bitcoin.networks.bitcoin });
+                // Newer
+                const { address: addr } = bitcoin.payments.p2sh({ hash: scriptHash });
                 address = addr;
             }
+
 
             // Display
             document.getElementById('tl-res').style.display = 'block';
@@ -1541,6 +1537,7 @@ const app = {
 };
 
 window.onload = app.init;
+
 
 
 
