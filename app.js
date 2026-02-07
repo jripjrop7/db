@@ -1308,7 +1308,8 @@ const app = {
     },
 
         // 2. Timelock Generator (CLTV) - FIXED
-            calcTimelock: () => {
+                // 2. Timelock Generator (Modern v5+ Compatible)
+    calcTimelock: () => {
         if (typeof bitcoin === 'undefined') return alert("Error: Bitcoin Library not loaded.");
 
         const dateStr = document.getElementById('tl-date').value;
@@ -1319,35 +1320,31 @@ const app = {
         try {
             // --- BUFFER FIX ---
             const B = (typeof Buffer !== 'undefined') ? Buffer : ((bitcoin.Buffer) ? bitcoin.Buffer : null);
-            if (!B) throw new Error("Buffer missing.");
-            // ------------------
-
-            // 1. UTC Timestamp Calculation (Midnight UTC)
-            // We append 'T00:00:00Z' to force it to be treated as UTC midnight, not local time.
+            if (!B) throw new Error("Browser environment missing Buffer support.");
+            
+            // 1. UTC Timestamp (Midnight)
             const dateObj = new Date(dateStr + 'T00:00:00Z');
             const lockTime = Math.floor(dateObj.getTime() / 1000);
-            
-            if (isNaN(lockTime)) throw new Error("Invalid Date");
-            
             document.getElementById('tl-unix').innerText = lockTime;
 
-            // 2. Create Script (CLTV)
+            // 2. Create Script
             const pubKeyBuffer = B.from(pubKeyHex, 'hex');
             
-            // Manual Number Encode (Universal)
-            // This ensures we don't rely on a specific library version's number encoder
-            const encodeNum = (n) => {
-                if (n === 0) return B.from([]);
-                let arr = [];
-                while (n > 0) {
-                    arr.push(n & 0xff);
-                    n >>= 8;
-                }
-                if (arr[arr.length - 1] & 0x80) arr.push(0x00);
-                return B.from(arr);
-            };
-
-            const lockTimeBuffer = encodeNum(lockTime);
+            // Handle Number Encoding (Library vs Manual Fallback)
+            let lockTimeBuffer;
+            if (bitcoin.script && bitcoin.script.number && bitcoin.script.number.encode) {
+                lockTimeBuffer = bitcoin.script.number.encode(lockTime);
+            } else {
+                // Manual Encode if library helper is missing
+                const encodeNum = (n) => {
+                    if (n === 0) return B.from([]);
+                    let arr = [];
+                    while (n > 0) { arr.push(n & 0xff); n >>= 8; }
+                    if (arr[arr.length - 1] & 0x80) arr.push(0x00);
+                    return B.from(arr);
+                };
+                lockTimeBuffer = encodeNum(lockTime);
+            }
 
             const redeemScript = bitcoin.script.compile([
                 lockTimeBuffer,
@@ -1357,14 +1354,12 @@ const app = {
                 bitcoin.opcodes.OP_CHECKSIG
             ]);
 
-            // 3. Generate Address (Universal Low-Level Method)
-            // Step A: Hash160 the script
-            const scriptHash = bitcoin.crypto.hash160(redeemScript);
-            
-            // Step B: Convert Hash to P2SH Address (Base58Check)
-            // 0x05 is the version byte for Mainnet P2SH (Starts with '3')
-            // If this fails, your library is extremely old or custom.
-            const address = bitcoin.address.toBase58Check(scriptHash, 0x05);
+            // 3. Generate Address (The Modern Way)
+            // This is the specific command for v5/v6 libraries
+            const { address } = bitcoin.payments.p2sh({ 
+                redeem: { output: redeemScript, network: bitcoin.networks.bitcoin },
+                network: bitcoin.networks.bitcoin 
+            });
 
             // Display
             document.getElementById('tl-res').style.display = 'block';
@@ -1376,6 +1371,7 @@ const app = {
             alert("Timelock Error: " + e.message);
         }
     },
+
 
 
     // --- RAW TRANSACTION BUILDER (SPEND) - FIXED ---
@@ -1529,6 +1525,7 @@ const app = {
 };
 
 window.onload = app.init;
+
 
 
 
