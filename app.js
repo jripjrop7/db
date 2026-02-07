@@ -4,7 +4,7 @@ const app = {
         txs: [], tickets: [], inventory: [], notes: [], 
         liveSession: { active: false, start: null, buyin: 0, paused: false, pauseStart: null, totalPaused: 0 },
         btcHoldings: 0, ethHoldings: 0,
-        goal: 10000 // Default Goal
+        goal: 10000 
     },
     calViewDate: new Date(), 
     filter: { mode: 'all', val: null, start: null, end: null, search: '', excludedCats: [] },
@@ -20,34 +20,38 @@ const app = {
     expCats: ['Gas','Groceries','Food','Drugs','Nicotine','Entertainment','Travel','Bill','Misc'],
     expColors: { 'Gas': '#FF1744', 'Groceries': '#76FF03', 'Food': '#2979FF', 'Drugs': '#D500F9', 'Nicotine': '#FFEA00', 'Entertainment': '#F50057', 'Travel': '#00E5FF', 'Bill': '#FFFFFF', 'Misc': '#FF3D00' },
 
+    // FIXED INIT FUNCTION (Removed the duplicate nested init)
     init: () => {
-        const saved = localStorage.getItem('bankroll_os_v19_1'); 
-        init: () => {
         const saved = localStorage.getItem('bankroll_os_v19_1'); 
         if (saved) { 
             try { 
                 const parsed = JSON.parse(saved);
                 app.data = { ...app.data, ...parsed };
-                // ... (your existing array checks) ...
+                // Ensure arrays exist
+                if(!app.data.txs) app.data.txs=[]; 
+                if(!app.data.tickets) app.data.tickets=[]; 
+                if(!app.data.inventory) app.data.inventory=[];
+                if(!app.data.notes) app.data.notes=[];
+                if(!app.data.recurring) app.data.recurring=[];
+                if(!app.data.liveSession) app.data.liveSession={active:false};
                 if(!app.data.goal) app.data.goal = 10000;
             } catch(e){ console.log("Init Error", e); } 
         }
 
-        // --- PASTE CHART SETTINGS HERE (Safe Spot) ---
+        // MOVED CHART SETTINGS HERE (Safe from crashes)
         if (typeof Chart !== 'undefined') {
             Chart.defaults.font.family = "'Martian Mono', monospace";
             Chart.defaults.color = "#FF3D00";
             Chart.defaults.borderColor = "#333";
             Chart.register(ChartDataLabels);
         }
-        // ---------------------------------------------
 
         if(app.data.liveSession.active) app.startLiveTimer();
-        app.render(); app.fetchCrypto();
+        app.render(); 
+        app.fetchCrypto();
         app.renderRecurringTools();
     },
 
-    },
     save: () => { localStorage.setItem('bankroll_os_v19_1', JSON.stringify(app.data)); app.render(); },
 
     nav: (view) => {
@@ -142,8 +146,6 @@ const app = {
         return true;
     },
 
-    // --- NEW PRO TOOLS ---
-
     // 1. Monte Carlo Simulator
     runMonteCarlo: () => {
         const wager = parseFloat(document.getElementById('mc-wager').value);
@@ -153,12 +155,10 @@ const app = {
 
         if(!wager || !oddsStr || !winRate) return;
 
-        // Convert Odds
         let dec = parseFloat(oddsStr);
         if(Math.abs(dec) >= 100) dec = (dec > 0) ? (dec/100)+1 : (100/Math.abs(dec))+1;
         const profit = wager * (dec - 1);
 
-        // Run 1,000 Sims of 100 bets each
         let totalProfit = 0;
         let maxDrawdown = 0;
         let bankruptcies = 0;
@@ -177,7 +177,7 @@ const app = {
                 if(dd > maxDrawdown) maxDrawdown = dd;
             }
             totalProfit += runBank;
-            if (runBank < -(wager * 20)) bankruptcies++; // Arbitrary "Bust" line
+            if (runBank < -(wager * 20)) bankruptcies++; 
         }
 
         const avg = totalProfit / simRuns;
@@ -191,7 +191,6 @@ const app = {
         `;
     },
  
-    // NEW: Goal Functions
     openGoalModal: () => {
         document.getElementById('modal-goal').classList.add('open');
         document.getElementById('goal-target-input').value = app.data.goal;
@@ -212,7 +211,6 @@ const app = {
         document.getElementById('total-liquidity').innerText = `$${Math.round(allTimeTotal).toLocaleString()}`;
         document.getElementById('total-liquidity').className = `big-val ${allTimeTotal < 0 ? 'neg' : ''}`;
         
-        // NEW: Update Goal Progress Bar
         const goal = app.data.goal || 10000;
         const pct = Math.min(100, Math.max(0, (allTimeTotal / goal) * 100));
         document.getElementById('goal-current').innerText = `$${Math.round(allTimeTotal).toLocaleString()}`;
@@ -245,29 +243,18 @@ const app = {
             const tags = [];
             const dateStr = new Date(t.date).toLocaleString('en-US', {month:'short', day:'numeric'});
             
-            // Standard Title
             let titleText = (t.desc && t.desc.trim() !== "") ? t.desc : app.catLabel(t.cat);
 
-            // Specific Render Logic for Bets
             if (t.cat === 'bets' && t.details) {
-                // Title is the description
                 titleText = t.desc || "Bet";
-                
-                // 1. Wager Amount
                 if(t.details.wager) tags.push(`$${t.details.wager}`);
-                
-                // 2. Record (Won / Total Tickets)
                 const w = t.details.won||0;
                 const l = t.details.lost||0;
                 const totalTickets = (t.details.tickets) ? t.details.tickets : (w + l);
                 tags.push(`${w}/${totalTickets}`);
-
-                // 3. Book Abbreviation
                 if(t.details.book) {
                     tags.push(app.bookAbbr[t.details.book] || t.details.book);
                 }
-
-                // 4. Sport
                 if(t.details.sport) tags.push(t.details.sport);
             }
             else if (t.cat === 'pokerCash' && t.details && t.details.dur) tags.push(`${t.details.dur}h`);
@@ -280,7 +267,6 @@ const app = {
                 ? `<div class="tx-icon" style="background:${color}20; color:${color}; font-family:serif;">♠</div>`
                 : `<div class="tx-icon" style="background:${color}20; color:${color}"><i class="material-icons-round">${iconCode}</i></div>`;
             
-            // Amount formatting: No sign (+/-), just color
             const amtStr = `$${Math.abs(t.amt).toLocaleString()}`;
 
             div.innerHTML = `
@@ -336,7 +322,6 @@ const app = {
         }); 
     },
 
-    // CALENDAR FUNCTIONS
     renderCalendar: () => {
         const grid = document.getElementById('calendar-grid');
         grid.innerHTML = '';
@@ -412,7 +397,6 @@ const app = {
         document.getElementById('fv-res-b').innerText = `${fmt(getAm(trueB))} (${(trueB*100).toFixed(1)}%)`;
     },
 
-    // DRAWDOWN CHART LOGIC
     renderDrawdown: () => {
         const ctx = document.getElementById('drawdownChart').getContext('2d');
         if(app.charts.drawdown) app.charts.drawdown.destroy();
@@ -434,33 +418,27 @@ const app = {
         });
     },
 
-    // NEW: HALL OF FAME (Analytics)
     renderHOF: () => {
         const grid = document.getElementById('hof-grid');
         grid.innerHTML = '';
         const txs = app.data.txs;
         if(txs.length === 0) { grid.innerHTML = '<div style="color:#555; grid-column:span 2; text-align:center;">No Data Yet</div>'; return; }
 
-        // 1. Biggest Win / Worst Loss
         let maxWin = 0; let maxLoss = 0;
         txs.forEach(t => {
             if(t.amt > maxWin) maxWin = t.amt;
             if(t.amt < maxLoss) maxLoss = t.amt;
         });
 
-        // 2. Streaks (Days) & ATH
         const sorted = [...txs].sort((a,b) => new Date(a.date) - new Date(b.date));
         let currWin = 0; let bestWinStreak = 0;
         let currLoss = 0; let worstLossStreak = 0;
         let runningBal = 0; let ath = 0;
 
-        // Group by day for accurate streak calculation
         const dailyMap = {};
         sorted.forEach(t => {
             const d = t.date.split('T')[0];
             dailyMap[d] = (dailyMap[d] || 0) + t.amt;
-            
-            // ATH Calculation (per transaction)
             runningBal += t.amt;
             if(runningBal > ath) ath = runningBal;
         });
@@ -1505,4 +1483,3 @@ const app = {
 };
 
 window.onload = app.init;
-
