@@ -1259,26 +1259,56 @@ const app = {
     },
 
     // 1. Brainwallet
-    calcBrainwallet: () => {
-        if (typeof bitcoin === 'undefined') return alert("Error: Bitcoin Library not loaded. Please add the script tag to the head.");
+        calcBrainwallet: () => {
+        // 1. Safety Check
+        if (typeof bitcoin === 'undefined') return alert("Error: bitcoin.js not loaded.");
         
         const pass = document.getElementById('btc-pass').value;
         if (!pass) { document.getElementById('btc-keys').style.display = 'none'; return; }
 
         try {
-            // SHA256(passphrase) -> Private Key
-            const hash = bitcoin.crypto.sha256(Buffer.from(pass));
-            const keyPair = bitcoin.ECPair.fromPrivateKey(hash);
+            // 2. Handle Text-to-Buffer (Fixes "Buffer is not defined")
+            let hash;
+            // Try standard Buffer (Node/Browserify) or bitcoin.Buffer
+            const bufferFn = (typeof Buffer !== 'undefined') ? Buffer.from : ((bitcoin.Buffer && bitcoin.Buffer.from) ? bitcoin.Buffer.from : null);
             
+            if (bufferFn) {
+                hash = bitcoin.crypto.sha256(bufferFn(pass));
+            } else {
+                // Fallback for modern browsers if Buffer is missing
+                const encoder = new TextEncoder();
+                const data = encoder.encode(pass);
+                // Note: older bitcoin libs might not accept Uint8Array directly, but we try:
+                hash = bitcoin.crypto.sha256(data); 
+            }
+
+            // 3. Generate Key Pair
+            const keyPair = bitcoin.ECPair.fromPrivateKey(hash);
+
+            // 4. Generate Address (Fixes "getAddress is not a function")
+            let address = '';
+            if (typeof keyPair.getAddress === 'function') {
+                // Old Syntax (Coinb.in / v4)
+                address = keyPair.getAddress();
+            } else if (bitcoin.payments && bitcoin.payments.p2pkh) {
+                // New Syntax (v5+)
+                const { address: addr } = bitcoin.payments.p2pkh({ pubkey: keyPair.publicKey });
+                address = addr;
+            } else {
+                address = "Error: Unknown Lib Version";
+            }
+
+            // 5. Display Results
             document.getElementById('btc-keys').style.display = 'block';
             document.getElementById('btc-wif').innerText = keyPair.toWIF();
-            document.getElementById('btc-addr').innerText = keyPair.getAddress();
+            document.getElementById('btc-addr').innerText = address;
             document.getElementById('btc-pub').innerText = keyPair.publicKey.toString('hex');
+
         } catch(e) {
-            console.error(e);
+            console.error("Brainwallet Error:", e);
+            alert("Error: " + e.message + ". Check Console for details.");
         }
     },
-
     // 2. Timelock Generator (CLTV)
     calcTimelock: () => {
         if (typeof bitcoin === 'undefined') return alert("Error: Bitcoin Library not loaded.");
@@ -1483,3 +1513,4 @@ const app = {
 };
 
 window.onload = app.init;
+
