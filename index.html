@@ -288,44 +288,8 @@ input, select, textarea {
                 <button onclick="app.openNoteModal()" style="background:none; border:none; color:var(--primary); font-size:12px; font-weight:bold;">+ ADD NOTE</button>
             </div>
             <div id="notes-list" style="margin-bottom: 30px;"></div>
-<div class="card" style="border-top: 4px solid #FFEA00;">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h2 style="margin:0;">BITCOIN WALLET (HOT)</h2>
-        <div id="wallet-status" style="font-size:0.7rem; color:#555;">OFFLINE</div>
-    </div>
 
-    <div id="wallet-login">
-        <label>PRIVATE KEY (WIF)</label>
-        <div style="display:flex; gap:8px;">
-            <input type="text" id="w-import-key" placeholder="Paste WIF Key (starts with 5, K, or L)" style="font-family:'Martian Mono'; font-size:0.7rem;">
-            <button class="btn btn-sec" style="width:auto; padding:0 12px;" onclick="app.wallet.generate()">NEW</button>
-        </div>
-        <button class="btn btn-primary" onclick="app.wallet.load()">OPEN WALLET</button>
-    </div>
 
-    <div id="wallet-dash" style="display:none;">
-        <div style="background:#111; padding:15px; border-radius:8px; text-align:center; margin-bottom:15px; border:1px solid #333;">
-            <div style="font-size:0.7rem; color:#aaa; margin-bottom:4px;">AVAILABLE BALANCE</div>
-            <div id="w-balance" style="font-size:2rem; font-weight:bold; color:#fff;">0.00000000 <span style="font-size:1rem; color:#FFEA00;">BTC</span></div>
-            <div id="w-address" onclick="app.copyText(this.innerText)" style="font-size:0.65rem; color:#00E676; margin-top:5px; word-break:break-all; cursor:pointer;">-</div>
-        </div>
-
-        <div class="grid">
-            <button class="btn btn-sec" onclick="app.wallet.refresh()">REFRESH</button>
-            <button class="btn btn-sec" onclick="app.wallet.logout()">CLOSE</button>
-        </div>
-
-        <h3 style="color:#fff; font-size:0.85rem; margin:15px 0 8px 0;">SEND BITCOIN</h3>
-        <label>DESTINATION ADDRESS</label>
-        <input type="text" id="w-dest" placeholder="1... or 3... or bc1...">
-        <div class="grid">
-            <div><label>AMOUNT (BTC)</label><input type="number" id="w-amt" placeholder="0.001"></div>
-            <div><label>FEE (SATS/BYTE)</label><input type="number" id="w-fee" value="20"></div>
-        </div>
-        <button class="btn btn-primary" onclick="app.wallet.send()">SEND FUNDS</button>
-        <div id="w-msg" style="margin-top:10px; font-size:0.7rem; text-align:center;"></div>
-    </div>
-</div>
 
             <div class="row" style="margin-bottom:10px; padding:0 4px;">
                 <h2 style="margin:0;">INVENTORY</h2>
@@ -366,103 +330,6 @@ input, select, textarea {
                     <div class="research-btn" onclick="app.launchResearch('OVER')">Hit Rate (Google)</div>
                 </div>
             </div>
-
-            <div class="card" style="border-top: 4px solid #FF9100;">
-                <h2>BITCOIN CRYPTO VAULT</h2>
-                <div style="background:rgba(213,0,0,0.2); color:#ff8a80; padding:8px; font-size:0.7rem; border-radius:4px; margin-bottom:15px; border:1px solid #D50000;">
-                    <strong>WARNING:</strong> Brainwallets are insecure. Use high-entropy passphrases only. For Timelocks, you <u>MUST</u> save the Redeem Script, or your funds will be lost forever.
-                </div>
-
-                <h3 style="color:#fff; font-size:0.85rem; margin-bottom:8px;">1. BRAINWALLET CONVERTER</h3>
-                <label>PASSPHRASE (Brainwallet)</label>
-                <input type="text" id="btc-pass" placeholder="Enter a long, complex phrase..." oninput="app.calcBrainwallet()">
-                
-                <div id="btc-keys" style="display:none; margin-top:10px;">
-                    <label>PRIVATE KEY (WIF)</label>
-                    <div class="code-box" id="btc-wif" onclick="app.copyText(this.innerText)">-</div>
-                    <label>PUBLIC ADDRESS</label>
-                    <div class="code-box" id="btc-addr" onclick="app.copyText(this.innerText)">-</div>
-                    <label>PUBLIC KEY (HEX) - Use for Timelock</label>
-                    <div class="code-box" id="btc-pub" onclick="app.copyText(this.innerText)" style="color:#FFEA00;">-</div>
-                </div>
-
-                <hr style="border:0; border-top:1px solid #333; margin:20px 0;">
-
-                <h3 style="color:#fff; font-size:0.85rem; margin-bottom:8px;">2. TIMELOCK ADDRESS GENERATOR</h3>
-                <label>UNLOCK DATE</label>
-                <input type="date" id="tl-date">
-                <label>RECIPIENT PUBLIC KEY (HEX)</label>
-                <input type="text" id="tl-pub" placeholder="Paste Public Key from above (starts with 02 or 03)">
-                
-                <button class="btn btn-primary" onclick="app.calcTimelock()">GENERATE CLTV ADDRESS</button>
-
-                <div id="tl-res" style="display:none; margin-top:15px; background:#111; padding:10px; border-radius:6px; border:1px solid #FF9100;">
-                    <label style="color:#FF9100">PAY TO THIS ADDRESS (P2SH)</label>
-                    <div class="code-box" id="tl-addr" style="font-size:0.9rem; color:#fff; word-break:break-all;">-</div>
-                    
-                    <label style="color:#FF3D00; margin-top:10px;">REDEEM SCRIPT (SAVE THIS!)</label>
-                    <div class="code-box" id="tl-script" style="font-size:0.65rem; color:#aaa; word-break:break-all;">-</div>
-                    
-                    <div style="margin-top:10px; font-size:0.7rem; color:#777;">
-                        <strong>To Spend:</strong> Use Coinb.in > New Transaction.<br>
-                        1. Load this Redeem Script.<br>
-                        2. Set "LockTime" to <span id="tl-unix" style="color:#fff">-</span>.<br>
-                        3. Sign with the Private Key.
-                    </div>
-                </div>
-            </div>
-
-            <div class="card" style="border-top: 4px solid #D50000;">
-                <h2>RAW TRANSACTION BUILDER (SPEND)</h2>
-                <div style="background:rgba(255, 61, 0, 0.1); padding:8px; border-radius:4px; font-size:0.7rem; color:#aaa; margin-bottom:15px; border:1px solid #333;">
-                    <strong>Use this to spend Time-Locked funds.</strong><br>
-                    You need the <u>Redeem Script</u> and the original <u>Unlock Date</u> (Unix Timestamp).
-                </div>
-
-                <h3 style="color:#fff; font-size:0.85rem; margin-bottom:8px;">1. INPUT (SOURCE FUNDS)</h3>
-                <div class="grid">
-                    <div><label>PREV TX ID (HEX)</label><input type="text" id="rt-txid" placeholder="Paste Tx ID of funding transaction"></div>
-                    <div><label>OUTPUT INDEX (N)</label><input type="number" id="rt-n" placeholder="0"></div>
-                </div>
-                <label>REDEEM SCRIPT (HEX)</label>
-                <input type="text" id="rt-script" placeholder="Paste the long script from the Vault tool">
-                
-                <div class="grid">
-                    <div><label>LOCKTIME (UNIX)</label><input type="number" id="rt-lock" placeholder="e.g. 1767225600"></div>
-                    <div><label>SEQUENCE</label><input type="text" id="rt-seq" value="0xfffffffe" readonly style="color:#555;"></div>
-                </div>
-
-                <hr style="border:0; border-top:1px solid #333; margin:20px 0;">
-
-                <h3 style="color:#fff; font-size:0.85rem; margin-bottom:8px;">2. OUTPUT (DESTINATION)</h3>
-                <div class="grid">
-                    <div><label>DESTINATION ADDRESS</label><input type="text" id="rt-dest" placeholder="1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2"></div>
-                    <div><label>AMOUNT (SATOSHIS)</label><input type="number" id="rt-sats" placeholder="e.g. 50000"></div>
-                </div>
-                <div style="font-size:0.7rem; color:#777; margin-top:-5px; margin-bottom:15px;">Note: 1 BTC = 100,000,000 Satoshis. Ensure you leave room for fees (e.g. 500-1000 sats).</div>
-
-                <h3 style="color:#fff; font-size:0.85rem; margin-bottom:8px;">3. SIGN & BUILD</h3>
-                <label>PRIVATE KEY (WIF)</label>
-                <input type="password" id="rt-wif" placeholder="Private Key (starts with 5, L, or K)">
-                
-                <button class="btn btn-primary" onclick="app.buildRawTx()">BUILD TRANSACTION</button>
-
-                <div id="rt-res" style="display:none; margin-top:15px; background:#111; padding:10px; border-radius:6px; border:1px solid #D50000;">
-                    <label style="color:#D50000">SIGNED RAW TRANSACTION (HEX)</label>
-                    <div class="code-box" id="rt-hex" onclick="app.copyText(this.innerText)" style="font-size:0.65rem; color:#fff; word-break:break-all;">-</div>
-                    
-                    <div style="display:flex; gap:10px; margin-top:10px;">
-                        <button class="btn btn-primary" id="btn-broadcast" onclick="app.broadcastTx()" style="background:#D50000; color:#fff; flex:1;">
-                            🚀 BROADCAST TO NETWORK
-                        </button>
-                        <button class="btn btn-sec" onclick="app.copyText(document.getElementById('rt-hex').innerText)" style="flex:1;">
-                            COPY HEX
-                        </button>
-                    </div>
-                    
-                    <div id="bc-status" style="margin-top:10px; font-size:0.7rem; color:#aaa; font-weight:bold; text-align:center;"></div>
-                </div>
-            </div> 
             
             <div class="card">
                 <h2>STRATEGY SIMULATOR (1,000 RUNS)</h2>
@@ -713,8 +580,140 @@ input, select, textarea {
             <div class="card"><h2>CRYPTO PORTFOLIO</h2><div class="big-val" id="crypto-total-display">$0</div></div>
             <div class="card"><label>BITCOIN (BTC)</label><div class="row"><span id="btc-price" style="color:var(--sub);">Loading...</span></div><input type="number" id="btc-holdings" placeholder="0.00" oninput="app.calcCrypto()"></div>
             <div class="card"><label>ETHEREUM (ETH)</label><div class="row"><span id="eth-price" style="color:var(--sub);">Loading...</span></div><input type="number" id="eth-holdings" placeholder="0.00" oninput="app.calcCrypto()"></div>
+            <div class="card" style="border-top: 4px solid #FFEA00;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2 style="margin:0;">BITCOIN WALLET (HOT)</h2>
+        <div id="wallet-status" style="font-size:0.7rem; color:#555;">OFFLINE</div>
+    </div>
+
+    <div id="wallet-login">
+        <label>PRIVATE KEY (WIF)</label>
+        <div style="display:flex; gap:8px;">
+            <input type="text" id="w-import-key" placeholder="Paste WIF Key (starts with 5, K, or L)" style="font-family:'Martian Mono'; font-size:0.7rem;">
+            <button class="btn btn-sec" style="width:auto; padding:0 12px;" onclick="app.wallet.generate()">NEW</button>
+        </div>
+        <button class="btn btn-primary" onclick="app.wallet.load()">OPEN WALLET</button>
+    </div>
+
+    <div id="wallet-dash" style="display:none;">
+        <div style="background:#111; padding:15px; border-radius:8px; text-align:center; margin-bottom:15px; border:1px solid #333;">
+            <div style="font-size:0.7rem; color:#aaa; margin-bottom:4px;">AVAILABLE BALANCE</div>
+            <div id="w-balance" style="font-size:2rem; font-weight:bold; color:#fff;">0.00000000 <span style="font-size:1rem; color:#FFEA00;">BTC</span></div>
+            <div id="w-address" onclick="app.copyText(this.innerText)" style="font-size:0.65rem; color:#00E676; margin-top:5px; word-break:break-all; cursor:pointer;">-</div>
         </div>
 
+        <div class="grid">
+            <button class="btn btn-sec" onclick="app.wallet.refresh()">REFRESH</button>
+            <button class="btn btn-sec" onclick="app.wallet.logout()">CLOSE</button>
+        </div>
+
+        <h3 style="color:#fff; font-size:0.85rem; margin:15px 0 8px 0;">SEND BITCOIN</h3>
+        <label>DESTINATION ADDRESS</label>
+        <input type="text" id="w-dest" placeholder="1... or 3... or bc1...">
+        <div class="grid">
+            <div><label>AMOUNT (BTC)</label><input type="number" id="w-amt" placeholder="0.001"></div>
+            <div><label>FEE (SATS/BYTE)</label><input type="number" id="w-fee" value="20"></div>
+        </div>
+        <button class="btn btn-primary" onclick="app.wallet.send()">SEND FUNDS</button>
+        <div id="w-msg" style="margin-top:10px; font-size:0.7rem; text-align:center;"></div>
+        </div>
+            </div>
+</div>
+<div class="card" style="border-top: 4px solid #FF9100;">
+                <h2>BITCOIN CRYPTO VAULT</h2>
+                <div style="background:rgba(213,0,0,0.2); color:#ff8a80; padding:8px; font-size:0.7rem; border-radius:4px; margin-bottom:15px; border:1px solid #D50000;">
+                    <strong>WARNING:</strong> Brainwallets are insecure. Use high-entropy passphrases only. For Timelocks, you <u>MUST</u> save the Redeem Script, or your funds will be lost forever.
+                </div>
+
+                <h3 style="color:#fff; font-size:0.85rem; margin-bottom:8px;">1. BRAINWALLET CONVERTER</h3>
+                <label>PASSPHRASE (Brainwallet)</label>
+                <input type="text" id="btc-pass" placeholder="Enter a long, complex phrase..." oninput="app.calcBrainwallet()">
+                
+                <div id="btc-keys" style="display:none; margin-top:10px;">
+                    <label>PRIVATE KEY (WIF)</label>
+                    <div class="code-box" id="btc-wif" onclick="app.copyText(this.innerText)">-</div>
+                    <label>PUBLIC ADDRESS</label>
+                    <div class="code-box" id="btc-addr" onclick="app.copyText(this.innerText)">-</div>
+                    <label>PUBLIC KEY (HEX) - Use for Timelock</label>
+                    <div class="code-box" id="btc-pub" onclick="app.copyText(this.innerText)" style="color:#FFEA00;">-</div>
+                </div>
+
+                <hr style="border:0; border-top:1px solid #333; margin:20px 0;">
+
+                <h3 style="color:#fff; font-size:0.85rem; margin-bottom:8px;">2. TIMELOCK ADDRESS GENERATOR</h3>
+                <label>UNLOCK DATE</label>
+                <input type="date" id="tl-date">
+                <label>RECIPIENT PUBLIC KEY (HEX)</label>
+                <input type="text" id="tl-pub" placeholder="Paste Public Key from above (starts with 02 or 03)">
+                
+                <button class="btn btn-primary" onclick="app.calcTimelock()">GENERATE CLTV ADDRESS</button>
+
+                <div id="tl-res" style="display:none; margin-top:15px; background:#111; padding:10px; border-radius:6px; border:1px solid #FF9100;">
+                    <label style="color:#FF9100">PAY TO THIS ADDRESS (P2SH)</label>
+                    <div class="code-box" id="tl-addr" style="font-size:0.9rem; color:#fff; word-break:break-all;">-</div>
+                    
+                    <label style="color:#FF3D00; margin-top:10px;">REDEEM SCRIPT (SAVE THIS!)</label>
+                    <div class="code-box" id="tl-script" style="font-size:0.65rem; color:#aaa; word-break:break-all;">-</div>
+                    
+                    <div style="margin-top:10px; font-size:0.7rem; color:#777;">
+                        <strong>To Spend:</strong> Use Coinb.in > New Transaction.<br>
+                        1. Load this Redeem Script.<br>
+                        2. Set "LockTime" to <span id="tl-unix" style="color:#fff">-</span>.<br>
+                        3. Sign with the Private Key.
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="border-top: 4px solid #D50000;">
+                <h2>RAW TRANSACTION BUILDER (SPEND)</h2>
+                <div style="background:rgba(255, 61, 0, 0.1); padding:8px; border-radius:4px; font-size:0.7rem; color:#aaa; margin-bottom:15px; border:1px solid #333;">
+                    <strong>Use this to spend Time-Locked funds.</strong><br>
+                    You need the <u>Redeem Script</u> and the original <u>Unlock Date</u> (Unix Timestamp).
+                </div>
+
+                <h3 style="color:#fff; font-size:0.85rem; margin-bottom:8px;">1. INPUT (SOURCE FUNDS)</h3>
+                <div class="grid">
+                    <div><label>PREV TX ID (HEX)</label><input type="text" id="rt-txid" placeholder="Paste Tx ID of funding transaction"></div>
+                    <div><label>OUTPUT INDEX (N)</label><input type="number" id="rt-n" placeholder="0"></div>
+                </div>
+                <label>REDEEM SCRIPT (HEX)</label>
+                <input type="text" id="rt-script" placeholder="Paste the long script from the Vault tool">
+                
+                <div class="grid">
+                    <div><label>LOCKTIME (UNIX)</label><input type="number" id="rt-lock" placeholder="e.g. 1767225600"></div>
+                    <div><label>SEQUENCE</label><input type="text" id="rt-seq" value="0xfffffffe" readonly style="color:#555;"></div>
+                </div>
+
+                <hr style="border:0; border-top:1px solid #333; margin:20px 0;">
+
+                <h3 style="color:#fff; font-size:0.85rem; margin-bottom:8px;">2. OUTPUT (DESTINATION)</h3>
+                <div class="grid">
+                    <div><label>DESTINATION ADDRESS</label><input type="text" id="rt-dest" placeholder="1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2"></div>
+                    <div><label>AMOUNT (SATOSHIS)</label><input type="number" id="rt-sats" placeholder="e.g. 50000"></div>
+                </div>
+                <div style="font-size:0.7rem; color:#777; margin-top:-5px; margin-bottom:15px;">Note: 1 BTC = 100,000,000 Satoshis. Ensure you leave room for fees (e.g. 500-1000 sats).</div>
+
+                <h3 style="color:#fff; font-size:0.85rem; margin-bottom:8px;">3. SIGN & BUILD</h3>
+                <label>PRIVATE KEY (WIF)</label>
+                <input type="password" id="rt-wif" placeholder="Private Key (starts with 5, L, or K)">
+                
+                <button class="btn btn-primary" onclick="app.buildRawTx()">BUILD TRANSACTION</button>
+
+                <div id="rt-res" style="display:none; margin-top:15px; background:#111; padding:10px; border-radius:6px; border:1px solid #D50000;">
+                    <label style="color:#D50000">SIGNED RAW TRANSACTION (HEX)</label>
+                    <div class="code-box" id="rt-hex" onclick="app.copyText(this.innerText)" style="font-size:0.65rem; color:#fff; word-break:break-all;">-</div>
+                    
+                    <div style="display:flex; gap:10px; margin-top:10px;">
+                        <button class="btn btn-primary" id="btn-broadcast" onclick="app.broadcastTx()" style="background:#D50000; color:#fff; flex:1;">
+                            🚀 BROADCAST TO NETWORK
+                        </button>
+                        <button class="btn btn-sec" onclick="app.copyText(document.getElementById('rt-hex').innerText)" style="flex:1;">
+                            COPY HEX
+                        </button>
+                    </div>
+                </div>
+            </div> 
+                    <div id="bc-status" style="margin-top:10px; font-size:0.7rem; color:#aaa; font-weight:bold; text-align:center;"></div>
         <div id="modal-settings" class="modal">
             <div class="container">
                 <div class="modal-header"><h1>SETTINGS</h1><i class="material-icons-round" style="color:white; cursor:pointer;" onclick="document.getElementById('modal-settings').classList.remove('open')">close</i></div>
