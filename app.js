@@ -1308,7 +1308,7 @@ const app = {
     },
 
         // 2. Timelock Generator (CLTV) - FIXED
-        calcTimelock: () => {
+            calcTimelock: () => {
         if (typeof bitcoin === 'undefined') return alert("Error: Bitcoin Library not loaded.");
 
         const dateStr = document.getElementById('tl-date').value;
@@ -1322,16 +1322,20 @@ const app = {
             if (!B) throw new Error("Buffer missing.");
             // ------------------
 
-            // 1. Timestamp
-            const lockTime = Math.floor(new Date(dateStr).getTime() / 1000);
+            // 1. UTC Timestamp Calculation (Midnight UTC)
+            // We append 'T00:00:00Z' to force it to be treated as UTC midnight, not local time.
+            const dateObj = new Date(dateStr + 'T00:00:00Z');
+            const lockTime = Math.floor(dateObj.getTime() / 1000);
+            
+            if (isNaN(lockTime)) throw new Error("Invalid Date");
+            
             document.getElementById('tl-unix').innerText = lockTime;
 
-            // 2. Create Script
-            // We use the older 'bitcoin.script.compile' which usually accepts numbers directly for ops
+            // 2. Create Script (CLTV)
             const pubKeyBuffer = B.from(pubKeyHex, 'hex');
             
-            // Note: In older libs, 'bitcoin.script.number.encode' might be hidden or named differently.
-            // We can often pass the integer directly if the lib supports it, or use this manual encode:
+            // Manual Number Encode (Universal)
+            // This ensures we don't rely on a specific library version's number encoder
             const encodeNum = (n) => {
                 if (n === 0) return B.from([]);
                 let arr = [];
@@ -1339,17 +1343,11 @@ const app = {
                     arr.push(n & 0xff);
                     n >>= 8;
                 }
-                // Check if the most significant bit is set (needs padding for signed magnitude)
-                if (arr[arr.length - 1] & 0x80) {
-                    arr.push(0x00);
-                }
+                if (arr[arr.length - 1] & 0x80) arr.push(0x00);
                 return B.from(arr);
             };
 
-            // Try standard lib encoder, fallback to manual
-            const lockTimeBuffer = (bitcoin.script.number && bitcoin.script.number.encode) 
-                ? bitcoin.script.number.encode(lockTime) 
-                : encodeNum(lockTime);
+            const lockTimeBuffer = encodeNum(lockTime);
 
             const redeemScript = bitcoin.script.compile([
                 lockTimeBuffer,
@@ -1359,20 +1357,14 @@ const app = {
                 bitcoin.opcodes.OP_CHECKSIG
             ]);
 
-                        // 3. Generate Address (Universal / Old School)
+            // 3. Generate Address (Universal Low-Level Method)
+            // Step A: Hash160 the script
             const scriptHash = bitcoin.crypto.hash160(redeemScript);
             
-            // Try standard address generation
-            let address = "";
-            // Most coinbin forks use this:
-            if (bitcoin.address.toBase58Check) {
-                address = bitcoin.address.toBase58Check(scriptHash, 0x05); // 0x05 = '3' addresses
-            } else {
-                // Newer
-                const { address: addr } = bitcoin.payments.p2sh({ hash: scriptHash });
-                address = addr;
-            }
-
+            // Step B: Convert Hash to P2SH Address (Base58Check)
+            // 0x05 is the version byte for Mainnet P2SH (Starts with '3')
+            // If this fails, your library is extremely old or custom.
+            const address = bitcoin.address.toBase58Check(scriptHash, 0x05);
 
             // Display
             document.getElementById('tl-res').style.display = 'block';
@@ -1537,6 +1529,7 @@ const app = {
 };
 
 window.onload = app.init;
+
 
 
 
