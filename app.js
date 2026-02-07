@@ -1,9 +1,3 @@
-// Global Chart Settings
-Chart.defaults.font.family = "'Martian Mono', monospace";
-Chart.defaults.color = "#FF3D00";
-Chart.defaults.borderColor = "#333";
-Chart.register(ChartDataLabels);
-
 const app = {
     charts: {},
     data: { 
@@ -28,21 +22,31 @@ const app = {
 
     init: () => {
         const saved = localStorage.getItem('bankroll_os_v19_1'); 
+        init: () => {
+        const saved = localStorage.getItem('bankroll_os_v19_1'); 
         if (saved) { 
             try { 
                 const parsed = JSON.parse(saved);
                 app.data = { ...app.data, ...parsed };
-                if(!app.data.txs) app.data.txs=[]; 
-                if(!app.data.tickets) app.data.tickets=[]; 
-                if(!app.data.inventory) app.data.inventory=[];
-                if(!app.data.notes) app.data.notes=[];
-                if(!app.data.liveSession) app.data.liveSession={active:false};
+                // ... (your existing array checks) ...
                 if(!app.data.goal) app.data.goal = 10000;
             } catch(e){ console.log("Init Error", e); } 
         }
+
+        // --- PASTE CHART SETTINGS HERE (Safe Spot) ---
+        if (typeof Chart !== 'undefined') {
+            Chart.defaults.font.family = "'Martian Mono', monospace";
+            Chart.defaults.color = "#FF3D00";
+            Chart.defaults.borderColor = "#333";
+            Chart.register(ChartDataLabels);
+        }
+        // ---------------------------------------------
+
         if(app.data.liveSession.active) app.startLiveTimer();
         app.render(); app.fetchCrypto();
         app.renderRecurringTools();
+    },
+
     },
     save: () => { localStorage.setItem('bankroll_os_v19_1', JSON.stringify(app.data)); app.render(); },
 
@@ -1501,3 +1505,4 @@ const app = {
 };
 
 window.onload = app.init;
+
