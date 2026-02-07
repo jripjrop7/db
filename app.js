@@ -1121,6 +1121,175 @@ const app = {
             alert("Error parsing JSON data. Check format."); 
         } 
     },
+        // --- HOT WALLET FUNCTIONALITY ---
+    wallet: {
+        currentKey: null,
+        currentAddr: null,
+        utxos: [],
+
+        // 1. Generate New Key
+        generate: () => {
+            if(!confirm("Generate new random wallet? Save the key immediately!")) return;
+            try {
+                const keyPair = bitcoin.ECPair.makeRandom();
+                document.getElementById('w-import-key').value = keyPair.toWIF();
+                alert("New Key Generated. Click 'OPEN WALLET' to use it.");
+            } catch(e) { alert("Lib Error: " + e.message); }
+        },
+
+        // 2. Load Wallet from Input
+        load: () => {
+            const wif = document.getElementById('w-import-key').value.trim();
+            if(!wif) return alert("Enter a Private Key (WIF)");
+
+            try {
+                // Buffer Fix (Same as before)
+                const B = (typeof Buffer !== 'undefined') ? Buffer : ((bitcoin.Buffer) ? bitcoin.Buffer : null);
+                if (!B) throw new Error("Buffer missing");
+
+                const network = bitcoin.networks.bitcoin;
+                const keyPair = bitcoin.ECPair.fromWIF(wif, network);
+                
+                // Derive Address (P2PKH - Standard '1...')
+                let address = '';
+                if(bitcoin.payments && bitcoin.payments.p2pkh) {
+                    const { address: addr } = bitcoin.payments.p2pkh({ pubkey: keyPair.publicKey, network });
+                    address = addr;
+                } else {
+                    address = keyPair.getAddress(); // Older libs
+                }
+
+                app.wallet.currentKey = keyPair;
+                app.wallet.currentAddr = address;
+
+                // Update UI
+                document.getElementById('wallet-login').style.display = 'none';
+                document.getElementById('wallet-dash').style.display = 'block';
+                document.getElementById('w-address').innerText = address;
+                document.getElementById('wallet-status').innerText = "ONLINE";
+                document.getElementById('wallet-status').style.color = "#00E676";
+                
+                app.wallet.refresh(); // Fetch Balance
+
+            } catch(e) {
+                alert("Invalid Key: " + e.message);
+            }
+        },
+
+        // 3. Fetch Balance & UTXOs (API)
+        refresh: async () => {
+            const addr = app.wallet.currentAddr;
+            const balEl = document.getElementById('w-balance');
+            const msgEl = document.getElementById('w-msg');
+            if(!addr) return;
+
+            balEl.innerText = "Loading...";
+            try {
+                // Fetch UTXOs (Unspent Outputs) from Blockstream
+                const res = await fetch(`https://blockstream.info/api/address/${addr}/utxo`);
+                const utxos = await res.json();
+                app.wallet.utxos = utxos;
+
+                // Calculate Balance
+                const totalSats = utxos.reduce((acc, tx) => acc + tx.value, 0);
+                const btc = (totalSats / 100000000).toFixed(8);
+                
+                balEl.innerHTML = `${btc} <span style="font-size:1rem; color:#FFEA00;">BTC</span>`;
+                msgEl.innerText = `Synced: ${utxos.length} UTXOs available.`;
+                msgEl.style.color = "#aaa";
+            } catch(e) {
+                balEl.innerText = "Error";
+                msgEl.innerText = "Connection Failed. Check Internet.";
+                msgEl.style.color = "#D50000";
+            }
+        },
+
+        // 4. Build & Broadcast Transaction
+        send: async () => {
+            const dest = document.getElementById('w-dest').value.trim();
+            const amtBTC = parseFloat(document.getElementById('w-amt').value);
+            const feeRate = parseInt(document.getElementById('w-fee').value) || 20;
+            const msgEl = document.getElementById('w-msg');
+
+            if(!dest || !amtBTC) return alert("Enter destination and amount");
+            if(!app.wallet.utxos.length) return alert("No funds available (No UTXOs).");
+
+            if(!confirm(`Send ${amtBTC} BTC to ${dest}?`)) return;
+
+            try {
+                const satoshisToSend = Math.floor(amtBTC * 100000000);
+                const network = bitcoin.networks.bitcoin;
+                const txb = new bitcoin.TransactionBuilder(network);
+                
+                let inputSum = 0;
+                let inputsCount = 0;
+
+                // Add Inputs (Coin Selection)
+                // We assume basic P2PKH inputs for simplicity
+                app.wallet.utxos.forEach((utxo) => {
+                    if(inputSum < (satoshisToSend + 5000)) { // Add inputs until we cover amount + buffer
+                        txb.addInput(utxo.tx_hash, utxo.tx_output_n);
+                        inputSum += utxo.value;
+                        inputsCount++;
+                    }
+                });
+
+                // Estimate Fee (Size approx: 148 bytes per input, 34 per output + 10 buffer)
+                const txSize = (inputsCount * 148) + (2 * 34) + 10; 
+                const fee = txSize * feeRate;
+                const change = inputSum - satoshisToSend - fee;
+
+                if (change < 0) return alert(`Insufficient Funds. Need ${satoshisToSend + fee} sats, have ${inputSum}.`);
+
+                // Add Outputs
+                txb.addOutput(dest, satoshisToSend); // Target
+                if (change > 546) { // Dust threshold
+                    txb.addOutput(app.wallet.currentAddr, change); // Change back to us
+                }
+
+                // Sign Inputs
+                for(let i=0; i<inputsCount; i++) {
+                    txb.sign(i, app.wallet.currentKey);
+                }
+
+                // Build & Hex
+                const tx = txb.build();
+                const hex = tx.toHex();
+
+                // Broadcast
+                msgEl.innerText = "Broadcasting...";
+                msgEl.style.color = "#FFEA00";
+
+                const response = await fetch('https://blockstream.info/api/tx', { method: 'POST', body: hex });
+                const txid = await response.text();
+
+                if (response.ok) {
+                    msgEl.innerHTML = `✅ SENT! <a href="https://mempool.space/tx/${txid}" target="_blank" style="color:#00E676">View TX</a>`;
+                    app.wallet.refresh(); // Update balance
+                } else {
+                    throw new Error(txid);
+                }
+
+            } catch(e) {
+                console.error(e);
+                alert("Send Failed: " + e.message);
+                msgEl.innerText = "Failed: " + e.message;
+                msgEl.style.color = "#D50000";
+            }
+        },
+
+        logout: () => {
+            app.wallet.currentKey = null;
+            app.wallet.currentAddr = null;
+            app.wallet.utxos = [];
+            document.getElementById('w-import-key').value = '';
+            document.getElementById('wallet-dash').style.display = 'none';
+            document.getElementById('wallet-login').style.display = 'block';
+            document.getElementById('wallet-status').innerText = "OFFLINE";
+            document.getElementById('wallet-status').style.color = "#555";
+        }
+    },
+
             // --- RECURRING EXPENSES LOGIC ---
 
     // 1. Tool Logic (Add/Edit Rows)
@@ -1525,6 +1694,7 @@ const app = {
 };
 
 window.onload = app.init;
+
 
 
 
