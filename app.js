@@ -1122,61 +1122,90 @@ const app = {
         } 
     },
         // --- HOT WALLET FUNCTIONALITY ---
+        // --- HOT WALLET MANAGER (Universal Version) ---
     wallet: {
         currentKey: null,
         currentAddr: null,
         utxos: [],
 
-        // 1. Generate New Key
+        // 1. Generate New Key (Universal Fix)
         generate: () => {
             if(!confirm("Generate new random wallet? Save the key immediately!")) return;
             try {
-                const keyPair = bitcoin.ECPair.makeRandom();
+                // Buffer Helper
+                const B = (typeof Buffer !== 'undefined') ? Buffer : ((bitcoin.Buffer) ? bitcoin.Buffer : null);
+                
+                let keyPair;
+                // Try Standard Method
+                if (bitcoin.ECPair.makeRandom) {
+                    keyPair = bitcoin.ECPair.makeRandom();
+                } else {
+                    // Fallback: Manually generate 32 random bytes
+                    const array = new Uint8Array(32);
+                    window.crypto.getRandomValues(array);
+                    // Convert to Buffer using our safe 'B' helper
+                    const buf = B ? B.from(array) : new TextEncoder().encode(array); 
+                    keyPair = bitcoin.ECPair.fromPrivateKey(buf);
+                }
+
                 document.getElementById('w-import-key').value = keyPair.toWIF();
                 alert("New Key Generated. Click 'OPEN WALLET' to use it.");
-            } catch(e) { alert("Lib Error: " + e.message); }
+            } catch(e) { 
+                console.error(e);
+                alert("Generate Error: " + e.message); 
+            }
         },
 
-        // 2. Load Wallet from Input
+        // 2. Load Wallet (Universal Fix)
         load: () => {
             const wif = document.getElementById('w-import-key').value.trim();
             if(!wif) return alert("Enter a Private Key (WIF)");
 
             try {
-                // Buffer Fix (Same as before)
-                const B = (typeof Buffer !== 'undefined') ? Buffer : ((bitcoin.Buffer) ? bitcoin.Buffer : null);
-                if (!B) throw new Error("Buffer missing");
-
                 const network = bitcoin.networks.bitcoin;
                 const keyPair = bitcoin.ECPair.fromWIF(wif, network);
                 
-                // Derive Address (P2PKH - Standard '1...')
+                // Address Derivation (Try New, then Old)
                 let address = '';
-                if(bitcoin.payments && bitcoin.payments.p2pkh) {
-                    const { address: addr } = bitcoin.payments.p2pkh({ pubkey: keyPair.publicKey, network });
-                    address = addr;
-                } else {
-                    address = keyPair.getAddress(); // Older libs
+                try {
+                    // Modern (v5+)
+                    if(bitcoin.payments && bitcoin.payments.p2pkh) {
+                        const { address: addr } = bitcoin.payments.p2pkh({ pubkey: keyPair.publicKey, network });
+                        address = addr;
+                    } 
+                    // Legacy (v4 / Coinbin)
+                    else if(keyPair.getAddress) {
+                        address = keyPair.getAddress();
+                    } 
+                    // Ancient Fallback
+                    else {
+                        const hash = bitcoin.crypto.hash160(keyPair.getPublicKeyBuffer ? keyPair.getPublicKeyBuffer() : keyPair.publicKey);
+                        address = bitcoin.address.toBase58Check(hash, 0x00); // 0x00 is Mainnet '1'
+                    }
+                } catch(err) {
+                    // If P2PKH fails, fallback to simple getAddress
+                    if(keyPair.getAddress) address = keyPair.getAddress();
                 }
 
                 app.wallet.currentKey = keyPair;
                 app.wallet.currentAddr = address;
 
-                // Update UI
+                // UI Update
                 document.getElementById('wallet-login').style.display = 'none';
                 document.getElementById('wallet-dash').style.display = 'block';
                 document.getElementById('w-address').innerText = address;
                 document.getElementById('wallet-status').innerText = "ONLINE";
                 document.getElementById('wallet-status').style.color = "#00E676";
                 
-                app.wallet.refresh(); // Fetch Balance
+                app.wallet.refresh();
 
             } catch(e) {
-                alert("Invalid Key: " + e.message);
+                console.error(e);
+                alert("Load Error: " + e.message + "\n(Check WIF format)");
             }
         },
 
-        // 3. Fetch Balance & UTXOs (API)
+        // 3. Fetch Balance (API)
         refresh: async () => {
             const addr = app.wallet.currentAddr;
             const balEl = document.getElementById('w-balance');
@@ -1185,12 +1214,12 @@ const app = {
 
             balEl.innerText = "Loading...";
             try {
-                // Fetch UTXOs (Unspent Outputs) from Blockstream
+                // Fetch UTXOs
                 const res = await fetch(`https://blockstream.info/api/address/${addr}/utxo`);
+                if(!res.ok) throw new Error("API Limit or Network Error");
                 const utxos = await res.json();
                 app.wallet.utxos = utxos;
 
-                // Calculate Balance
                 const totalSats = utxos.reduce((acc, tx) => acc + tx.value, 0);
                 const btc = (totalSats / 100000000).toFixed(8);
                 
@@ -1199,12 +1228,12 @@ const app = {
                 msgEl.style.color = "#aaa";
             } catch(e) {
                 balEl.innerText = "Error";
-                msgEl.innerText = "Connection Failed. Check Internet.";
+                msgEl.innerText = "Connection Failed. Retrying...";
                 msgEl.style.color = "#D50000";
             }
         },
 
-        // 4. Build & Broadcast Transaction
+        // 4. Send (Robust Builder)
         send: async () => {
             const dest = document.getElementById('w-dest').value.trim();
             const amtBTC = parseFloat(document.getElementById('w-amt').value);
@@ -1225,38 +1254,32 @@ const app = {
                 let inputsCount = 0;
 
                 // Add Inputs (Coin Selection)
-                // We assume basic P2PKH inputs for simplicity
                 app.wallet.utxos.forEach((utxo) => {
-                    if(inputSum < (satoshisToSend + 5000)) { // Add inputs until we cover amount + buffer
+                    if(inputSum < (satoshisToSend + 5000)) { 
                         txb.addInput(utxo.tx_hash, utxo.tx_output_n);
                         inputSum += utxo.value;
                         inputsCount++;
                     }
                 });
 
-                // Estimate Fee (Size approx: 148 bytes per input, 34 per output + 10 buffer)
                 const txSize = (inputsCount * 148) + (2 * 34) + 10; 
                 const fee = txSize * feeRate;
                 const change = inputSum - satoshisToSend - fee;
 
                 if (change < 0) return alert(`Insufficient Funds. Need ${satoshisToSend + fee} sats, have ${inputSum}.`);
 
-                // Add Outputs
-                txb.addOutput(dest, satoshisToSend); // Target
-                if (change > 546) { // Dust threshold
-                    txb.addOutput(app.wallet.currentAddr, change); // Change back to us
+                txb.addOutput(dest, satoshisToSend);
+                if (change > 546) {
+                    txb.addOutput(app.wallet.currentAddr, change);
                 }
 
-                // Sign Inputs
                 for(let i=0; i<inputsCount; i++) {
                     txb.sign(i, app.wallet.currentKey);
                 }
 
-                // Build & Hex
                 const tx = txb.build();
                 const hex = tx.toHex();
 
-                // Broadcast
                 msgEl.innerText = "Broadcasting...";
                 msgEl.style.color = "#FFEA00";
 
@@ -1265,7 +1288,7 @@ const app = {
 
                 if (response.ok) {
                     msgEl.innerHTML = `✅ SENT! <a href="https://mempool.space/tx/${txid}" target="_blank" style="color:#00E676">View TX</a>`;
-                    app.wallet.refresh(); // Update balance
+                    app.wallet.refresh();
                 } else {
                     throw new Error(txid);
                 }
@@ -1289,7 +1312,6 @@ const app = {
             document.getElementById('wallet-status').style.color = "#555";
         }
     },
-
             // --- RECURRING EXPENSES LOGIC ---
 
     // 1. Tool Logic (Add/Edit Rows)
@@ -1694,6 +1716,7 @@ const app = {
 };
 
 window.onload = app.init;
+
 
 
 
