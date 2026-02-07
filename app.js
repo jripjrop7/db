@@ -1128,82 +1128,70 @@ const app = {
         currentAddr: null,
         utxos: [],
 
-        // 1. Generate New Key (Universal Fix)
+                // 1. Generate New Key (Auto-Backup to Notes)
         generate: () => {
-            if(!confirm("Generate new random wallet? Save the key immediately!")) return;
+            if(!confirm("Generate new random wallet? \n\nSAFEGUARD: This will automatically save the Private Key to your 'Quick Notes'.")) return;
             try {
                 // Buffer Helper
                 const B = (typeof Buffer !== 'undefined') ? Buffer : ((bitcoin.Buffer) ? bitcoin.Buffer : null);
                 
+                // A. Generate Key Pair
                 let keyPair;
-                // Try Standard Method
                 if (bitcoin.ECPair.makeRandom) {
                     keyPair = bitcoin.ECPair.makeRandom();
                 } else {
-                    // Fallback: Manually generate 32 random bytes
+                    // Fallback for older libs
                     const array = new Uint8Array(32);
                     window.crypto.getRandomValues(array);
-                    // Convert to Buffer using our safe 'B' helper
                     const buf = B ? B.from(array) : new TextEncoder().encode(array); 
                     keyPair = bitcoin.ECPair.fromPrivateKey(buf);
                 }
 
-                document.getElementById('w-import-key').value = keyPair.toWIF();
-                alert("New Key Generated. Click 'OPEN WALLET' to use it.");
+                const wif = keyPair.toWIF();
+                const pub = keyPair.publicKey.toString('hex');
+
+                // B. Derive Address (To save in note)
+                let address = '';
+                const network = bitcoin.networks.bitcoin;
+                // Try Modern P2PKH
+                if(bitcoin.payments && bitcoin.payments.p2pkh) {
+                    const { address: addr } = bitcoin.payments.p2pkh({ pubkey: keyPair.publicKey, network });
+                    address = addr;
+                } 
+                // Try Legacy
+                else if(keyPair.getAddress) {
+                    address = keyPair.getAddress();
+                } 
+                // Fallback
+                else {
+                    const hash = bitcoin.crypto.hash160(keyPair.getPublicKeyBuffer ? keyPair.getPublicKeyBuffer() : keyPair.publicKey);
+                    address = bitcoin.address.toBase58Check(hash, 0x00);
+                }
+
+                // C. Auto-Save to Notes
+                const noteBody = `CREATED: ${new Date().toLocaleString()}\n\nADDRESS:\n${address}\n\nPRIVATE KEY (WIF):\n${wif}\n\nPUBLIC KEY (HEX):\n${pub}`;
+                
+                app.data.notes.push({
+                    id: Date.now(),
+                    title: 'BTC KEYS (AUTO)',
+                    body: noteBody,
+                    date: new Date().toISOString(),
+                    color: '#FFEA00' // Yellow for Bitcoin
+                });
+
+                app.save(); // Persist to LocalStorage immediately
+                app.renderNotes(); // Update the Notes UI background
+
+                // D. Update Wallet UI
+                document.getElementById('w-import-key').value = wif;
+                alert(`New Wallet Generated!\n\nAddress: ${address}\n\nSUCCESS: Keys have been saved to your Quick Notes.`);
+
             } catch(e) { 
                 console.error(e);
                 alert("Generate Error: " + e.message); 
             }
         },
 
-        // 2. Load Wallet (Universal Fix)
-        load: () => {
-            const wif = document.getElementById('w-import-key').value.trim();
-            if(!wif) return alert("Enter a Private Key (WIF)");
-
-            try {
-                const network = bitcoin.networks.bitcoin;
-                const keyPair = bitcoin.ECPair.fromWIF(wif, network);
-                
-                // Address Derivation (Try New, then Old)
-                let address = '';
-                try {
-                    // Modern (v5+)
-                    if(bitcoin.payments && bitcoin.payments.p2pkh) {
-                        const { address: addr } = bitcoin.payments.p2pkh({ pubkey: keyPair.publicKey, network });
-                        address = addr;
-                    } 
-                    // Legacy (v4 / Coinbin)
-                    else if(keyPair.getAddress) {
-                        address = keyPair.getAddress();
-                    } 
-                    // Ancient Fallback
-                    else {
-                        const hash = bitcoin.crypto.hash160(keyPair.getPublicKeyBuffer ? keyPair.getPublicKeyBuffer() : keyPair.publicKey);
-                        address = bitcoin.address.toBase58Check(hash, 0x00); // 0x00 is Mainnet '1'
-                    }
-                } catch(err) {
-                    // If P2PKH fails, fallback to simple getAddress
-                    if(keyPair.getAddress) address = keyPair.getAddress();
-                }
-
-                app.wallet.currentKey = keyPair;
-                app.wallet.currentAddr = address;
-
-                // UI Update
-                document.getElementById('wallet-login').style.display = 'none';
-                document.getElementById('wallet-dash').style.display = 'block';
-                document.getElementById('w-address').innerText = address;
-                document.getElementById('wallet-status').innerText = "ONLINE";
-                document.getElementById('wallet-status').style.color = "#00E676";
-                
-                app.wallet.refresh();
-
-            } catch(e) {
-                console.error(e);
-                alert("Load Error: " + e.message + "\n(Check WIF format)");
-            }
-        },
 
         // 3. Fetch Balance (API)
         refresh: async () => {
@@ -1716,7 +1704,6 @@ const app = {
 };
 
 window.onload = app.init;
-
 
 
 
