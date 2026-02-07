@@ -1485,6 +1485,180 @@ const app = {
         }
         window.open(`https://www.statmuse.com/${l.toLowerCase()}/ask/${q.replace(/ /g, "-")}`, '_blank');
     },
+    // --- VANITY ADDRESS MINER ---
+    vanity: {
+        active: false,
+        count: 0,
+        startTime: 0,
+        foundKey: null,
+        mode: 'custom', // 'custom' or 'any'
+        
+        // Compact list of Base58-safe English words (3-5 letters)
+        // No '0', 'O', 'I', 'l'
+        dictionary: "ACE,ACT,ADD,AGE,AID,AIM,AIR,AND,ANT,ANY,APE,APT,ARC,ARE,ARK,ARM,ART,ASH,ASK,ASP,ATE,AWE,AXE,BAD,BAG,BAN,BAR,BAT,BAY,BED,BEE,BEG,BET,BID,BIG,BIN,BIT,BOW,BOX,BOY,BUD,BUG,BUN,BUS,BUT,BUY,BYE,CAB,CAM,CAN,CAP,CAR,CAT,COW,CRY,CUP,CUT,DAB,DAD,DAM,DAN,DAY,DEN,DEW,DID,DIE,DIG,DIM,DIP,DOG,DOT,DRY,DUB,DUE,DUG,DYE,EAR,EAT,EGG,EGO,ELF,END,ERA,EVE,EYE,FAN,FAR,FAT,FAX,FED,FEE,FEW,FIG,FIN,FIT,FIX,FLY,FOG,FOR,FOX,FRY,FUN,FUR,GAP,GAS,GAY,GEM,GET,GIG,GIN,GOD,GOT,GUM,GUN,GUT,GUY,GYM,HAD,HAM,HAS,HAT,HAY,HEM,HEN,HER,HEX,HEY,HID,HIM,HIP,HIT,HOG,HOP,HOT,HOW,HUB,HUE,HUG,HUM,HUT,INK,INN,JAM,JAR,JAW,JAY,JET,JEW,JOB,JOG,JOY,JUG,JUT,KEG,KEY,KID,KIN,KIT,LAB,LAD,LAG,LAP,LAW,LAY,LED,LEG,LET,LID,LIE,LIP,LOG,LOW,MAD,MAN,MAP,MAT,MAX,MAY,MEN,MET,MID,MIX,MOB,MOM,MUD,MUG,MUM,NAG,NAP,NET,NEW,NOD,NOR,NOT,NOW,NUT,OAR,ODD,OFF,OLD,ONE,OPT,ORE,OUR,OUT,OWL,OWN,PAD,PAL,PAN,PAR,PAT,PAW,PAY,PEA,PEN,PET,PEW,PIE,PIG,PIN,PIT,PLY,POD,POP,POT,PRO,PRY,PUB,PUN,PUP,PUT,RAG,RAM,RAN,RAP,RAT,RAW,RAY,RED,RIB,RID,RIG,RIM,RIP,ROB,ROD,ROT,ROW,RUB,RUG,RUM,RUN,RUT,RYE,SAD,SAG,SAP,SAT,SAW,SAY,SEA,SEE,SET,SEW,SEX,SHE,SHY,SIN,SIP,SIR,SIT,SIX,SKI,SKY,SLY,SOD,SON,SOW,SOY,SPA,SPY,SUB,SUE,SUM,SUN,TAB,TAG,TAN,TAP,TAR,TAX,TEA,TEN,THE,TIE,TIN,TIP,TOE,TON,TOP,TOW,TOY,TRY,TUB,TUG,TWO,URN,USE,VAN,VAT,VET,VEX,VIA,VOW,WAG,WAR,WAX,WAY,WEB,WED,WEE,WET,WHO,WHY,WIG,WIN,WIT,WOE,WON,WRY,YAK,YAM,YAP,YEA,YES,YET,YOU,YUM,ZAP,ZIP,ZOO,ACID,AGED,AGES,AIDE,AIDS,ARMY,ATOM,AUNT,AUTO,BABY,BACK,BAKE,BALD,BALL,BAND,BANG,BANK,BARE,BARK,BASE,BASH,BATH,BEAD,BEAK,BEAM,BEAN,BEAR,BEAT,BEEF,BEER,BEET,BEND,BEST,BETA,BIAS,BIKE,BIRD,BITE,BLUE,BOAT,BODY,BOMB,BOND,BONE,BOOK,BOOM,BOSS,BOTH,BOWL,BULK,BULL,BUMP,BURN,BURY,BUSY,CAGE,CAKE,CAMP,CARD,CARE,CART,CASE,CASH,CAST,CAVE,CENT,CHAT,CHEF,CHEW,CHIN,CHIP,CHOP,CITY,CLAY,CLUB,COAL,COAT,CODE,COIN,COLD,COOK,COOL,COPY,CORD,CORE,CORK,CORN,COST,CRAB,CREW,CROP,CUBE,CURE,CUTE,DAMP,DARE,DARK,DATA,DATE,DAWN,DEAD,DEAF,DEAL,DEAN,DEAR,DEBT,DECK,DEED,DEEP,DEER,DEFY,DENY,DESK,DIET,DIRT,DISH,DISK,DIVE,DOCK,DOOR,DOSE,DOWN,DRAG,DRAW,DREW,DROP,DRUG,DRUM,DUCK,DUET,DUKE,DULL,DUMP,DUST,DUTY,EARN,EASE,EAST,EASY,EDGE,EDIT,ENVY,EPIC,EVEN,EVER,EVIL,EXAM,EXIT,FACE,FACT,FADE,FAIL,FAIR,FAKE,FAME,FARM,FAST,FATE,FEAR,FEAT,FEED,FEEL,FEET,FEUD,FIND,FINE,FIRE,FIRM,FISH,FIST,FIVE,FLAG,FLAT,FLEA,FLEE,FLEX,FLIP,FLOW,FOAM,FOOD,FOOT,FORD,FORE,FORK,FORM,FORT,FOUR,FREE,FROG,FROM,FUEL,FULL,FUME,FUND,FURY,FUSE,GAIN,GAME,GANG,GAP,GATE,GAZE,GEAR,GENE,GIFT,GIRL,GIVE,GLAD,GLEE,GLOW,GLUE,GOAL,GOAT,GOLD,GOLF,GONE,GOOD,GOWN,GRAB,GRAY,GREY,GROW,GULF,GUM,GYM,HAIR,HALF,HALL,HAND,HANG,HARD,HARM,HARP,HATE,HAWK,HEAD,HEAL,HEAR,HEAT,HEEL,HEIR,HELD,HELM,HELP,HERB,HERD,HERE,HERO,HIGH,HIKE,HILL,HINT,HIRE,HOLD,HOLE,HOLY,HOME,HOPE,HORN,HOSE,HOST,HOUR,HUGE,HULL,HUNT,HURT,HUSH,IDEA,IDLE,INCH,IRON,ITEM,JACK,JADE,JAIL,JAVA,JAZZ,JEEP,JEST,JINX,JOIN,JOKE,JOLT,JUMP,JURY,JUST,KEEN,KEEP,KEPT,KICK,KILL,KIND,KING,KISS,KITE,KNEE,KNOW,LACK,LADY,LAKE,LAMB,LAMP,LAND,LANE,LAST,LATE,LAVA,LAWN,LAZY,LEAD,LEAF,LEAN,LEAP,LEFT,LEND,LENS,LIFT,LIKE,LIMB,LIME,LINE,LINK,LION,LIST,LIVE,LOAD,LOAN,LOCK,LONG,LOOK,LORD,LOSE,LOSS,LOST,LOUD,LOVE,LUCK,LUNG,LURE,LUSH,MAID,MAIL,MAIN,MAKE,MALE,MALL,MANY,MARK,MASK,MASS,MATE,MATH,MEAL,MEAN,MEAT,MEET,MELT,MENU,MESH,MESS,MICE,MILK,MIND,MINE,MINT,MISS,MIST,MODE,MOLD,MOOD,MOON,MORE,MOSS,MOST,MOVE,MUCH,MYTH,NAME,NAVY,NEAR,NEAT,NECK,NEED,NEST,NEWS,NEXT,NICE,NODE,NONE,NOSE,NOTE,NOUN,NUDE,NUNS,NUTS,OATH,OBEY,ODDS,OKAY,OMEN,ONLY,ONTO,OPEN,ORAL,OVER,PACE,PACK,PACT,PAGE,PAID,PAIN,PAIR,PALM,PARK,PART,PASS,PAST,PATH,PEAK,PEAR,PECK,PEEK,PEEL,PEER,PERK,PEST,PICK,PIER,PIKE,PILE,PINK,PIPE,PITY,PLAN,PLAY,PLEA,PLOT,PLUG,PLUS,POET,POND,PONY,POOL,POOR,PORK,PORT,POSE,POST,POUR,PRAY,PREP,PREY,PROP,PULL,PUMP,PUNK,PURE,PUSH,QUIT,RACE,RACK,RAFT,RAGE,RAID,RAIN,RAKE,RANK,RARE,RASH,RATE,RAVE,READ,REAL,REAR,RELY,RENT,REST,RICE,RICH,RIDE,RING,RISE,RISK,ROAD,ROAM,ROAR,ROCK,ROOF,ROOM,ROOT,ROPE,ROSE,RUBY,RUDE,RUIN,RULE,RUSH,RUST,SACK,SAFE,SAGA,SAGE,SAID,SAIL,SALE,SALT,SAME,SAND,SANE,SAVE,SCAN,SCAR,SEAL,SEAM,SEAT,SEED,SEEK,SEEM,SEEN,SELF,SELL,SEND,SENT,SETS,SHED,SHIP,SHOE,SHOP,SHOT,SHOW,SHUT,SICK,SIDE,SIGN,SILK,SING,SINK,SITE,SIZE,SKIN,SKIP,SKIT,SLAB,SLAM,SLAP,SLID,SLIM,SLIP,SLOT,SLOW,SLUG,SNAP,SNOW,SOAP,SOAR,SOFT,SOIL,SOLD,SOLE,SOLO,SOME,SONG,SOON,SORT,SOUL,SOUP,SOUR,SPAN,SPARK,SPIN,SPIT,SPOT,SPUN,SPUR,STAB,STAR,STAY,STEM,STEP,STEW,STIR,STOP,SUCH,SUCK,SUIT,SURE,SWAM,SWAN,SWAP,SWAY,SWIM,TACT,TAIL,TAKE,TALE,TALL,TANK,TAPE,TASK,TAXI,TEAM,TEAR,TECH,TELL,TENT,TERM,TEST,TEXT,THAT,THAW,THEM,THEN,THEY,THIN,THIS,THUD,THUG,TIDE,TIDY,TIED,TIER,TILE,TILT,TIME,TINY,TOAD,TOLL,TOMB,TONE,TOOK,TOOL,TOUR,TOWN,TRAP,TRAY,TREE,TREK,TRIM,TRIP,TRUE,TUBE,TUNA,TUNE,TURF,TURN,TWIN,TYPE,UNIT,UPON,URGE,USED,USER,VAIN,VAMP,VASE,VEAL,VEIN,VENT,VERY,VEST,VIEW,VINE,VISA,VOID,VOLT,VOTE,WAGE,WAIT,WAKE,WALK,WALL,WANT,WARD,WARM,WARN,WASH,WASP,WAVE,WEAK,WEAR,WEED,WEEK,WEEP,WELL,WENT,WEPT,WEST,WHAT,WHEN,WHIM,WHIP,WIDE,WIFE,WILD,WILL,WIND,WINE,WING,WINK,WIPE,WIRE,WISE,WISH,WITH,WOLF,WOOD,WOOL,WORD,WORK,WORM,WORN,WRAP,XRAY,YARD,YARN,YEAR,YELL,YOGA,YOLK,ZERO,ZINC,ZONE,ZOOM",
+
+        toggleMode: () => {
+            app.vanity.mode = document.getElementById('vanity-any').checked ? 'any' : 'custom';
+            document.getElementById('vanity-prefix').disabled = (app.vanity.mode === 'any');
+            document.getElementById('vanity-prefix').style.opacity = (app.vanity.mode === 'any') ? 0.3 : 1;
+        },
+
+        start: () => {
+            const prefixInput = document.getElementById('vanity-prefix').value.trim();
+            if (app.vanity.mode === 'custom' && !prefixInput) return alert("Enter a prefix (e.g. ABC)");
+            
+            // Validation (Base58 Only)
+            if (app.vanity.mode === 'custom') {
+                const forbidden = /[^1-9A-HJ-NP-Za-km-z]/;
+                if (forbidden.test(prefixInput)) return alert("Invalid Characters! \n\nCannot use: 0, O, I, l (Letter L).");
+            }
+
+            // Setup
+            app.vanity.target = app.vanity.mode === 'custom' ? `1${prefixInput}` : null;
+            app.vanity.dictionaryArr = app.vanity.dictionary.split(',');
+            app.vanity.active = true;
+            app.vanity.count = 0;
+            app.vanity.startTime = Date.now();
+            
+            // UI
+            document.getElementById('btn-vanity-start').disabled = true;
+            document.getElementById('btn-vanity-stop').disabled = false;
+            document.getElementById('vanity-status-box').style.display = 'block';
+            document.getElementById('vanity-result').style.display = 'none';
+            document.getElementById('vanity-status-text').innerText = "MINING IN PROGRESS...";
+            document.getElementById('vanity-status-text').style.color = "#00E676";
+
+            // Start Loop
+            app.vanity.loop();
+        },
+
+        stop: () => {
+            app.vanity.active = false;
+            document.getElementById('btn-vanity-start').disabled = false;
+            document.getElementById('btn-vanity-stop').disabled = true;
+            document.getElementById('vanity-status-text').innerText = "STOPPED";
+            document.getElementById('vanity-status-text').style.color = "#D50000";
+        },
+
+        loop: () => {
+            if (!app.vanity.active) return;
+
+            // Batch Size: Process 100 keys per 'frame' to keep UI responsive
+            const batchSize = 100; 
+            
+            try {
+                // Buffer Helper (Universal Fix)
+                const B = (typeof Buffer !== 'undefined') ? Buffer : ((bitcoin.Buffer) ? bitcoin.Buffer : null);
+
+                for (let i = 0; i < batchSize; i++) {
+                    // 1. Generate Random
+                    let keyPair;
+                    if (bitcoin.ECPair.makeRandom) {
+                        keyPair = bitcoin.ECPair.makeRandom();
+                    } else {
+                        const array = new Uint8Array(32);
+                        window.crypto.getRandomValues(array);
+                        const buf = B ? B.from(array) : new TextEncoder().encode(array); 
+                        keyPair = bitcoin.ECPair.fromPrivateKey(buf);
+                    }
+
+                    // 2. Get Address
+                    // We use Legacy (1...) because that's what vanity usually implies
+                    let address = '';
+                    if (keyPair.getAddress) {
+                        address = keyPair.getAddress();
+                    } else if (bitcoin.payments && bitcoin.payments.p2pkh) {
+                         const { address: addr } = bitcoin.payments.p2pkh({ pubkey: keyPair.publicKey });
+                         address = addr;
+                    }
+
+                    // 3. Check Match
+                    let match = false;
+                    
+                    if (app.vanity.mode === 'custom') {
+                        if (address.startsWith(app.vanity.target)) match = true;
+                    } else {
+                        // "Any Word" Mode
+                        // We check if the address starts with '1' + ANY WORD in dictionary
+                        // Optimization: Check first 3-4 chars against dictionary
+                        const checkStr = address.substring(1).toUpperCase(); // Remove '1'
+                        
+                        // Simple check: does the dictionary contain the start of the address?
+                        // We iterate the dictionary. (A bit slow, but acceptable for 100 batch)
+                        // Faster: Check if the first 3 chars make a word, or first 4.
+                        const sub3 = checkStr.substring(0, 3);
+                        const sub4 = checkStr.substring(0, 4);
+                        
+                        if (app.vanity.dictionaryArr.includes(sub3) || app.vanity.dictionaryArr.includes(sub4)) {
+                            match = true;
+                        }
+                    }
+
+                    if (match) {
+                        app.vanity.found(address, keyPair);
+                        return; // Exit loop
+                    }
+
+                    app.vanity.count++;
+                }
+
+                // UI Update (every batch)
+                const elapsed = (Date.now() - app.vanity.startTime) / 1000;
+                document.getElementById('vanity-speed').innerText = Math.round(app.vanity.count / elapsed);
+                document.getElementById('vanity-count').innerText = app.vanity.count;
+
+                // Schedule next batch
+                // setTimeout(..., 0) lets the browser handle clicks/renders
+                setTimeout(app.vanity.loop, 0);
+
+            } catch(e) {
+                console.error(e);
+                app.vanity.stop();
+                alert("Miner Error: " + e.message);
+            }
+        },
+
+        found: (address, keyPair) => {
+            app.vanity.active = false;
+            app.vanity.foundKey = { address, wif: keyPair.toWIF(), pub: keyPair.publicKey.toString('hex') };
+
+            // Update UI
+            document.getElementById('btn-vanity-start').disabled = false;
+            document.getElementById('btn-vanity-stop').disabled = true;
+            document.getElementById('vanity-status-box').style.display = 'none';
+            document.getElementById('vanity-result').style.display = 'block';
+
+            document.getElementById('vanity-res-addr').innerText = address;
+            document.getElementById('vanity-res-wif').innerText = keyPair.toWIF();
+            document.getElementById('vanity-res-hex').innerText = keyPair.publicKey.toString('hex');
+            
+            // Highlight the vanity part
+            if(app.vanity.mode === 'custom') {
+                 // You could add HTML highlighting here if you wanted
+            }
+            
+            // Audio Feedback (Optional)
+            try { window.navigator.vibrate(200); } catch(e){}
+        },
+
+        saveToNotes: () => {
+            const k = app.vanity.foundKey;
+            if(!k) return;
+            
+            const noteBody = `VANITY ADDRESS FOUND: ${new Date().toLocaleString()}\n\nADDRESS:\n${k.address}\n\nPRIVATE KEY (WIF):\n${k.wif}\n\nPUBLIC HEX:\n${k.pub}`;
+            
+            app.data.notes.push({
+                id: Date.now(),
+                title: `VANITY KEY (${k.address.substring(0,6)}...)`,
+                body: noteBody,
+                date: new Date().toISOString(),
+                color: '#00E676'
+            });
+            app.save();
+            app.renderNotes();
+            alert("Saved to Quick Notes!");
+        }
+    },
 
     // --- CRYPTO VAULT LOGIC ---
     

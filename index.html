@@ -619,6 +619,56 @@ input, select, textarea {
         </div>
             </div>
 </div>
+<div class="card">
+    <h3>VANITY ADDRESS MINER</h3>
+    
+    <div class="grid">
+        <div>
+            <label>TARGET PREFIX (Case Sensitive)</label>
+            <div style="display:flex; gap:8px;">
+                <div style="background:#222; color:#aaa; padding:10px; border-radius:4px; display:flex; align-items:center;">1</div>
+                <input type="text" id="vanity-prefix" placeholder="ABC" maxlength="5" style="text-transform:none;">
+            </div>
+        </div>
+        <div style="display:flex; align-items:flex-end; padding-bottom:5px;">
+            <div class="toggle-row" style="width:100%; justify-content:space-between; background:#222; padding:8px 12px; border-radius:4px;">
+                <label for="vanity-any" style="margin:0; font-size:0.8rem; color:#fff;">FIND ANY WORD?</label>
+                <div>
+                    <input type="checkbox" id="vanity-any" class="toggle-checkbox" onchange="app.vanity.toggleMode()">
+                    <label for="vanity-any" class="toggle-switch"></label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="font-size:0.7rem; color:#666; margin-top:5px; margin-bottom:15px; font-style:italic;">
+        *Warning: 4 chars takes minutes. 5 chars takes hours/days.
+    </div>
+
+    <div id="vanity-status-box" style="display:none; background:#111; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #333; text-align:center;">
+        <div id="vanity-status-text" style="color:#00E676; font-weight:bold; margin-bottom:5px;">MINING IN PROGRESS...</div>
+        <div style="font-size:0.8rem; color:#aaa;">Speed: <span id="vanity-speed" style="color:#fff;">0</span> keys/s</div>
+        <div style="font-size:0.8rem; color:#aaa;">Checked: <span id="vanity-count" style="color:#fff;">0</span></div>
+    </div>
+
+    <div id="vanity-result" style="display:none; background:#222; border-left:4px solid #00E676; padding:10px; margin-bottom:15px;">
+        <div style="font-size:0.7rem; color:#aaa; margin-bottom:4px;">FOUND ADDRESS</div>
+        <div id="vanity-res-addr" onclick="app.copyText(this.innerText)" style="color:#fff; font-weight:bold; font-size:0.9rem; word-break:break-all; cursor:pointer;">-</div>
+        
+        <div style="font-size:0.7rem; color:#aaa; margin:10px 0 4px 0;">PRIVATE KEY (WIF)</div>
+        <div id="vanity-res-wif" onclick="app.copyText(this.innerText)" style="color:#FFEA00; font-family:'Martian Mono'; font-size:0.8rem; word-break:break-all; cursor:pointer;">-</div>
+        
+        <div style="font-size:0.7rem; color:#aaa; margin:10px 0 4px 0;">PUBLIC HEX (For Timelock)</div>
+        <div id="vanity-res-hex" onclick="app.copyText(this.innerText)" style="color:#00E676; font-family:'Martian Mono'; font-size:0.7rem; word-break:break-all; cursor:pointer;">-</div>
+
+        <button class="btn btn-sec" style="margin-top:10px;" onclick="app.vanity.saveToNotes()">SAVE TO NOTES</button>
+    </div>
+
+    <div class="grid">
+        <button id="btn-vanity-start" class="btn btn-primary" onclick="app.vanity.start()">START MINING</button>
+        <button id="btn-vanity-stop" class="btn btn-sec" onclick="app.vanity.stop()" disabled>STOP</button>
+    </div>
+</div>
 <div class="card" style="border-top: 4px solid #FF9100;">
                 <h2>BITCOIN CRYPTO VAULT</h2>
                 <div style="background:rgba(213,0,0,0.2); color:#ff8a80; padding:8px; font-size:0.7rem; border-radius:4px; margin-bottom:15px; border:1px solid #D50000;">
