@@ -1408,7 +1408,7 @@ const app = {
     },
         fetchSports: async () => {
         const sport = document.getElementById('sport-key').value;
-        const apiKey = 'YOUR_API_KEY_HERE'; // GET FREE KEY FROM THE-ODDS-API.COM
+        const apiKey = '39298e045fe53816e45b2672570ff942'; // GET FREE KEY FROM THE-ODDS-API.COM
         const list = document.getElementById('sports-ticker-res');
         
         list.innerHTML = '<div style="color:#aaa;">Loading live odds...</div>';

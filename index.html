@@ -284,6 +284,9 @@ input, select, textarea {
 
         <div id="view-tickets" class="container" style="display:none;">
             <div class="row" style="margin-bottom:10px; padding: 0 4px;">
+                <h2 style="margin:0;">ACTIVE TICKETS</h2>
+                <button onclick="app.openTicketModal()" style="background:none; border:none; color:var(--intense-orange); font-size:24px;">+</button>
+            </div>
             <div class="card">
     <h2>LIVE SPORTS TICKER</h2>
     <div style="display:flex; gap:10px; margin-bottom:10px;">
@@ -298,9 +301,6 @@ input, select, textarea {
     <div id="sports-ticker-res"></div>
 </div>
 
-                <h2 style="margin:0;">ACTIVE TICKETS</h2>
-                <button onclick="app.openTicketModal()" style="background:none; border:none; color:var(--intense-orange); font-size:24px;">+</button>
-            </div>
             <div id="ticket-list"></div>
         </div>
 
