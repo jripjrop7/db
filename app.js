@@ -114,29 +114,35 @@ setTimeout(() => {
     },
     setFilter: (mode) => {
         app.filter.mode = mode;
+        
+        // 1. Update UI Buttons
         document.querySelectorAll('.filter-chip').forEach(el => el.classList.remove('active'));
         document.getElementById(`filter-${mode}`).classList.add('active');
+        
+        // 2. Handle Date Range Visibility
         const isRange = mode === 'custom';
         document.getElementById('custom-date-range').classList.toggle('show', isRange);
         if(isRange) {
             app.filter.start = document.getElementById('date-start').value;
             app.filter.end = document.getElementById('date-end').value;
         }
+        
+        // 3. Render Main UI
         app.render(); 
         if(document.getElementById('view-stats').style.display !== 'none') { 
             app.renderChart(); app.renderPies(); app.renderHeatmap(); 
             app.renderExpenseChart(); app.renderSportsChart(); app.renderROITable();
             app.renderCalendar(); app.renderDrawdown(); app.renderHOF();
+            
+            // UPDATE BITCOIN CHART
+            if(app.crypto && app.crypto.renderHistory) {
+                app.crypto.renderHistory(mode);
+            }
         }
         if(document.getElementById('view-tickets').style.display !== 'none') app.renderTickets(); 
     },
-    // ... (existing logic) ...
 
-    // ADD THIS: Update BTC Chart when filter changes
-    if(app.crypto && app.crypto.renderHistory) {
-        app.crypto.renderHistory(type);
-    }
-},
+
     
 
     
@@ -1549,7 +1555,7 @@ setTimeout(() => {
                 Swal.fire('Error', 'Failed to load stats. API might be busy.', 'error');
             }
         },
-
+     },
 
     // --- NEW CRYPTO LOGIC ---
     crypto: {
