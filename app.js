@@ -130,7 +130,6 @@ setTimeout(() => {
         }
         if(document.getElementById('view-tickets').style.display !== 'none') app.renderTickets(); 
     },
-    setFilter: (type) => {
     // ... (existing logic) ...
 
     // ADD THIS: Update BTC Chart when filter changes
@@ -138,6 +137,7 @@ setTimeout(() => {
         app.crypto.renderHistory(type);
     }
 },
+    
 
     
     toggleCustomDate: () => { app.setFilter('custom'); },
@@ -1556,24 +1556,32 @@ setTimeout(() => {
         btcChartInstance: null,
 
         // 1. MEMPOOL TRACKER
-        trackTx: async () => {
-            const txid = document.getElementById('mp-txid').value.trim();
-            if(!txid) return;
-            
-            const resBox = document.getElementById('mp-res');
-            resBox.style.display = 'block';
-            resBox.innerHTML = '<div style="color:#aaa; text-align:center;">Scanning Mempool...</div>';
+            // --- CRYPTO LOGIC UPDATE ---
+    
+    // (Inside app.crypto object)
+    
+    trackItem: async () => {
+        const input = document.getElementById('mp-input').value.trim();
+        if(!input) return;
+        
+        const resBox = document.getElementById('mp-res');
+        resBox.style.display = 'block';
+        resBox.innerHTML = '<div style="color:#aaa; text-align:center;">Scanning Mempool...</div>';
 
-            try {
-                const res = await fetch(`https://mempool.space/api/tx/${txid}`);
+        // DETECT TYPE: Address vs TXID
+        // Addresses usually start with 1, 3, or bc1 and are < 64 chars
+        // TXIDs are hex strings of 64 chars
+        const isTx = input.length === 64; 
+
+        try {
+            if (isTx) {
+                // --- TRANSACTION LOOKUP ---
+                const res = await fetch(`https://mempool.space/api/tx/${input}`);
                 if(!res.ok) throw new Error("TX Not Found");
                 const data = await res.json();
                 
                 const confirmed = data.status.confirmed;
-                const confText = confirmed ? "CONFIRMED" : "UNCONFIRMED";
-                const confColor = confirmed ? "#00E676" : "#D50000";
-                
-                // If confirmed, calculate confirmations (Height - BlockHeight + 1)
+                // Calculate confirmations if confirmed
                 let confCount = 0;
                 if(confirmed) {
                     const blockRes = await fetch('https://mempool.space/api/blocks/tip/height');
@@ -1581,26 +1589,57 @@ setTimeout(() => {
                     confCount = parseInt(tip) - data.status.block_height + 1;
                 }
 
-                document.getElementById('mp-res').innerHTML = `
+                resBox.innerHTML = `
+                    <div style="font-size:0.7rem; color:#aaa; margin-bottom:5px;">TRANSACTION</div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                        <span style="color:#aaa;">Status:</span>
-                        <span style="font-weight:bold; color:${confColor};">${confText}</span>
+                        <span>Status:</span>
+                        <span style="font-weight:bold; color:${confirmed ? '#00E676' : '#D50000'};">${confirmed ? 'CONFIRMED' : 'PENDING'}</span>
                     </div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                        <span style="color:#aaa;">Confirmations:</span>
+                        <span>Confirmations:</span>
                         <span style="font-weight:bold; color:#fff;">${confirmed ? confCount : '0'}</span>
                     </div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                        <span style="color:#aaa;">Fee:</span>
+                        <span>Fee:</span>
                         <span style="font-weight:bold; color:#FFEA00;">${data.fee} sats</span>
                     </div>
-                    <div style="font-size:0.6rem; color:#555; margin-top:5px; word-break:break-all;">${txid}</div>
                 `;
 
-            } catch(e) {
-                document.getElementById('mp-res').innerHTML = `<div style="color:var(--error);">Error: Transaction not found.</div>`;
+            } else {
+                // --- ADDRESS LOOKUP ---
+                const res = await fetch(`https://mempool.space/api/address/${input}`);
+                if(!res.ok) throw new Error("Address Not Found");
+                const data = await res.json();
+                
+                // Math for balances (Chain stats + Mempool stats)
+                const funded = data.chain_stats.funded_txo_sum + data.mempool_stats.funded_txo_sum;
+                const spent = data.chain_stats.spent_txo_sum + data.mempool_stats.spent_txo_sum;
+                const balance = (funded - spent) / 100000000; // Convert sats to BTC
+                const txCount = data.chain_stats.tx_count + data.mempool_stats.tx_count;
+
+                resBox.innerHTML = `
+                    <div style="font-size:0.7rem; color:#aaa; margin-bottom:5px;">ADDRESS HOLDINGS</div>
+                    <div style="text-align:center; margin-bottom:10px;">
+                        <div style="font-size:1.4rem; font-weight:bold; color:#fff;">${balance.toFixed(8)} <span style="font-size:0.8rem; color:#FFEA00;">BTC</span></div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; border-top:1px solid #333; padding-top:5px;">
+                        <span style="color:#aaa;">Total Received:</span>
+                        <span style="color:#fff;">${(funded / 100000000).toFixed(4)} BTC</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:4px;">
+                        <span style="color:#aaa;">Transactions:</span>
+                        <span style="color:#00E676;">${txCount}</span>
+                    </div>
+                `;
             }
-        },
+
+        } catch(e) {
+            resBox.innerHTML = `<div style="color:var(--error); text-align:center;">${e.message}</div>`;
+        }
+    },
+    
+    // ... keep your fetchTicker and renderHistory functions here ...
+
 
         // 2. LIVE TICKER (CoinGecko)
         fetchTicker: async () => {
