@@ -547,19 +547,73 @@ setTimeout(() => {
         }
     },
 
-    renderNotes: () => {
-        const list = document.getElementById('notes-list'); list.innerHTML = '';
-        const sorted = [...app.data.notes].sort((a,b) => new Date(b.date) - new Date(a.date));
-        sorted.forEach(n => {
-            const el = document.createElement('div');
-            el.className = 'note-card';
-            el.style.borderLeftColor = n.color;
-            el.onclick = () => app.openNoteModal(n);
-            const d = new Date(n.date).toLocaleString('en-US', {weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit'});
-            el.innerHTML = `<span class="note-date" style="color:${n.color}">${d}</span><div class="note-header">${n.title}</div><div class="note-body">${n.body}</div>`;
-            list.appendChild(el);
+        renderNotes: () => {
+        const list = document.getElementById('notes-list'); 
+        list.innerHTML = '';
+        
+        // 1. Group notes by Color
+        const groups = {};
+        app.data.notes.forEach(n => {
+            if(!groups[n.color]) groups[n.color] = [];
+            groups[n.color].push(n);
+        });
+
+        // HELPER: Generates the HTML for a single note (Accordion Style)
+        // This makes sure notes look the same inside OR outside folders
+        const createNoteHTML = (n) => `
+            <div class="note-card" style="border-left-color:${n.color}; margin-bottom:8px; background:#151515;">
+                <div onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="overflow:hidden;">
+                        <span class="note-date" style="color:${n.color}">${new Date(n.date).toLocaleDateString()}</span>
+                        <div class="note-header" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${n.title || 'Untitled'}</div>
+                    </div>
+                    <i class="material-icons-round" style="color:#555; font-size:18px;">expand_more</i>
+                </div>
+                
+                <div style="display:none; margin-top:8px; border-top:1px solid #333; padding-top:8px;">
+                    <div class="note-body" style="max-height:150px; overflow-y:auto; font-size:0.75rem; color:#ccc; white-space:pre-wrap;">${n.body}</div>
+                    <button class="btn btn-sec" style="margin-top:8px; padding:6px; font-size:0.7rem; width:100%;" onclick="app.openNoteModal(app.data.notes.find(x=>x.id==${n.id}))">OPEN FULL EDITOR</button>
+                </div>
+            </div>
+        `;
+
+        // 2. Render Groups
+        Object.keys(groups).forEach(color => {
+            const notes = groups[color];
+            
+            // --- FOLDER VIEW (If 2+ notes share a color) ---
+            if(notes.length > 1) {
+                const folderId = `folder-${color.replace('#','')}`;
+                const el = document.createElement('div');
+                el.className = 'note-card';
+                el.style.borderLeftColor = color;
+                el.style.marginBottom = '8px';
+                el.style.background = '#0a0a0a'; // Slightly darker for folder container
+                
+                // Sort notes by date desc (Newest first)
+                notes.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+                el.innerHTML = `
+                    <div onclick="document.getElementById('${folderId}').style.display = document.getElementById('${folderId}').style.display === 'none' ? 'block' : 'none'" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; padding:4px 0;">
+                        <span style="font-weight:bold; color:${color}; font-size:0.9rem;">📂 GROUP (${notes.length})</span>
+                        <i class="material-icons-round" style="font-size:18px; color:#aaa;">expand_more</i>
+                    </div>
+                    <div id="${folderId}" style="display:none; margin-top:10px; padding-left:6px; border-left: 1px dashed #333;">
+                        ${notes.map(n => createNoteHTML(n)).join('')}
+                    </div>
+                `;
+                list.appendChild(el);
+            } 
+            // --- SINGLE VIEW (Standard Card) ---
+            else {
+                const n = notes[0];
+                const div = document.createElement('div');
+                div.innerHTML = createNoteHTML(n); // Use same helper
+                list.appendChild(div.firstElementChild); // Append the actual DOM node
+            }
         });
     },
+
     openNoteModal: (n=null) => {
         document.getElementById('modal-note').classList.add('open');
         const now = new Date();
@@ -1193,23 +1247,21 @@ setTimeout(() => {
         } 
     },
     
-            // --- KALSHI MARKET EXPLORER (FIXED) ---
+                // --- KALSHI MARKET EXPLORER (CORRECTED: ASK PRICES) ---
     kalshi: {
         markets: [],
 
-                        fetch: async () => {
+        fetch: async () => {
             const div = document.getElementById('kalshi-results');
-            div.innerHTML = '<div style="text-align:center; color:#aaa;">Attempting connection...</div>';
+            div.innerHTML = '<div style="text-align:center; color:#aaa;">Fetching Top 500 Markets...</div>';
 
-            const target = 'https://api.elections.kalshi.com/trade-api/v2/markets?limit=100&status=open';
+            // Limit 500 to find "Rain", "Trump", etc.
+            const target = 'https://api.elections.kalshi.com/trade-api/v2/markets?limit=500&status=open';
             
-            // PROXY ROTATION LIST (The "Backup Plan")
-            // We try these one by one until one works.
             const proxies = [
-                { url: 'https://api.allorigins.win/get?url=', type: 'json_wrap' },      // Option 1: Wrapper
-                { url: 'https://api.codetabs.com/v1/proxy?quest=', type: 'direct' },    // Option 2: Direct (Very Reliable)
-                { url: 'https://corsproxy.io/?', type: 'direct' },                      // Option 3: Direct
-                { url: 'https://thingproxy.freeboard.io/fetch/', type: 'direct' }       // Option 4: Direct
+                { url: 'https://api.allorigins.win/get?url=', type: 'json_wrap' },
+                { url: 'https://api.codetabs.com/v1/proxy?quest=', type: 'direct' },
+                { url: 'https://corsproxy.io/?', type: 'direct' }
             ];
 
             let success = false;
@@ -1217,117 +1269,109 @@ setTimeout(() => {
             for (let i = 0; i < proxies.length; i++) {
                 const proxy = proxies[i];
                 try {
-                    // Update UI to show we are trying
-                    div.innerHTML = `<div style="text-align:center; color:#FF9100;">Trying Server ${i+1}...</div>`;
-                    
-                    const finalUrl = proxy.url + encodeURIComponent(target);
-                    
-                    const res = await fetch(finalUrl);
+                    const res = await fetch(proxy.url + encodeURIComponent(target));
                     if (!res.ok) throw new Error("Network response not ok");
                     
                     let data;
                     const raw = await res.json();
 
-                    // Handle "AllOrigins" Wrapper (Option 1)
                     if (proxy.type === 'json_wrap') {
                         if (!raw.contents) throw new Error("Empty wrapper");
-                        // Sometimes contents is already JSON, sometimes string
                         data = (typeof raw.contents === 'string') ? JSON.parse(raw.contents) : raw.contents;
                     } else {
-                        data = raw; // Direct proxies return pure JSON
+                        data = raw;
                     }
 
                     if (!data.markets) throw new Error("No market data");
 
-                    // SUCCESS!
-                    app.kalshi.markets = data.markets.sort((a,b) => b.volume - a.volume);
+                    app.kalshi.markets = data.markets;
                     app.kalshi.render();
                     success = true;
-                    break; // Stop looping, we got the data
+                    break;
 
-                } catch (e) {
-                    console.warn(`Proxy ${i+1} Failed:`, e);
-                }
+                } catch (e) { console.warn(`Proxy ${i+1} Failed`); }
             }
 
             if (!success) {
-                div.innerHTML = `<div style="text-align:center; color:#D50000; padding:10px;">
-                    <strong>Connection Blocked</strong><br>
-                    <span style="font-size:0.7rem; color:#aaa;">Kalshi's API is blocking browser requests.</span><br><br>
-                    <a href="https://kalshi.com/markets" target="_blank" class="btn btn-sec" style="display:inline-block; width:auto; padding:8px 12px; text-decoration:none;">OPEN KALSHI.COM</a>
-                </div>`;
+                div.innerHTML = `<div style="text-align:center; color:#D50000; padding:10px;">Connection Blocked. <a href="https://kalshi.com/markets" target="_blank" style="color:#fff;">Open Kalshi</a></div>`;
             }
         },
-
-
 
         render: () => {
             const query = document.getElementById('kalshi-search').value.toLowerCase();
             const div = document.getElementById('kalshi-results');
             div.innerHTML = '';
 
-            if (app.kalshi.markets.length === 0) {
-                div.innerHTML = '<div style="text-align:center; color:#555;">No markets loaded. Click Refresh.</div>';
-                return;
-            }
-
-            // FILTER: Check Title, Ticker, and Subtitle
-            const filtered = app.kalshi.markets.filter(m => 
+            // 1. FILTER
+            let filtered = app.kalshi.markets.filter(m => 
                 (m.title && m.title.toLowerCase().includes(query)) || 
                 (m.ticker && m.ticker.toLowerCase().includes(query)) ||
                 (m.subtitle && m.subtitle.toLowerCase().includes(query))
             );
 
+            // 2. SORT by Volume (Most popular on top)
+            filtered.sort((a,b) => b.volume - a.volume);
+
+            // 3. LIMIT to 50 results
+            filtered = filtered.slice(0, 50);
+
             if(filtered.length === 0) {
-                div.innerHTML = '<div style="text-align:center; color:#555;">No matches found for "' + query + '"</div>';
+                div.innerHTML = '<div style="text-align:center; color:#555;">No matches found.</div>';
                 return;
             }
 
             filtered.forEach(m => {
-                const yesPrice = m.yes_bid || 0;
-                const noPrice = m.no_bid || 0;
+                // LOGIC: Use ASK price (Cost to Buy)
+                // If yes_ask is missing, it means no one is selling "Yes" (Illiquid)
+                const yesCost = m.yes_ask || 0;
+                const noCost = m.no_ask || 0;
 
-                // MATH: Convert Price (cents) to Multiplier & American Odds
-                const calcStats = (price) => {
-                    if(!price || price <= 0 || price >= 100) return { mult: '-', am: '-' };
+                // MATH HELPER: (Price -> Multiplier & Odds)
+                const getStats = (price) => {
+                    if(!price || price <= 0 || price >= 100) return { mult: '-', am: '-', prob: '0%' };
                     
-                    // Multiplier (e.g. 100 / 60 = 1.67x)
-                    const prob = price / 100;
-                    const mult = (1 / prob).toFixed(2) + 'x'; 
+                    // 1. Probability (The Price itself)
+                    const probStr = price + '%';
                     
-                    // American Odds
+                    // 2. Multiplier (e.g. You pay 60c to win $1.00 -> 1.00/0.60 = 1.66x)
+                    const mult = (100 / price).toFixed(2) + 'x';
+                    
+                    // 3. American Odds
+                    const p = price / 100;
                     let am = 0;
-                    if (prob > 0.5) am = -((prob / (1 - prob)) * 100);
-                    else am = ((1 - prob) / prob) * 100;
-                    
+                    if (p > 0.5) am = -((p / (1 - p)) * 100);
+                    else am = ((1 - p) / p) * 100;
                     const amStr = am > 0 ? `+${Math.round(am)}` : Math.round(am);
-                    return { mult, am: amStr };
+
+                    return { mult, am: amStr, prob: probStr };
                 };
 
-                const yesStats = calcStats(yesPrice);
-                const noStats = calcStats(noPrice);
+                const yes = getStats(yesCost);
+                const no = getStats(noCost);
 
                 const el = document.createElement('div');
                 el.className = 'bill-row';
                 el.style.display = 'block';
                 el.style.marginBottom = '8px';
-                el.style.borderLeft = '3px solid #651FFF'; // Kalshi Purple
+                el.style.borderLeft = '3px solid #651FFF';
                 
                 el.innerHTML = `
                     <div style="font-weight:bold; font-size:0.85rem; color:#fff; margin-bottom:4px;">${m.title}</div>
                     <div style="font-size:0.65rem; color:#aaa; margin-bottom:8px;">${m.subtitle || m.ticker}</div>
                     
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-                        <div style="background:#151515; padding:6px; border-radius:4px; text-align:center; border:1px solid #333;">
-                            <div style="color:#00E676; font-weight:bold; font-size:0.9rem;">YES ${yesPrice}¢</div>
-                            <div style="font-size:0.65rem; color:#fff; margin-top:2px;">${yesStats.mult}</div>
-                            <div style="font-size:0.65rem; color:#777;">${yesStats.am}</div>
+                        <div style="background:#151515; padding:8px; border-radius:4px; text-align:center; border:1px solid #333;">
+                            <div style="color:#00E676; font-weight:bold; font-size:1rem;">${yesCost > 0 ? yesCost + '¢' : '-'}</div>
+                            <div style="font-size:0.6rem; color:#aaa; text-transform:uppercase;">Buy Yes</div>
+                            <div style="font-size:0.75rem; color:#fff; margin-top:4px; font-weight:bold;">${yes.mult}</div>
+                            <div style="font-size:0.6rem; color:#777;">${yes.am}</div>
                         </div>
 
-                        <div style="background:#151515; padding:6px; border-radius:4px; text-align:center; border:1px solid #333;">
-                            <div style="color:#D50000; font-weight:bold; font-size:0.9rem;">NO ${noPrice}¢</div>
-                            <div style="font-size:0.65rem; color:#fff; margin-top:2px;">${noStats.mult}</div>
-                            <div style="font-size:0.65rem; color:#777;">${noStats.am}</div>
+                        <div style="background:#151515; padding:8px; border-radius:4px; text-align:center; border:1px solid #333;">
+                            <div style="color:#D50000; font-weight:bold; font-size:1rem;">${noCost > 0 ? noCost + '¢' : '-'}</div>
+                            <div style="font-size:0.6rem; color:#aaa; text-transform:uppercase;">Buy No</div>
+                            <div style="font-size:0.75rem; color:#fff; margin-top:4px; font-weight:bold;">${no.mult}</div>
+                            <div style="font-size:0.6rem; color:#777;">${no.am}</div>
                         </div>
                     </div>
                 `;
@@ -1335,6 +1379,7 @@ setTimeout(() => {
             });
         }
     },
+
 
 
         // --- HOT WALLET FUNCTIONALITY ---
