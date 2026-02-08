@@ -1197,38 +1197,68 @@ setTimeout(() => {
     kalshi: {
         markets: [],
 
-                fetch: async () => {
+                        fetch: async () => {
             const div = document.getElementById('kalshi-results');
-            div.innerHTML = '<div style="text-align:center; color:#aaa;">Fetching Top Markets...</div>';
+            div.innerHTML = '<div style="text-align:center; color:#aaa;">Attempting connection...</div>';
 
-            try {
-                // 1. USE 'ALLORIGINS' PROXY (More reliable than corsproxy.io)
-                const targetUrl = 'https://api.elections.kalshi.com/trade-api/v2/markets?limit=100&status=open';
-                const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl);
+            const target = 'https://api.elections.kalshi.com/trade-api/v2/markets?limit=100&status=open';
+            
+            // PROXY ROTATION LIST (The "Backup Plan")
+            // We try these one by one until one works.
+            const proxies = [
+                { url: 'https://api.allorigins.win/get?url=', type: 'json_wrap' },      // Option 1: Wrapper
+                { url: 'https://api.codetabs.com/v1/proxy?quest=', type: 'direct' },    // Option 2: Direct (Very Reliable)
+                { url: 'https://corsproxy.io/?', type: 'direct' },                      // Option 3: Direct
+                { url: 'https://thingproxy.freeboard.io/fetch/', type: 'direct' }       // Option 4: Direct
+            ];
 
-                const res = await fetch(proxyUrl);
-                const rawWrapper = await res.json(); // AllOrigins wraps response in JSON
-                
-                // 2. UNWRAP THE DATA
-                if (!rawWrapper.contents) throw new Error("Proxy error");
-                const data = JSON.parse(rawWrapper.contents); // Parse the internal string
+            let success = false;
 
-                if (!data.markets) throw new Error("No market data returned");
+            for (let i = 0; i < proxies.length; i++) {
+                const proxy = proxies[i];
+                try {
+                    // Update UI to show we are trying
+                    div.innerHTML = `<div style="text-align:center; color:#FF9100;">Trying Server ${i+1}...</div>`;
+                    
+                    const finalUrl = proxy.url + encodeURIComponent(target);
+                    
+                    const res = await fetch(finalUrl);
+                    if (!res.ok) throw new Error("Network response not ok");
+                    
+                    let data;
+                    const raw = await res.json();
 
-                // 3. Sort by Volume (Highest liquidity first)
-                app.kalshi.markets = data.markets.sort((a,b) => b.volume - a.volume);
-                
-                // 4. Render
-                app.kalshi.render();
+                    // Handle "AllOrigins" Wrapper (Option 1)
+                    if (proxy.type === 'json_wrap') {
+                        if (!raw.contents) throw new Error("Empty wrapper");
+                        // Sometimes contents is already JSON, sometimes string
+                        data = (typeof raw.contents === 'string') ? JSON.parse(raw.contents) : raw.contents;
+                    } else {
+                        data = raw; // Direct proxies return pure JSON
+                    }
 
-            } catch(e) {
-                console.error(e);
-                div.innerHTML = `<div style="text-align:center; color:#D50000;">
-                    Connection Failed.<br>
-                    <span style="font-size:0.65rem; color:#777;">(Browser blocked the request. Try again.)</span>
+                    if (!data.markets) throw new Error("No market data");
+
+                    // SUCCESS!
+                    app.kalshi.markets = data.markets.sort((a,b) => b.volume - a.volume);
+                    app.kalshi.render();
+                    success = true;
+                    break; // Stop looping, we got the data
+
+                } catch (e) {
+                    console.warn(`Proxy ${i+1} Failed:`, e);
+                }
+            }
+
+            if (!success) {
+                div.innerHTML = `<div style="text-align:center; color:#D50000; padding:10px;">
+                    <strong>Connection Blocked</strong><br>
+                    <span style="font-size:0.7rem; color:#aaa;">Kalshi's API is blocking browser requests.</span><br><br>
+                    <a href="https://kalshi.com/markets" target="_blank" class="btn btn-sec" style="display:inline-block; width:auto; padding:8px 12px; text-decoration:none;">OPEN KALSHI.COM</a>
                 </div>`;
             }
         },
+
 
 
         render: () => {
