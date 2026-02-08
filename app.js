@@ -1193,7 +1193,7 @@ setTimeout(() => {
         } 
     },
     
-        // --- KALSHI MARKET EXPLORER ---
+            // --- KALSHI MARKET EXPLORER (FIXED) ---
     kalshi: {
         markets: [],
 
@@ -1202,17 +1202,27 @@ setTimeout(() => {
             div.innerHTML = '<div style="text-align:center; color:#aaa;">Fetching Top Markets...</div>';
 
             try {
-                // Fetch top 100 open markets
-                const res = await fetch('https://api.elections.kalshi.com/trade-api/v2/markets?limit=100&status=open');
+                // 1. USE CORS PROXY to bypass browser blocking
+                const targetUrl = 'https://api.elections.kalshi.com/trade-api/v2/markets?limit=100&status=open';
+                const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+
+                const res = await fetch(proxyUrl);
                 const data = await res.json();
                 
-                // Sort by Volume (Popularity)
+                if (!data.markets) throw new Error("No market data returned");
+
+                // 2. Sort by Volume (Highest liquidity first)
                 app.kalshi.markets = data.markets.sort((a,b) => b.volume - a.volume);
+                
+                // 3. Render
                 app.kalshi.render();
 
             } catch(e) {
                 console.error(e);
-                div.innerHTML = '<div style="text-align:center; color:#D50000;">API Error. Try again later.</div>';
+                div.innerHTML = `<div style="text-align:center; color:#D50000;">
+                    Connection Failed.<br>
+                    <span style="font-size:0.65rem; color:#777;">(CORS Proxy might be busy. Try again in 5s)</span>
+                </div>`;
             }
         },
 
@@ -1221,29 +1231,36 @@ setTimeout(() => {
             const div = document.getElementById('kalshi-results');
             div.innerHTML = '';
 
+            if (app.kalshi.markets.length === 0) {
+                div.innerHTML = '<div style="text-align:center; color:#555;">No markets loaded. Click Refresh.</div>';
+                return;
+            }
+
+            // FILTER: Check Title, Ticker, and Subtitle
             const filtered = app.kalshi.markets.filter(m => 
-                m.title.toLowerCase().includes(query) || 
-                m.ticker.toLowerCase().includes(query) ||
-                m.subtitle.toLowerCase().includes(query)
+                (m.title && m.title.toLowerCase().includes(query)) || 
+                (m.ticker && m.ticker.toLowerCase().includes(query)) ||
+                (m.subtitle && m.subtitle.toLowerCase().includes(query))
             );
 
             if(filtered.length === 0) {
-                div.innerHTML = '<div style="text-align:center; color:#555;">No matches found.</div>';
+                div.innerHTML = '<div style="text-align:center; color:#555;">No matches found for "' + query + '"</div>';
                 return;
             }
 
             filtered.forEach(m => {
-                // Logic: Yes Bid = The cost to buy "Yes"
-                // If Yes Bid is 0 or null, market might be illiquid
                 const yesPrice = m.yes_bid || 0;
                 const noPrice = m.no_bid || 0;
 
-                // Math Helper
+                // MATH: Convert Price (cents) to Multiplier & American Odds
                 const calcStats = (price) => {
-                    if(!price) return { mult: '-', am: '-' };
-                    const prob = price / 100;
-                    const mult = (1 / prob).toFixed(2) + 'x'; // 1.00 / 0.60 = 1.66x
+                    if(!price || price <= 0 || price >= 100) return { mult: '-', am: '-' };
                     
+                    // Multiplier (e.g. 100 / 60 = 1.67x)
+                    const prob = price / 100;
+                    const mult = (1 / prob).toFixed(2) + 'x'; 
+                    
+                    // American Odds
                     let am = 0;
                     if (prob > 0.5) am = -((prob / (1 - prob)) * 100);
                     else am = ((1 - prob) / prob) * 100;
@@ -1256,26 +1273,26 @@ setTimeout(() => {
                 const noStats = calcStats(noPrice);
 
                 const el = document.createElement('div');
-                el.className = 'bill-row'; // Reusing your existing row style
+                el.className = 'bill-row';
                 el.style.display = 'block';
                 el.style.marginBottom = '8px';
-                el.style.borderLeft = '3px solid #651FFF';
+                el.style.borderLeft = '3px solid #651FFF'; // Kalshi Purple
                 
                 el.innerHTML = `
-                    <div style="font-weight:bold; font-size:0.8rem; color:#fff; margin-bottom:6px;">${m.title}</div>
-                    <div style="font-size:0.7rem; color:#aaa; margin-bottom:8px;">${m.subtitle}</div>
+                    <div style="font-weight:bold; font-size:0.85rem; color:#fff; margin-bottom:4px;">${m.title}</div>
+                    <div style="font-size:0.65rem; color:#aaa; margin-bottom:8px;">${m.subtitle || m.ticker}</div>
                     
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-                        <div style="background:#111; padding:6px; border-radius:4px; text-align:center; border:1px solid #333;">
-                            <div style="color:#00E676; font-weight:bold;">YES ${yesPrice}¢</div>
+                        <div style="background:#151515; padding:6px; border-radius:4px; text-align:center; border:1px solid #333;">
+                            <div style="color:#00E676; font-weight:bold; font-size:0.9rem;">YES ${yesPrice}¢</div>
                             <div style="font-size:0.65rem; color:#fff; margin-top:2px;">${yesStats.mult}</div>
-                            <div style="font-size:0.6rem; color:#777;">${yesStats.am}</div>
+                            <div style="font-size:0.65rem; color:#777;">${yesStats.am}</div>
                         </div>
 
-                        <div style="background:#111; padding:6px; border-radius:4px; text-align:center; border:1px solid #333;">
-                            <div style="color:#D50000; font-weight:bold;">NO ${noPrice}¢</div>
+                        <div style="background:#151515; padding:6px; border-radius:4px; text-align:center; border:1px solid #333;">
+                            <div style="color:#D50000; font-weight:bold; font-size:0.9rem;">NO ${noPrice}¢</div>
                             <div style="font-size:0.65rem; color:#fff; margin-top:2px;">${noStats.mult}</div>
-                            <div style="font-size:0.6rem; color:#777;">${noStats.am}</div>
+                            <div style="font-size:0.65rem; color:#777;">${noStats.am}</div>
                         </div>
                     </div>
                 `;
@@ -1283,6 +1300,7 @@ setTimeout(() => {
             });
         }
     },
+
 
         // --- HOT WALLET FUNCTIONALITY ---
         // --- HOT WALLET MANAGER (Universal Version) ---
