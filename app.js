@@ -1247,16 +1247,17 @@ setTimeout(() => {
         } 
     },
     
-                // --- KALSHI MARKET EXPLORER (CORRECTED: ASK PRICES) ---
+                    // --- KALSHI EXPLORER (V4: EVENTS API + CATEGORIES) ---
     kalshi: {
-        markets: [],
+        events: [],
+        currentCat: 'all',
 
         fetch: async () => {
             const div = document.getElementById('kalshi-results');
-            div.innerHTML = '<div style="text-align:center; color:#aaa;">Fetching Top 500 Markets...</div>';
+            div.innerHTML = '<div style="text-align:center; color:#aaa;">Fetching Live Events...</div>';
 
-            // Limit 500 to find "Rain", "Trump", etc.
-            const target = 'https://api.elections.kalshi.com/trade-api/v2/markets?limit=500&status=open';
+            // SWITCH TO '/events' -> This groups markets and removes parlay clutter
+            const target = 'https://api.elections.kalshi.com/trade-api/v2/events?limit=200&status=open';
             
             const proxies = [
                 { url: 'https://api.allorigins.win/get?url=', type: 'json_wrap' },
@@ -1282,9 +1283,12 @@ setTimeout(() => {
                         data = raw;
                     }
 
-                    if (!data.markets) throw new Error("No market data");
+                    if (!data.events) throw new Error("No event data");
 
-                    app.kalshi.markets = data.markets;
+                    // SUCCESS
+                    app.kalshi.events = data.events;
+                    
+                    // Initial Render
                     app.kalshi.render();
                     success = true;
                     break;
@@ -1293,8 +1297,21 @@ setTimeout(() => {
             }
 
             if (!success) {
-                div.innerHTML = `<div style="text-align:center; color:#D50000; padding:10px;">Connection Blocked. <a href="https://kalshi.com/markets" target="_blank" style="color:#fff;">Open Kalshi</a></div>`;
+                div.innerHTML = `<div style="text-align:center; color:#D50000; padding:10px;">
+                    Connection Failed. <a href="https://kalshi.com/markets" target="_blank" style="color:#fff;">Open Kalshi</a>
+                </div>`;
             }
+        },
+
+        setCat: (cat) => {
+            app.kalshi.currentCat = cat;
+            // Update UI chips
+            document.querySelectorAll('#view-tools .filter-chip').forEach(el => el.classList.remove('active'));
+            const id = 'k-cat-' + cat.toLowerCase();
+            const btn = document.getElementById(id);
+            if(btn) btn.classList.add('active');
+            
+            app.kalshi.render();
         },
 
         render: () => {
@@ -1302,47 +1319,59 @@ setTimeout(() => {
             const div = document.getElementById('kalshi-results');
             div.innerHTML = '';
 
-            // 1. FILTER
-            let filtered = app.kalshi.markets.filter(m => 
-                (m.title && m.title.toLowerCase().includes(query)) || 
-                (m.ticker && m.ticker.toLowerCase().includes(query)) ||
-                (m.subtitle && m.subtitle.toLowerCase().includes(query))
-            );
+            if (app.kalshi.events.length === 0) {
+                div.innerHTML = '<div style="text-align:center; color:#555;">No events loaded. Click Refresh.</div>';
+                return;
+            }
 
-            // 2. SORT by Volume (Most popular on top)
-            filtered.sort((a,b) => b.volume - a.volume);
+            // FILTER: By Category AND Search Term
+            let filtered = app.kalshi.events.filter(e => {
+                // 1. Check Category Button
+                if (app.kalshi.currentCat !== 'all') {
+                    // Kalshi categories are typically "Politics", "Economics", etc.
+                    // We check if the event category matches (or contains) our button text
+                    if (!e.category || !e.category.includes(app.kalshi.currentCat)) return false;
+                }
 
-            // 3. LIMIT to 50 results
-            filtered = filtered.slice(0, 50);
+                // 2. Check Search Bar
+                const searchMatch = (e.title && e.title.toLowerCase().includes(query)) || 
+                                    (e.ticker && e.ticker.toLowerCase().includes(query));
+                
+                return searchMatch;
+            });
 
+            // Sort by Volume (Liquidity)
+            // Events usually don't have a root volume, so we sum up market volumes or check root props
+            // Note: API v2 events might not have a direct 'volume' key, relying on default order or market data
+            // We will trust the API order (usually Trending) or sort by the volume of the first market
+            
             if(filtered.length === 0) {
                 div.innerHTML = '<div style="text-align:center; color:#555;">No matches found.</div>';
                 return;
             }
 
-            filtered.forEach(m => {
-                // LOGIC: Use ASK price (Cost to Buy)
-                // If yes_ask is missing, it means no one is selling "Yes" (Illiquid)
+            filtered.forEach(e => {
+                // An Event contains a 'markets' array. 
+                // The first market is usually the "Main" Yes/No or the nearest expiration.
+                // We want to skip complex parlay markets if possible.
+                if (!e.markets || e.markets.length === 0) return;
+
+                // Grab the first market (Primary)
+                const m = e.markets[0];
+
                 const yesCost = m.yes_ask || 0;
                 const noCost = m.no_ask || 0;
 
-                // MATH HELPER: (Price -> Multiplier & Odds)
+                // Helper for Math
                 const getStats = (price) => {
                     if(!price || price <= 0 || price >= 100) return { mult: '-', am: '-', prob: '0%' };
-                    
-                    // 1. Probability (The Price itself)
                     const probStr = price + '%';
-                    
-                    // 2. Multiplier (e.g. You pay 60c to win $1.00 -> 1.00/0.60 = 1.66x)
                     const mult = (100 / price).toFixed(2) + 'x';
-                    
-                    // 3. American Odds
                     const p = price / 100;
                     let am = 0;
                     if (p > 0.5) am = -((p / (1 - p)) * 100);
                     else am = ((1 - p) / p) * 100;
                     const amStr = am > 0 ? `+${Math.round(am)}` : Math.round(am);
-
                     return { mult, am: amStr, prob: probStr };
                 };
 
@@ -1353,11 +1382,12 @@ setTimeout(() => {
                 el.className = 'bill-row';
                 el.style.display = 'block';
                 el.style.marginBottom = '8px';
+                // Color code sidebar based on category if possible, else default purple
                 el.style.borderLeft = '3px solid #651FFF';
                 
                 el.innerHTML = `
-                    <div style="font-weight:bold; font-size:0.85rem; color:#fff; margin-bottom:4px;">${m.title}</div>
-                    <div style="font-size:0.65rem; color:#aaa; margin-bottom:8px;">${m.subtitle || m.ticker}</div>
+                    <div style="font-weight:bold; font-size:0.85rem; color:#fff; margin-bottom:4px;">${e.title}</div>
+                    <div style="font-size:0.65rem; color:#aaa; margin-bottom:8px;">${m.subtitle || e.category || m.ticker}</div>
                     
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
                         <div style="background:#151515; padding:8px; border-radius:4px; text-align:center; border:1px solid #333;">
@@ -1379,6 +1409,7 @@ setTimeout(() => {
             });
         }
     },
+
 
 
 

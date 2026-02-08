@@ -374,23 +374,29 @@
             <div id="notes-list" style="margin-bottom: 30px;"></div>
             
             <div class="card" style="border-top: 4px solid #651FFF;">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h2 style="color:#651FFF; margin:0;">KALSHI MARKET EXPLORER</h2>
-        <div style="font-size:0.6rem; color:#aaa;">LIVE DATA</div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h2 style="color:#651FFF; margin:0;">KALSHI EVENT EXPLORER</h2>
+        <button class="btn btn-sec" style="width:auto; padding:4px 8px; font-size:0.65rem;" onclick="app.kalshi.fetch()">REFRESH</button>
     </div>
     
-    <label>SEARCH / FILTER</label>
+    <div class="filter-row-top" style="margin-bottom:10px; gap:6px;">
+        <div class="filter-chip active" id="k-cat-all" onclick="app.kalshi.setCat('all')">ALL</div>
+        <div class="filter-chip" id="k-cat-politics" onclick="app.kalshi.setCat('Politics')">POLITICS</div>
+        <div class="filter-chip" id="k-cat-economics" onclick="app.kalshi.setCat('Economics')">ECON</div>
+        <div class="filter-chip" id="k-cat-financials" onclick="app.kalshi.setCat('Financials')">STOCKS</div>
+        <div class="filter-chip" id="k-cat-tech" onclick="app.kalshi.setCat('Technology')">TECH</div>
+        <div class="filter-chip" id="k-cat-culture" onclick="app.kalshi.setCat('Culture')">CULTURE</div>
+    </div>
+
     <div style="display:flex; gap:8px; margin-bottom:10px;">
-        <input type="text" id="kalshi-search" placeholder="e.g. Fed, Rain, New York..." style="margin:0;" onkeyup="app.kalshi.render()">
-        <button class="btn btn-primary" style="width:auto; padding:0 12px; background:#651FFF; color:#fff;" onclick="app.kalshi.fetch()">
-            <i class="material-icons-round">refresh</i>
-        </button>
+        <input type="text" id="kalshi-search" placeholder="Search Events (e.g. Trump, Rain)..." style="margin:0;" onkeyup="app.kalshi.render()">
     </div>
 
     <div id="kalshi-results" style="max-height:400px; overflow-y:auto; padding-right:4px;">
-        <div style="text-align:center; color:#555; padding:20px;">Click Refresh to load markets...</div>
+        <div style="text-align:center; color:#555; padding:20px;">Loading Events...</div>
     </div>
 </div>
+
 
             <div class="card" style="border-left: 4px solid #FF9100;">
                 <h2>NBA PLAYER COMPARISON (LAST 10)</h2>
