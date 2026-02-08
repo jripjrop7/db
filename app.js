@@ -1680,9 +1680,10 @@ setTimeout(() => {
             }
         },
 
-                // 3. BITCOIN HISTORY CHART (Fixed: No Red Numbers)
+        // 3. BITCOIN HISTORY CHART
         renderHistory: async (days) => {
             // Map our filter strings to CoinGecko 'days' param
+            // 'day' -> 1, 'week' -> 7, 'month' -> 30, 'year' -> 365
             const dayMap = { 'day': 1, 'week': 7, 'month': 30, 'year': 365, 'all': 'max', 'custom': 30 };
             const d = dayMap[days] || 30;
 
@@ -1704,27 +1705,15 @@ setTimeout(() => {
 
                 if(app.crypto.btcChartInstance) app.crypto.btcChartInstance.destroy();
 
-                app.crypto.btcChartInstance = new Chart(ctx, {
+                                app.crypto.btcChartInstance = new Chart(ctx, {
                     type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'BTC Price ($)',
-                            data: val,
-                            borderColor: '#F7931A',
-                            backgroundColor: 'rgba(247, 147, 26, 0.1)',
-                            borderWidth: 2,
-                            fill: true,
-                            pointRadius: 0,
-                            tension: 0.2
-                        }]
-                    },
+                    data: { /* ... your data ... */ },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: { 
                             legend: { display: false },
-                            datalabels: { display: false } // <--- THIS FIXES THE RED SMEAR
+                            datalabels: { display: false } // <--- ADD THIS LINE
                         },
                         scales: { 
                             y: { grid: { color: '#222' } }, 
@@ -1733,9 +1722,10 @@ setTimeout(() => {
                     }
                 });
 
+
             } catch(e) { console.error("BTC Chart Error", e); }
         }
-
+    },
 
             // --- RECURRING EXPENSES LOGIC ---
 
