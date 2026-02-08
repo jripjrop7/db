@@ -1680,10 +1680,9 @@ setTimeout(() => {
             }
         },
 
-        // 3. BITCOIN HISTORY CHART
+                // 3. BITCOIN HISTORY CHART (Fixed: No Red Numbers)
         renderHistory: async (days) => {
             // Map our filter strings to CoinGecko 'days' param
-            // 'day' -> 1, 'week' -> 7, 'month' -> 30, 'year' -> 365
             const dayMap = { 'day': 1, 'week': 7, 'month': 30, 'year': 365, 'all': 'max', 'custom': 30 };
             const d = dayMap[days] || 30;
 
@@ -1723,7 +1722,10 @@ setTimeout(() => {
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
+                        plugins: { 
+                            legend: { display: false },
+                            datalabels: { display: false } // <--- THIS FIXES THE RED SMEAR
+                        },
                         scales: { 
                             y: { grid: { color: '#222' } }, 
                             x: { grid: { display: false }, ticks: { maxTicksLimit: 6 } } 
@@ -1732,8 +1734,8 @@ setTimeout(() => {
                 });
 
             } catch(e) { console.error("BTC Chart Error", e); }
-        }
-    },
+        },
+
 
             // --- RECURRING EXPENSES LOGIC ---
 
