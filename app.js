@@ -1723,8 +1723,8 @@ setTimeout(() => {
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { display: false } 
-                        datalabels: { display: false }},
+                        plugins: { legend: { display: false } },
+                        
                         scales: { 
                             y: { grid: { color: '#222' } }, 
                             x: { grid: { display: false }, ticks: { maxTicksLimit: 6 } } 
