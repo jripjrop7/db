@@ -1197,34 +1197,39 @@ setTimeout(() => {
     kalshi: {
         markets: [],
 
-        fetch: async () => {
+                fetch: async () => {
             const div = document.getElementById('kalshi-results');
             div.innerHTML = '<div style="text-align:center; color:#aaa;">Fetching Top Markets...</div>';
 
             try {
-                // 1. USE CORS PROXY to bypass browser blocking
+                // 1. USE 'ALLORIGINS' PROXY (More reliable than corsproxy.io)
                 const targetUrl = 'https://api.elections.kalshi.com/trade-api/v2/markets?limit=100&status=open';
-                const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+                const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl);
 
                 const res = await fetch(proxyUrl);
-                const data = await res.json();
+                const rawWrapper = await res.json(); // AllOrigins wraps response in JSON
                 
+                // 2. UNWRAP THE DATA
+                if (!rawWrapper.contents) throw new Error("Proxy error");
+                const data = JSON.parse(rawWrapper.contents); // Parse the internal string
+
                 if (!data.markets) throw new Error("No market data returned");
 
-                // 2. Sort by Volume (Highest liquidity first)
+                // 3. Sort by Volume (Highest liquidity first)
                 app.kalshi.markets = data.markets.sort((a,b) => b.volume - a.volume);
                 
-                // 3. Render
+                // 4. Render
                 app.kalshi.render();
 
             } catch(e) {
                 console.error(e);
                 div.innerHTML = `<div style="text-align:center; color:#D50000;">
                     Connection Failed.<br>
-                    <span style="font-size:0.65rem; color:#777;">(CORS Proxy might be busy. Try again in 5s)</span>
+                    <span style="font-size:0.65rem; color:#777;">(Browser blocked the request. Try again.)</span>
                 </div>`;
             }
         },
+
 
         render: () => {
             const query = document.getElementById('kalshi-search').value.toLowerCase();
