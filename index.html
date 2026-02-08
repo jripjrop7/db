@@ -26,6 +26,12 @@
     
     <script src="bitcoin.js"></script>
 
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://npmcdn.com/flatpickr/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
     <style>
         :root {
             --bg: #050505; --surface: #121212; --primary: #00E676; --success: #00C853; --error: #D50000; 
@@ -175,6 +181,7 @@
         .hof-label { font-size: 0.6rem; color: var(--sub); text-transform: uppercase; margin-bottom: 4px; letter-spacing: 1px; }
         .hof-val { font-size: 1.1rem; font-weight: bold; color: #fff; }
         .hof-icon { font-size: 24px; margin-bottom: 5px; color: var(--intense-orange); }
+        
         /* --- NEW TOOL STYLES --- */
         .research-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 15px; }
         .research-btn { background: #222; border: 1px solid #333; color: white; padding: 10px; border-radius: 6px; font-size: 0.75rem; text-align: center; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
@@ -198,89 +205,82 @@
         
         /* FORCE TEXT WRAPPING */
         .code-box, .tx-title, .note-body, #w-address, #wallet-dash div {
-        white-space: pre-wrap !important;      /* Preserve spacing but wrap */
-        word-wrap: break-word !important;      /* Break long words */
-        word-break: break-all !important;      /* Force break if needed (for keys) */
-        overflow-wrap: anywhere !important;    /* Modern wrapping */
-        max-width: 100%;                       /* Never exceed screen */
-}
+            white-space: pre-wrap !important;
+            word-wrap: break-word !important;
+            word-break: break-all !important;
+            overflow-wrap: anywhere !important;
+            max-width: 100%;
+        }
 
-/* FIX INPUTS EXTENDING SCREEN */
-input, select, textarea {
-    max-width: 100%;                       /* strict width limit */
-    min-width: 0;                          /* allow shrinking */
-}
-/* FIX: Make small checkboxes visible */
-input[type="checkbox"].visible-box {
-    appearance: auto !important; 
-    width: 20px !important; 
-    height: 20px !important; 
-    margin: 0 !important;
-    cursor: pointer;
-}
+        /* FIX INPUTS EXTENDING SCREEN */
+        input, select, textarea {
+            max-width: 100%;
+            min-width: 0;
+        }
+        
+        /* FIX: Make small checkboxes visible */
+        input[type="checkbox"].visible-box {
+            appearance: auto !important; 
+            width: 20px !important; 
+            height: 20px !important; 
+            margin: 0 !important;
+            cursor: pointer;
+        }
 
-/* FIX: Better spacing for miner rows */
-.miner-row {
-    display: grid;
-    grid-template-columns: 40px 1fr auto;
-    align-items: center;
-    gap: 10px;
-    background: #151515;
-    padding: 8px;
-    border-radius: 6px;
-    margin-bottom: 8px;
-    border: 1px solid #333;
-}
-/* NBA STAT SHEET STYLES */
-.nba-table-container {
-    overflow-x: auto;
-    background: #111;
-    border-radius: 8px;
-    border: 1px solid #333;
-}
-.nba-stat-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.75rem;
-    color: #ccc;
-    white-space: nowrap;
-}
-.nba-stat-table th {
-    background: #222;
-    color: #aaa;
-    font-weight: bold;
-    padding: 10px;
-    text-align: center;
-    border-bottom: 2px solid #444;
-}
-.nba-stat-table td {
-    padding: 8px;
-    text-align: center;
-    border-bottom: 1px solid #222;
-}
-.player-header-row {
-    background: #1A1A1A;
-    border-top: 2px solid #FF9100;
-}
-.player-name-cell {
-    text-align: left !important;
-    font-weight: bold;
-    color: #FF9100;
-    font-size: 0.85rem;
-    padding: 12px !important;
-}
-.game-row:nth-child(even) { background: #0e0e0e; }
-.stat-high { color: #00E676; font-weight: bold; } /* Green for good stats */
-
+        /* FIX: Better spacing for miner rows */
+        .miner-row {
+            display: grid;
+            grid-template-columns: 40px 1fr auto;
+            align-items: center;
+            gap: 10px;
+            background: #151515;
+            padding: 8px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border: 1px solid #333;
+        }
+        
+        /* NBA STAT SHEET STYLES */
+        .nba-table-container {
+            overflow-x: auto;
+            background: #111;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        .nba-stat-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+            color: #ccc;
+            white-space: nowrap;
+        }
+        .nba-stat-table th {
+            background: #222;
+            color: #aaa;
+            font-weight: bold;
+            padding: 10px;
+            text-align: center;
+            border-bottom: 2px solid #444;
+        }
+        .nba-stat-table td {
+            padding: 8px;
+            text-align: center;
+            border-bottom: 1px solid #222;
+        }
+        .player-header-row {
+            background: #1A1A1A;
+            border-top: 2px solid #FF9100;
+        }
+        .player-name-cell {
+            text-align: left !important;
+            font-weight: bold;
+            color: #FF9100;
+            font-size: 0.85rem;
+            padding: 12px !important;
+        }
+        .game-row:nth-child(even) { background: #0e0e0e; }
+        .stat-high { color: #00E676; font-weight: bold; }
     </style>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<link rel="stylesheet" href="https://npmcdn.com/flatpickr/dist/themes/dark.css">
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
 </head>
 <body>
     <div id="app">
@@ -311,6 +311,7 @@ input[type="checkbox"].visible-box {
                 <button class="filter-btn" onclick="app.openFilterModal()"><i class="material-icons-round" style="font-size:18px;">filter_list</i></button>
             </div>
         </div>
+
         <div id="view-dash" class="container">
             <div class="card" id="goal-card">
                 <div class="row">
@@ -350,19 +351,18 @@ input[type="checkbox"].visible-box {
                 <button onclick="app.openTicketModal()" style="background:none; border:none; color:var(--intense-orange); font-size:24px;">+</button>
             </div>
             <div class="card">
-    <h2>LIVE SPORTS TICKER</h2>
-    <div style="display:flex; gap:10px; margin-bottom:10px;">
-        <select id="sport-key">
-            <option value="basketball_nba">NBA</option>
-            <option value="americanfootball_nfl">NFL</option>
-            <option value="baseball_mlb">MLB</option>
-            <option value="icehockey_nhl">NHL</option>
-        </select>
-        <button class="btn btn-primary" style="width:auto; margin:0;" onclick="app.fetchSports()">LOAD GAMES</button>
-    </div>
-    <div id="sports-ticker-res"></div>
-</div>
-
+                <h2>LIVE SPORTS TICKER</h2>
+                <div style="display:flex; gap:10px; margin-bottom:10px;">
+                    <select id="sport-key">
+                        <option value="basketball_nba">NBA</option>
+                        <option value="americanfootball_nfl">NFL</option>
+                        <option value="baseball_mlb">MLB</option>
+                        <option value="icehockey_nhl">NHL</option>
+                    </select>
+                    <button class="btn btn-primary" style="width:auto; margin:0;" onclick="app.fetchSports()">LOAD GAMES</button>
+                </div>
+                <div id="sports-ticker-res"></div>
+            </div>
             <div id="ticket-list"></div>
         </div>
 
@@ -374,25 +374,23 @@ input[type="checkbox"].visible-box {
             <div id="notes-list" style="margin-bottom: 30px;"></div>
             
             <div class="card" style="border-left: 4px solid #FF9100;">
-    <h2>NBA PLAYER COMPARISON (LAST 10)</h2>
-    
-    <div id="nba-player-rows">
-        <div class="bill-row" id="nba-p-1">
-            <input type="text" class="nba-input" placeholder="e.g. LeBron James" style="margin:0;">
-            <button class="bill-btn-del" onclick="app.sports.removeRow('nba-p-1')">✕</button>
-        </div>
-    </div>
+                <h2>NBA PLAYER COMPARISON (LAST 10)</h2>
+                
+                <div id="nba-player-rows">
+                    <div class="bill-row" id="nba-p-1">
+                        <input type="text" class="nba-input" placeholder="e.g. LeBron James" style="margin:0;">
+                        <button class="bill-btn-del" onclick="app.sports.removeRow('nba-p-1')">✕</button>
+                    </div>
+                </div>
 
-    <div class="grid">
-        <button class="btn btn-sec" onclick="app.sports.addRow()">+ ADD PLAYER</button>
-        <button class="btn btn-primary" onclick="app.sports.generateChart()">GENERATE CHART</button>
-    </div>
-    <div style="font-size:0.65rem; color:#777; margin-top:5px;">
-        *Single player shows Pts/Reb/Ast.<br>*Multi-player compares Points only.
-    </div>
-</div>
-
-
+                <div class="grid">
+                    <button class="btn btn-sec" onclick="app.sports.addRow()">+ ADD PLAYER</button>
+                    <button class="btn btn-primary" onclick="app.sports.generateChart()">GENERATE CHART</button>
+                </div>
+                <div style="font-size:0.65rem; color:#777; margin-top:5px;">
+                    *Single player shows Pts/Reb/Ast.<br>*Multi-player compares Points only.
+                </div>
+            </div>
 
             <div class="row" style="margin-bottom:10px; padding:0 4px;">
                 <h2 style="margin:0;">INVENTORY</h2>
@@ -611,50 +609,51 @@ input[type="checkbox"].visible-box {
                 <h2>GROWTH CHART</h2>
                 <canvas id="mainChart" height="250"></canvas>
             </div>
-<div class="card">
-    <h2>BITCOIN PRICE HISTORY (FILTERED)</h2>
-    <div style="height:250px;">
-        <canvas id="btcHistoryChart"></canvas>
-    </div>
-</div>
+            
+            <div class="card">
+                <h2>BITCOIN PRICE HISTORY (FILTERED)</h2>
+                <div style="height:250px;">
+                    <canvas id="btcHistoryChart"></canvas>
+                </div>
+            </div>
 
-<div class="card">
-    <h2>LIVE MARKET TICKER</h2>
-    <table class="stats-table">
-        <thead>
-            <tr><th>ASSET</th><th>PRICE ($)</th><th>24H %</th></tr>
-        </thead>
-        <tbody id="crypto-ticker-body">
-            <tr><td colspan="3" style="text-align:center; color:#555;">Loading...</td></tr>
-        </tbody>
-    </table>
-    <button class="btn btn-sec" style="margin-top:10px; padding:8px;" onclick="app.crypto.fetchTicker()">REFRESH PRICES</button>
-</div>
+            <div class="card">
+                <h2>LIVE MARKET TICKER</h2>
+                <table class="stats-table">
+                    <thead>
+                        <tr><th>ASSET</th><th>PRICE ($)</th><th>24H %</th></tr>
+                    </thead>
+                    <tbody id="crypto-ticker-body">
+                        <tr><td colspan="3" style="text-align:center; color:#555;">Loading...</td></tr>
+                    </tbody>
+                </table>
+                <button class="btn btn-sec" style="margin-top:10px; padding:8px;" onclick="app.crypto.fetchTicker()">REFRESH PRICES</button>
+            </div>
 
-<div class="card" id="nba-chart-card" style="display:none; border-top: 4px solid #FF9100; padding:0;">
-    <div style="display:flex; justify-content:space-between; padding:10px 15px; background:#1A1A1A; border-bottom:1px solid #333;">
-        <h2 id="nba-chart-title" style="margin:0;">PLAYER STATS (L10)</h2>
-        <button onclick="document.getElementById('nba-chart-card').style.display='none'" style="background:none; border:none; color:#555; font-size:1.2rem;">✕</button>
-    </div>
-    
-    <div class="nba-table-container">
-        <table class="nba-stat-table">
-            <thead>
-                <tr>
-                    <th style="text-align:left;">GAME</th>
-                    <th>MIN</th>
-                    <th>PTS</th>
-                    <th>REB</th>
-                    <th>AST</th>
-                    <th>3PM</th>
-                    <th>FG%</th>
-                </tr>
-            </thead>
-            <tbody id="nba-stats-body">
-                </tbody>
-        </table>
-    </div>
-</div>
+            <div class="card" id="nba-chart-card" style="display:none; border-top: 4px solid #FF9100; padding:0;">
+                <div style="display:flex; justify-content:space-between; padding:10px 15px; background:#1A1A1A; border-bottom:1px solid #333;">
+                    <h2 id="nba-chart-title" style="margin:0;">PLAYER STATS (L10)</h2>
+                    <button onclick="document.getElementById('nba-chart-card').style.display='none'" style="background:none; border:none; color:#555; font-size:1.2rem;">✕</button>
+                </div>
+                
+                <div class="nba-table-container">
+                    <table class="nba-stat-table">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left;">GAME</th>
+                                <th>MIN</th>
+                                <th>PTS</th>
+                                <th>REB</th>
+                                <th>AST</th>
+                                <th>3PM</th>
+                                <th>FG%</th>
+                            </tr>
+                        </thead>
+                        <tbody id="nba-stats-body">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
 
             <div class="card">
                 <h2>RECURRING EXPENSES TRACKER</h2>
@@ -734,174 +733,170 @@ input[type="checkbox"].visible-box {
             <div class="card"><label>ETHEREUM (ETH)</label><div class="row"><span id="eth-price" style="color:var(--sub);">Loading...</span></div><input type="number" id="eth-holdings" placeholder="0.00" oninput="app.calcCrypto()"></div>
             
             <div class="card" style="border-top: 4px solid #651FFF;">
-    <h2>MEMPOOL EXPLORER</h2>
-    <label>TXID <span style="color:#fff;">OR</span> ADDRESS</label>
-    <div style="display:flex; gap:8px;">
-        <input type="text" id="mp-input" placeholder="Paste TXID or Address (1..., 3..., bc1...)" style="font-size:0.7rem;">
-        <button class="btn btn-primary" style="width:auto; padding:0 12px; margin-bottom:10px;" onclick="app.crypto.trackItem()">
-            <i class="material-icons-round">search</i>
-        </button>
-    </div>
-    
-    <div id="mp-res" style="display:none; background:#111; padding:10px; border-radius:6px; margin-top:10px; border:1px solid #333;">
-        </div>
-</div>
+                <h2>MEMPOOL EXPLORER</h2>
+                <label>TXID <span style="color:#fff;">OR</span> ADDRESS</label>
+                <div style="display:flex; gap:8px;">
+                    <input type="text" id="mp-input" placeholder="Paste TXID or Address (1..., 3..., bc1...)" style="font-size:0.7rem;">
+                    <button class="btn btn-primary" style="width:auto; padding:0 12px; margin-bottom:10px;" onclick="app.crypto.trackItem()">
+                        <i class="material-icons-round">search</i>
+                    </button>
+                </div>
+                <div id="mp-res" style="display:none; background:#111; padding:10px; border-radius:6px; margin-top:10px; border:1px solid #333;">
+                    </div>
+            </div>
 
             <div class="card" style="border-top: 4px solid #FFEA00;">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h2 style="margin:0;">BITCOIN WALLET (HOT)</h2>
-        <div id="wallet-status" style="font-size:0.7rem; color:#555;">OFFLINE</div>
-    </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2 style="margin:0;">BITCOIN WALLET (HOT)</h2>
+                    <div id="wallet-status" style="font-size:0.7rem; color:#555;">OFFLINE</div>
+                </div>
 
-    <div id="wallet-login">
-        <label>PRIVATE KEY (WIF)</label>
-        <div style="display:flex; gap:8px;">
-            <input type="text" id="w-import-key" placeholder="Paste WIF Key (starts with 5, K, or L)" style="font-family:'Martian Mono'; font-size:0.7rem;">
-            <button class="btn btn-sec" style="width:auto; padding:0 12px;" onclick="app.wallet.generate()">NEW</button>
-        </div>
-        <button class="btn btn-primary" onclick="app.wallet.load()">OPEN WALLET</button>
-    </div>
+                <div id="wallet-login">
+                    <label>PRIVATE KEY (WIF)</label>
+                    <div style="display:flex; gap:8px;">
+                        <input type="text" id="w-import-key" placeholder="Paste WIF Key (starts with 5, K, or L)" style="font-family:'Martian Mono'; font-size:0.7rem;">
+                        <button class="btn btn-sec" style="width:auto; padding:0 12px;" onclick="app.wallet.generate()">NEW</button>
+                    </div>
+                    <button class="btn btn-primary" onclick="app.wallet.load()">OPEN WALLET</button>
+                </div>
 
-    <div id="wallet-dash" style="display:none;">
-        <div style="background:#111; padding:15px; border-radius:8px; text-align:center; margin-bottom:15px; border:1px solid #333;">
-            <div style="font-size:0.7rem; color:#aaa; margin-bottom:4px;">AVAILABLE BALANCE</div>
-            <div id="w-balance" style="font-size:2rem; font-weight:bold; color:#fff;">0.00000000 <span style="font-size:1rem; color:#FFEA00;">BTC</span></div>
-            <div id="w-address" onclick="app.copyText(this.innerText)" style="font-size:0.65rem; color:#00E676; margin-top:5px; word-break:break-all; cursor:pointer;">-</div>
-        </div>
+                <div id="wallet-dash" style="display:none;">
+                    <div style="background:#111; padding:15px; border-radius:8px; text-align:center; margin-bottom:15px; border:1px solid #333;">
+                        <div style="font-size:0.7rem; color:#aaa; margin-bottom:4px;">AVAILABLE BALANCE</div>
+                        <div id="w-balance" style="font-size:2rem; font-weight:bold; color:#fff;">0.00000000 <span style="font-size:1rem; color:#FFEA00;">BTC</span></div>
+                        <div id="w-address" onclick="app.copyText(this.innerText)" style="font-size:0.65rem; color:#00E676; margin-top:5px; word-break:break-all; cursor:pointer;">-</div>
+                    </div>
 
-        <div class="grid">
-            <button class="btn btn-sec" onclick="app.wallet.refresh()">REFRESH</button>
-            <button class="btn btn-sec" onclick="app.wallet.logout()">CLOSE</button>
-        </div>
+                    <div class="grid">
+                        <button class="btn btn-sec" onclick="app.wallet.refresh()">REFRESH</button>
+                        <button class="btn btn-sec" onclick="app.wallet.logout()">CLOSE</button>
+                    </div>
 
-        <h3 style="color:#fff; font-size:0.85rem; margin:15px 0 8px 0;">SEND BITCOIN</h3>
-        <label>DESTINATION ADDRESS</label>
-        <input type="text" id="w-dest" placeholder="1... or 3... or bc1...">
-        <div class="grid">
-            <div><label>AMOUNT (BTC)</label><input type="number" id="w-amt" placeholder="0.001"></div>
-            <div><label>FEE (SATS/BYTE)</label><input type="number" id="w-fee" value="20"></div>
-        </div>
-        <button class="btn btn-primary" onclick="app.wallet.send()">SEND FUNDS</button>
-        <div id="w-msg" style="margin-top:10px; font-size:0.7rem; text-align:center;"></div>
-        </div>
-</div>
-
-<div class="card">
-    <h3>VANITY ADDRESS MINER PRO</h3>
-    
-    <div style="background:#111; padding:10px; border-radius:6px; margin-bottom:15px; border:1px solid #333;">
-        <label style="color:#aaa; margin-bottom:8px;">STRICT FILTERS (AND)</label>
-        
-        <div class="toggle-row">
-            <label for="v-hanging" style="margin:0; font-size:0.75rem; color:#fff;">NO HANGING LETTERS (g, j, p, q, y)</label>
-            <div>
-                <input type="checkbox" id="v-hanging" class="toggle-checkbox">
-                <label for="v-hanging" class="toggle-switch"></label>
-            </div>
-        </div>
-
-        <div class="miner-row">
-            <div>
-                <input type="checkbox" id="v-max-lower-check" class="toggle-checkbox">
-                <label for="v-max-lower-check" class="toggle-switch" style="transform:scale(0.8);"></label>
-            </div>
-            <div>
-                <label style="margin:0;">MAX ALLOWED LOWERCASE CHARS</label>
-                <input type="number" id="v-max-lower-val" value="3" placeholder="#" style="margin:0; height:30px; font-size:0.8rem;">
-            </div>
-            <div style="font-size:0.6rem; color:#555; text-align:center;">
-                (Global)
-            </div>
-        </div>
-
-        <div style="font-size:0.65rem; color:#666; margin:-4px 0 10px 0; font-style:italic;">
-            *Tip: Set "Max Lowercase" to 0 for strict All Caps (Hard). Set to 3-5 for "Clean" look (Easier).
-        </div>
-
-        <div style="margin-top:10px;">
-            <label style="margin-bottom:4px;">MUST START WITH (PREFIX)</label>
-            <div style="display:grid; grid-template-columns: auto 1fr auto; gap:8px; align-items:center;">
-                <div style="background:#222; color:#777; padding:0 12px; height:36px; display:flex; align-items:center; border-radius:4px; font-weight:bold;">1</div>
-                <input type="text" id="v-prefix" placeholder="Leave empty for any..." maxlength="5" style="margin:0; height:36px;">
-                <div style="text-align:center;">
-                    <input type="checkbox" id="v-prefix-caps" class="visible-box">
-                    <div style="font-size:0.6rem; color:#777; margin-top:2px;">CAPS</div>
+                    <h3 style="color:#fff; font-size:0.85rem; margin:15px 0 8px 0;">SEND BITCOIN</h3>
+                    <label>DESTINATION ADDRESS</label>
+                    <input type="text" id="w-dest" placeholder="1... or 3... or bc1...">
+                    <div class="grid">
+                        <div><label>AMOUNT (BTC)</label><input type="number" id="w-amt" placeholder="0.001"></div>
+                        <div><label>FEE (SATS/BYTE)</label><input type="number" id="w-fee" value="20"></div>
+                    </div>
+                    <button class="btn btn-primary" onclick="app.wallet.send()">SEND FUNDS</button>
+                    <div id="w-msg" style="margin-top:10px; font-size:0.7rem; text-align:center;"></div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <label style="color:#aaa; margin-bottom:8px;">SEARCH TARGETS (OR)</label>
+            <div class="card">
+                <h3>VANITY ADDRESS MINER PRO</h3>
+                
+                <div style="background:#111; padding:10px; border-radius:6px; margin-bottom:15px; border:1px solid #333;">
+                    <label style="color:#aaa; margin-bottom:8px;">STRICT FILTERS (AND)</label>
+                    
+                    <div class="toggle-row">
+                        <label for="v-hanging" style="margin:0; font-size:0.75rem; color:#fff;">NO HANGING LETTERS (g, j, p, q, y)</label>
+                        <div>
+                            <input type="checkbox" id="v-hanging" class="toggle-checkbox">
+                            <label for="v-hanging" class="toggle-switch"></label>
+                        </div>
+                    </div>
 
-    <div class="toggle-row">
-        <label for="v-word-start" style="margin:0; font-size:0.75rem; color:#fff;">STARTS WITH DICTIONARY WORD</label>
-        <div>
-            <input type="checkbox" id="v-word-start" class="toggle-checkbox">
-            <label for="v-word-start" class="toggle-switch"></label>
-        </div>
-    </div>
+                    <div class="miner-row">
+                        <div>
+                            <input type="checkbox" id="v-max-lower-check" class="toggle-checkbox">
+                            <label for="v-max-lower-check" class="toggle-switch" style="transform:scale(0.8);"></label>
+                        </div>
+                        <div>
+                            <label style="margin:0;">MAX ALLOWED LOWERCASE CHARS</label>
+                            <input type="number" id="v-max-lower-val" value="3" placeholder="#" style="margin:0; height:30px; font-size:0.8rem;">
+                        </div>
+                        <div style="font-size:0.6rem; color:#555; text-align:center;">
+                            (Global)
+                        </div>
+                    </div>
 
-    <div class="miner-row">
-        <div>
-            <input type="checkbox" id="v-str-any-check" class="toggle-checkbox">
-            <label for="v-str-any-check" class="toggle-switch" style="transform:scale(0.8);"></label>
-        </div>
-        <div>
-            <label style="margin:0;">FIND CUSTOM STRING</label>
-            <input type="text" id="v-str-any-val" placeholder="e.g. 777" style="margin:0; height:30px; font-size:0.8rem;">
-        </div>
-        <div style="text-align:center;">
-            <input type="checkbox" id="v-str-any-caps" class="visible-box">
-            <div style="font-size:0.6rem; color:#777; margin-top:2px;">CAPS</div>
-        </div>
-    </div>
+                    <div style="font-size:0.65rem; color:#666; margin:-4px 0 10px 0; font-style:italic;">
+                        *Tip: Set "Max Lowercase" to 0 for strict All Caps (Hard). Set to 3-5 for "Clean" look (Easier).
+                    </div>
 
-    <div class="miner-row">
-        <div>
-            <input type="checkbox" id="v-word-any-check" class="toggle-checkbox">
-            <label for="v-word-any-check" class="toggle-switch" style="transform:scale(0.8);"></label>
-        </div>
-        <div>
-            <label style="margin:0;">FIND DICTIONARY WORD (MIN LEN)</label>
-            <input type="number" id="v-word-any-len" value="3" min="3" max="5" style="margin:0; height:30px; font-size:0.8rem;">
-        </div>
-        <div style="text-align:center;">
-            <input type="checkbox" id="v-word-any-caps" class="visible-box">
-            <div style="font-size:0.6rem; color:#777; margin-top:2px;">CAPS</div>
-        </div>
-    </div>
+                    <div style="margin-top:10px;">
+                        <label style="margin-bottom:4px;">MUST START WITH (PREFIX)</label>
+                        <div style="display:grid; grid-template-columns: auto 1fr auto; gap:8px; align-items:center;">
+                            <div style="background:#222; color:#777; padding:0 12px; height:36px; display:flex; align-items:center; border-radius:4px; font-weight:bold;">1</div>
+                            <input type="text" id="v-prefix" placeholder="Leave empty for any..." maxlength="5" style="margin:0; height:36px;">
+                            <div style="text-align:center;">
+                                <input type="checkbox" id="v-prefix-caps" class="visible-box">
+                                <div style="font-size:0.6rem; color:#777; margin-top:2px;">CAPS</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-    <div id="vanity-status-box" style="display:none; background:#111; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #333; text-align:center;">
-        <div id="vanity-status-text" style="color:#00E676; font-weight:bold; margin-bottom:5px;">MINING...</div>
-        <div style="font-size:0.8rem; color:#aaa;">Speed: <span id="vanity-speed" style="color:#fff;">0</span> keys/s</div>
-        <div style="font-size:0.8rem; color:#aaa;">Checked: <span id="vanity-count" style="color:#fff;">0</span></div>
-    </div>
+                <label style="color:#aaa; margin-bottom:8px;">SEARCH TARGETS (OR)</label>
 
-    <div id="vanity-result" style="display:none; background:#222; border-left:4px solid #00E676; padding:10px; margin-bottom:15px;">
-        <div style="background:rgba(0, 230, 118, 0.15); color:#00E676; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:0.8rem; margin-bottom:10px; display:inline-block; border:1px solid #00E676;" id="vanity-match-tag">MATCH: -</div>
+                <div class="toggle-row">
+                    <label for="v-word-start" style="margin:0; font-size:0.75rem; color:#fff;">STARTS WITH DICTIONARY WORD</label>
+                    <div>
+                        <input type="checkbox" id="v-word-start" class="toggle-checkbox">
+                        <label for="v-word-start" class="toggle-switch"></label>
+                    </div>
+                </div>
 
-        <div style="font-size:0.7rem; color:#aaa; margin-bottom:4px;">FOUND ADDRESS</div>
-        <div id="vanity-res-addr" onclick="app.copyText(this.innerText)" style="color:#fff; font-weight:bold; font-size:0.9rem; word-break:break-all; cursor:pointer;">-</div>
-        
-        <div style="font-size:0.7rem; color:#aaa; margin:10px 0 4px 0;">PRIVATE KEY (WIF)</div>
-        <div id="vanity-res-wif" onclick="app.copyText(this.innerText)" style="color:#FFEA00; font-family:'Martian Mono'; font-size:0.8rem; word-break:break-all; cursor:pointer;">-</div>
-        
-        <div style="font-size:0.7rem; color:#aaa; margin:10px 0 4px 0;">PUBLIC HEX</div>
-        <div id="vanity-res-hex" onclick="app.copyText(this.innerText)" style="color:#00E676; font-family:'Martian Mono'; font-size:0.7rem; word-break:break-all; cursor:pointer;">-</div>
+                <div class="miner-row">
+                    <div>
+                        <input type="checkbox" id="v-str-any-check" class="toggle-checkbox">
+                        <label for="v-str-any-check" class="toggle-switch" style="transform:scale(0.8);"></label>
+                    </div>
+                    <div>
+                        <label style="margin:0;">FIND CUSTOM STRING</label>
+                        <input type="text" id="v-str-any-val" placeholder="e.g. 777" style="margin:0; height:30px; font-size:0.8rem;">
+                    </div>
+                    <div style="text-align:center;">
+                        <input type="checkbox" id="v-str-any-caps" class="visible-box">
+                        <div style="font-size:0.6rem; color:#777; margin-top:2px;">CAPS</div>
+                    </div>
+                </div>
 
-        <button class="btn btn-sec" style="margin-top:10px;" onclick="app.vanity.saveToNotes()">SAVE TO NOTES</button>
-    </div>
+                <div class="miner-row">
+                    <div>
+                        <input type="checkbox" id="v-word-any-check" class="toggle-checkbox">
+                        <label for="v-word-any-check" class="toggle-switch" style="transform:scale(0.8);"></label>
+                    </div>
+                    <div>
+                        <label style="margin:0;">FIND DICTIONARY WORD (MIN LEN)</label>
+                        <input type="number" id="v-word-any-len" value="3" min="3" max="5" style="margin:0; height:30px; font-size:0.8rem;">
+                    </div>
+                    <div style="text-align:center;">
+                        <input type="checkbox" id="v-word-any-caps" class="visible-box">
+                        <div style="font-size:0.6rem; color:#777; margin-top:2px;">CAPS</div>
+                    </div>
+                </div>
 
-    <div class="grid">
-        <button id="btn-vanity-start" class="btn btn-primary" onclick="app.vanity.start()">START MINING</button>
-        <button id="btn-vanity-stop" class="btn btn-sec" onclick="app.vanity.stop()" disabled>STOP</button>
-    </div>
-</div>
+                <div id="vanity-status-box" style="display:none; background:#111; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #333; text-align:center;">
+                    <div id="vanity-status-text" style="color:#00E676; font-weight:bold; margin-bottom:5px;">MINING...</div>
+                    <div style="font-size:0.8rem; color:#aaa;">Speed: <span id="vanity-speed" style="color:#fff;">0</span> keys/s</div>
+                    <div style="font-size:0.8rem; color:#aaa;">Checked: <span id="vanity-count" style="color:#fff;">0</span></div>
+                </div>
 
+                <div id="vanity-result" style="display:none; background:#222; border-left:4px solid #00E676; padding:10px; margin-bottom:15px;">
+                    <div style="background:rgba(0, 230, 118, 0.15); color:#00E676; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:0.8rem; margin-bottom:10px; display:inline-block; border:1px solid #00E676;" id="vanity-match-tag">MATCH: -</div>
 
+                    <div style="font-size:0.7rem; color:#aaa; margin-bottom:4px;">FOUND ADDRESS</div>
+                    <div id="vanity-res-addr" onclick="app.copyText(this.innerText)" style="color:#fff; font-weight:bold; font-size:0.9rem; word-break:break-all; cursor:pointer;">-</div>
+                    
+                    <div style="font-size:0.7rem; color:#aaa; margin:10px 0 4px 0;">PRIVATE KEY (WIF)</div>
+                    <div id="vanity-res-wif" onclick="app.copyText(this.innerText)" style="color:#FFEA00; font-family:'Martian Mono'; font-size:0.8rem; word-break:break-all; cursor:pointer;">-</div>
+                    
+                    <div style="font-size:0.7rem; color:#aaa; margin:10px 0 4px 0;">PUBLIC HEX</div>
+                    <div id="vanity-res-hex" onclick="app.copyText(this.innerText)" style="color:#00E676; font-family:'Martian Mono'; font-size:0.7rem; word-break:break-all; cursor:pointer;">-</div>
 
+                    <button class="btn btn-sec" style="margin-top:10px;" onclick="app.vanity.saveToNotes()">SAVE TO NOTES</button>
+                </div>
 
-<div class="card" style="border-top: 4px solid #FF9100;">
+                <div class="grid">
+                    <button id="btn-vanity-start" class="btn btn-primary" onclick="app.vanity.start()">START MINING</button>
+                    <button id="btn-vanity-stop" class="btn btn-sec" onclick="app.vanity.stop()" disabled>STOP</button>
+                </div>
+            </div>
+
+            <div class="card" style="border-top: 4px solid #FF9100;">
                 <h2>BITCOIN CRYPTO VAULT</h2>
                 <div style="background:rgba(213,0,0,0.2); color:#ff8a80; padding:8px; font-size:0.7rem; border-radius:4px; margin-bottom:15px; border:1px solid #D50000;">
                     <strong>WARNING:</strong> Brainwallets are insecure. Use high-entropy passphrases only. For Timelocks, you <u>MUST</u> save the Redeem Script, or your funds will be lost forever.
@@ -945,30 +940,31 @@ input[type="checkbox"].visible-box {
                     </div>
                 </div>
             </div>
-<div class="card">
-    <h2>NETWORK FEES & QR TOOLS</h2>
-    <div class="grid">
-        <div style="text-align:center; padding:10px; background:#1a1a1a; border-radius:6px; border:1px solid #333;">
-            <div style="font-size:0.7rem; color:#aaa;">FASTEST</div>
-            <div id="fee-fast" style="font-size:1.2rem; font-weight:bold; color:#D50000;">-</div>
-            <div style="font-size:0.6rem; color:#555;">sats/vB</div>
-        </div>
-        <div style="text-align:center; padding:10px; background:#1a1a1a; border-radius:6px; border:1px solid #333;">
-            <div style="font-size:0.7rem; color:#aaa;">ECONOMY</div>
-            <div id="fee-eco" style="font-size:1.2rem; font-weight:bold; color:#00E676;">-</div>
-            <div style="font-size:0.6rem; color:#555;">sats/vB</div>
-        </div>
-    </div>
-    <button class="btn btn-sec" onclick="app.getFees()">REFRESH FEE RATES</button>
-    
-    <hr style="border:0; border-top:1px solid #333; margin:15px 0;">
-    
-    <label>GENERATE QR CODE</label>
-    <input type="text" id="qr-input" placeholder="Paste Address or Text..." oninput="app.makeQR()">
-    <div style="display:flex; justify-content:center; margin-top:10px; background:#fff; padding:10px; border-radius:6px;">
-        <div id="qrcode"></div>
-    </div>
-</div>
+
+            <div class="card">
+                <h2>NETWORK FEES & QR TOOLS</h2>
+                <div class="grid">
+                    <div style="text-align:center; padding:10px; background:#1a1a1a; border-radius:6px; border:1px solid #333;">
+                        <div style="font-size:0.7rem; color:#aaa;">FASTEST</div>
+                        <div id="fee-fast" style="font-size:1.2rem; font-weight:bold; color:#D50000;">-</div>
+                        <div style="font-size:0.6rem; color:#555;">sats/vB</div>
+                    </div>
+                    <div style="text-align:center; padding:10px; background:#1a1a1a; border-radius:6px; border:1px solid #333;">
+                        <div style="font-size:0.7rem; color:#aaa;">ECONOMY</div>
+                        <div id="fee-eco" style="font-size:1.2rem; font-weight:bold; color:#00E676;">-</div>
+                        <div style="font-size:0.6rem; color:#555;">sats/vB</div>
+                    </div>
+                </div>
+                <button class="btn btn-sec" onclick="app.getFees()">REFRESH FEE RATES</button>
+                
+                <hr style="border:0; border-top:1px solid #333; margin:15px 0;">
+                
+                <label>GENERATE QR CODE</label>
+                <input type="text" id="qr-input" placeholder="Paste Address or Text..." oninput="app.makeQR()">
+                <div style="display:flex; justify-content:center; margin-top:10px; background:#fff; padding:10px; border-radius:6px;">
+                    <div id="qrcode"></div>
+                </div>
+            </div>
 
             <div class="card" style="border-top: 4px solid #D50000;">
                 <h2>RAW TRANSACTION BUILDER (SPEND)</h2>
@@ -1019,9 +1015,9 @@ input[type="checkbox"].visible-box {
                     </div>
                 </div>
             </div> 
-                    <div id="bc-status" style="margin-top:10px; font-size:0.7rem; color:#aaa; font-weight:bold; text-align:center;"></div>
+            <div id="bc-status" style="margin-top:10px; font-size:0.7rem; color:#aaa; font-weight:bold; text-align:center;"></div>
         </div>
-        
+
         <div id="modal-settings" class="modal">
             <div class="container">
                 <div class="modal-header"><h1>SETTINGS</h1><i class="material-icons-round" style="color:white; cursor:pointer;" onclick="document.getElementById('modal-settings').classList.remove('open')">close</i></div>
