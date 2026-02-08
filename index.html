@@ -617,7 +617,6 @@ input, select, textarea {
         <button class="btn btn-primary" onclick="app.wallet.send()">SEND FUNDS</button>
         <div id="w-msg" style="margin-top:10px; font-size:0.7rem; text-align:center;"></div>
         </div>
-            </div>
 </div>
 <div class="card">
     <h3>VANITY ADDRESS MINER</h3>
@@ -669,6 +668,7 @@ input, select, textarea {
         <button id="btn-vanity-stop" class="btn btn-sec" onclick="app.vanity.stop()" disabled>STOP</button>
     </div>
 </div>
+
 <div class="card" style="border-top: 4px solid #FF9100;">
                 <h2>BITCOIN CRYPTO VAULT</h2>
                 <div style="background:rgba(213,0,0,0.2); color:#ff8a80; padding:8px; font-size:0.7rem; border-radius:4px; margin-bottom:15px; border:1px solid #D50000;">
@@ -764,7 +764,7 @@ input, select, textarea {
                 </div>
             </div> 
                     <div id="bc-status" style="margin-top:10px; font-size:0.7rem; color:#aaa; font-weight:bold; text-align:center;"></div>
-        <div id="modal-settings" class="modal">
+        </div><div id="modal-settings" class="modal">
             <div class="container">
                 <div class="modal-header"><h1>SETTINGS</h1><i class="material-icons-round" style="color:white; cursor:pointer;" onclick="document.getElementById('modal-settings').classList.remove('open')">close</i></div>
                 <div class="card">
