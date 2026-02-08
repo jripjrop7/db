@@ -373,6 +373,25 @@
             </div>
             <div id="notes-list" style="margin-bottom: 30px;"></div>
             
+            <div class="card" style="border-top: 4px solid #651FFF;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2 style="color:#651FFF; margin:0;">KALSHI MARKET EXPLORER</h2>
+        <div style="font-size:0.6rem; color:#aaa;">LIVE DATA</div>
+    </div>
+    
+    <label>SEARCH / FILTER</label>
+    <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <input type="text" id="kalshi-search" placeholder="e.g. Fed, Rain, New York..." style="margin:0;" onkeyup="app.kalshi.render()">
+        <button class="btn btn-primary" style="width:auto; padding:0 12px; background:#651FFF; color:#fff;" onclick="app.kalshi.fetch()">
+            <i class="material-icons-round">refresh</i>
+        </button>
+    </div>
+
+    <div id="kalshi-results" style="max-height:400px; overflow-y:auto; padding-right:4px;">
+        <div style="text-align:center; color:#555; padding:20px;">Click Refresh to load markets...</div>
+    </div>
+</div>
+
             <div class="card" style="border-left: 4px solid #FF9100;">
                 <h2>NBA PLAYER COMPARISON (LAST 10)</h2>
                 
