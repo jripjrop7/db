@@ -1734,7 +1734,7 @@ setTimeout(() => {
                 });
 
             } catch(e) { console.error("BTC Chart Error", e); }
-        },
+        }
 
 
             // --- RECURRING EXPENSES LOGIC ---
