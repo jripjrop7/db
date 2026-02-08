@@ -1,4 +1,27 @@
 const app = {
+	    getFees: async () => {
+        try {
+            const res = await fetch('https://mempool.space/api/v1/fees/recommended');
+            const data = await res.json();
+            document.getElementById('fee-fast').innerText = data.fastestFee;
+            document.getElementById('fee-eco').innerText = data.economyFee;
+            // Update the fee inputs in your other tools automatically
+            if(document.getElementById('w-fee')) document.getElementById('w-fee').value = data.fastestFee;
+        } catch(e) { alert("Fee Fetch Error"); }
+    },
+    
+    makeQR: () => {
+        const txt = document.getElementById('qr-input').value;
+        const container = document.getElementById('qrcode');
+        container.innerHTML = ''; // Clear old
+        if(!txt) return;
+        new QRCode(container, {
+            text: txt,
+            width: 128,
+            height: 128
+        });
+    },
+
     charts: {},
     data: { 
         txs: [], tickets: [], inventory: [], notes: [], 
@@ -36,6 +59,18 @@ const app = {
                 if(!app.data.liveSession) app.data.liveSession={active:false};
                 if(!app.data.goal) app.data.goal = 10000;
             } catch(e){ console.log("Init Error", e); } 
+                    // Initialize Flatpickr for all date inputs
+        flatpickr("input[type=datetime-local]", {
+            enableTime: true,
+            dateFormat: "Y-m-d\\TH:i",
+            theme: "dark",
+            disableMobile: "true" // Forces the nice theme even on mobile
+        });
+        flatpickr("input[type=date]", {
+            dateFormat: "Y-m-d",
+            theme: "dark"
+        });
+
         }
 
         // MOVED CHART SETTINGS HERE (Safe from crashes)
@@ -1087,13 +1122,27 @@ const app = {
     },
     openSettings: () => { document.getElementById('modal-settings').classList.add('open'); document.getElementById('export-area').value = JSON.stringify(app.data); },
     copyExport: () => { document.getElementById("export-area").select(); document.execCommand("copy"); alert("Copied!"); },
-    downloadBackup: () => {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(app.data));
-        const anchor = document.createElement('a'); anchor.setAttribute("href", dataStr);
+        downloadBackup: () => {
+        const dataStr = JSON.stringify(app.data, null, 2); // Pretty print
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
         const date = new Date().toISOString().split('T')[0];
-        anchor.setAttribute("download", `bankroll_backup_${date}.json`);
-        document.body.appendChild(anchor); anchor.click(); anchor.remove();
+        a.href = url;
+        a.download = `bankroll_backup_${date}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        Swal.fire({
+            title: 'Backup Saved!',
+            text: 'File downloaded to your device.',
+            icon: 'success',
+            background: '#111', color: '#fff'
+        });
     },
+
     downloadCSV: () => {
         let csv = "Date,Category,Amount,Description,Details\n";
         app.data.txs.forEach(t => { const desc = t.desc ? `"${t.desc.replace(/"/g, '""')}"` : ""; const details = t.details ? `"${JSON.stringify(t.details).replace(/"/g, '""')}"` : ""; csv += `${t.date},${t.cat},${t.amt.toFixed(2)},${desc},${details}\n`; });
@@ -1357,6 +1406,50 @@ const app = {
             document.getElementById('wallet-status').style.color = "#555";
         }
     },
+        fetchSports: async () => {
+        const sport = document.getElementById('sport-key').value;
+        const apiKey = 'YOUR_API_KEY_HERE'; // GET FREE KEY FROM THE-ODDS-API.COM
+        const list = document.getElementById('sports-ticker-res');
+        
+        list.innerHTML = '<div style="color:#aaa;">Loading live odds...</div>';
+        
+        try {
+            const res = await fetch(`https://api.the-odds-api.com/v4/sports/${sport}/odds/?regions=us&markets=h2h&oddsFormat=american&apiKey=${apiKey}`);
+            const games = await res.json();
+            
+            list.innerHTML = '';
+            if(games.length === 0) list.innerHTML = '<div style="color:#555;">No active games found.</div>';
+            
+            games.slice(0, 5).forEach(g => { // Show top 5
+                const home = g.home_team;
+                const away = g.away_team;
+                const book = g.bookmakers[0]; // Take first book
+                const odds = book ? book.markets[0].outcomes : [];
+                
+                const homeOdd = odds.find(o => o.name === home)?.price || '-';
+                const awayOdd = odds.find(o => o.name === away)?.price || '-';
+
+                const el = document.createElement('div');
+                el.className = 'bill-row'; // Reuse existing styling
+                el.style.display = 'block';
+                el.innerHTML = `
+                    <div style="font-size:0.7rem; color:#fff; font-weight:bold; display:flex; justify-content:space-between;">
+                        <span>${away}</span> <span>${awayOdd > 0 ? '+'+awayOdd : awayOdd}</span>
+                    </div>
+                    <div style="font-size:0.7rem; color:#fff; font-weight:bold; display:flex; justify-content:space-between; border-top:1px solid #333; margin-top:4px; padding-top:4px;">
+                        <span>${home}</span> <span>${homeOdd > 0 ? '+'+homeOdd : homeOdd}</span>
+                    </div>
+                    <div style="font-size:0.6rem; color:#555; margin-top:4px; text-align:right;">
+                        ${new Date(g.commence_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                    </div>
+                `;
+                list.appendChild(el);
+            });
+        } catch(e) {
+            list.innerHTML = `<div style="color:var(--error);">Error: ${e.message}. Check API Key.</div>`;
+        }
+    },
+
             // --- RECURRING EXPENSES LOGIC ---
 
     // 1. Tool Logic (Add/Edit Rows)
