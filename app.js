@@ -1705,23 +1705,32 @@ setTimeout(() => {
 
                 if(app.crypto.btcChartInstance) app.crypto.btcChartInstance.destroy();
 
-                                app.crypto.btcChartInstance = new Chart(ctx, {
+                app.crypto.btcChartInstance = new Chart(ctx, {
                     type: 'line',
-                    data: { /* ... your data ... */ },
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'BTC Price ($)',
+                            data: val,
+                            borderColor: '#F7931A',
+                            backgroundColor: 'rgba(247, 147, 26, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            pointRadius: 0,
+                            tension: 0.2
+                        }]
+                    },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { 
-                            legend: { display: false },
-                            datalabels: { display: false } // <--- ADD THIS LINE
-                        },
+                        plugins: { legend: { display: false } },
+                        datalabels: { display: false }},
                         scales: { 
                             y: { grid: { color: '#222' } }, 
                             x: { grid: { display: false }, ticks: { maxTicksLimit: 6 } } 
                         }
                     }
                 });
-
 
             } catch(e) { console.error("BTC Chart Error", e); }
         }
