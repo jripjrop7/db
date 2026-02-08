@@ -59,6 +59,12 @@ const app = {
                 if(!app.data.liveSession) app.data.liveSession={active:false};
                 if(!app.data.goal) app.data.goal = 10000;
             } catch(e){ console.log("Init Error", e); } 
+            // Load Crypto Data on Start
+setTimeout(() => {
+    app.crypto.fetchTicker();
+    app.crypto.renderHistory('month'); // Default view
+}, 1000);
+
                     // Initialize Flatpickr for all date inputs
         flatpickr("input[type=datetime-local]", {
             enableTime: true,
@@ -124,6 +130,15 @@ const app = {
         }
         if(document.getElementById('view-tickets').style.display !== 'none') app.renderTickets(); 
     },
+    setFilter: (type) => {
+    // ... (existing logic) ...
+
+    // ADD THIS: Update BTC Chart when filter changes
+    if(app.crypto && app.crypto.renderHistory) {
+        app.crypto.renderHistory(type);
+    }
+},
+
     
     toggleCustomDate: () => { app.setFilter('custom'); },
 
@@ -180,6 +195,7 @@ const app = {
         }
         return true;
     },
+
 
     // 1. Monte Carlo Simulator
     runMonteCarlo: () => {
@@ -1447,6 +1463,230 @@ const app = {
             });
         } catch(e) {
             list.innerHTML = `<div style="color:var(--error);">Error: ${e.message}. Check API Key.</div>`;
+        }
+    },
+    // --- NEW SPORTS LOGIC ---
+    sports: {
+        nbaChartInstance: null,
+
+                generateChart: async () => {
+            const inputs = document.querySelectorAll('.nba-input');
+            const names = Array.from(inputs).map(i => i.value.trim()).filter(n => n);
+            
+            if(names.length === 0) return alert("Enter at least one player.");
+
+            Swal.fire({ title: 'Building Stat Sheet...', didOpen: () => Swal.showLoading() });
+            
+            const tbody = document.getElementById('nba-stats-body');
+            tbody.innerHTML = ''; // Clear old data
+
+            try {
+                // Fetch Data for ALL Players sequentially
+                for (let i = 0; i < names.length; i++) {
+                    const name = names[i];
+                    
+                    // 1. Search Player
+                    const pRes = await fetch(`https://www.balldontlie.io/api/v1/players?search=${name}`);
+                    const pData = await pRes.json();
+                    if(!pData.data || pData.data.length === 0) continue;
+                    const player = pData.data[0];
+
+                    // 2. Get Last 10 Games
+                    const season = new Date().getFullYear() - 1; 
+                    const gRes = await fetch(`https://www.balldontlie.io/api/v1/stats?seasons[]=${season}&player_ids[]=${player.id}&per_page=10`);
+                    const gData = await gRes.json();
+                    
+                    // 3. Sort Newest First (Top of list)
+                    // API usually returns newest last, so we reverse to show most recent at top
+                    // Check date just in case
+                    const games = gData.data.sort((a,b) => new Date(b.game.date) - new Date(a.game.date));
+
+                    // --- RENDER PLAYER HEADER ---
+                    const headerRow = document.createElement('tr');
+                    headerRow.className = 'player-header-row';
+                    headerRow.innerHTML = `
+                        <td colspan="7" class="player-name-cell">
+                            ${player.first_name} ${player.last_name} <span style="font-size:0.65rem; color:#777; font-weight:normal;">(${player.team.abbreviation})</span>
+                        </td>
+                    `;
+                    tbody.appendChild(headerRow);
+
+                    // --- RENDER 10 GAME ROWS ---
+                    games.forEach(g => {
+                        const isHome = g.game.home_team_id === g.team.id;
+                        const opp = isHome ? g.game.visitor_team.abbreviation : g.game.home_team.abbreviation;
+                        const loc = isHome ? 'vs' : '@';
+                        const date = new Date(g.game.date).toLocaleDateString([], {month:'numeric', day:'numeric'});
+                        
+                        // Highlights
+                        const ptsClass = g.pts >= 25 ? 'stat-high' : '';
+                        const rebClass = g.reb >= 10 ? 'stat-high' : '';
+                        const astClass = g.ast >= 8 ? 'stat-high' : '';
+
+                        const row = document.createElement('tr');
+                        row.className = 'game-row';
+                        row.innerHTML = `
+                            <td style="text-align:left; color:#aaa;">
+                                <span style="color:#fff;">${loc} ${opp}</span> <span style="font-size:0.6rem;">(${date})</span>
+                            </td>
+                            <td>${g.min}</td>
+                            <td class="${ptsClass}">${g.pts}</td>
+                            <td class="${rebClass}">${g.reb}</td>
+                            <td class="${astClass}">${g.ast}</td>
+                            <td>${g.fg3m}</td>
+                            <td>${(g.fg_pct * 100).toFixed(0)}%</td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                }
+
+                // Show Result
+                Swal.close();
+                app.nav('stats');
+                document.getElementById('nba-chart-card').style.display = 'block';
+
+            } catch(e) {
+                Swal.fire('Error', 'Failed to load stats. API might be busy.', 'error');
+            }
+        },
+
+
+    // --- NEW CRYPTO LOGIC ---
+    crypto: {
+        btcChartInstance: null,
+
+        // 1. MEMPOOL TRACKER
+        trackTx: async () => {
+            const txid = document.getElementById('mp-txid').value.trim();
+            if(!txid) return;
+            
+            const resBox = document.getElementById('mp-res');
+            resBox.style.display = 'block';
+            resBox.innerHTML = '<div style="color:#aaa; text-align:center;">Scanning Mempool...</div>';
+
+            try {
+                const res = await fetch(`https://mempool.space/api/tx/${txid}`);
+                if(!res.ok) throw new Error("TX Not Found");
+                const data = await res.json();
+                
+                const confirmed = data.status.confirmed;
+                const confText = confirmed ? "CONFIRMED" : "UNCONFIRMED";
+                const confColor = confirmed ? "#00E676" : "#D50000";
+                
+                // If confirmed, calculate confirmations (Height - BlockHeight + 1)
+                let confCount = 0;
+                if(confirmed) {
+                    const blockRes = await fetch('https://mempool.space/api/blocks/tip/height');
+                    const tip = await blockRes.text();
+                    confCount = parseInt(tip) - data.status.block_height + 1;
+                }
+
+                document.getElementById('mp-res').innerHTML = `
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <span style="color:#aaa;">Status:</span>
+                        <span style="font-weight:bold; color:${confColor};">${confText}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <span style="color:#aaa;">Confirmations:</span>
+                        <span style="font-weight:bold; color:#fff;">${confirmed ? confCount : '0'}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <span style="color:#aaa;">Fee:</span>
+                        <span style="font-weight:bold; color:#FFEA00;">${data.fee} sats</span>
+                    </div>
+                    <div style="font-size:0.6rem; color:#555; margin-top:5px; word-break:break-all;">${txid}</div>
+                `;
+
+            } catch(e) {
+                document.getElementById('mp-res').innerHTML = `<div style="color:var(--error);">Error: Transaction not found.</div>`;
+            }
+        },
+
+        // 2. LIVE TICKER (CoinGecko)
+        fetchTicker: async () => {
+            const ids = "ripple,monero,litecoin,solana,ethereum,dogecoin";
+            const table = document.getElementById('crypto-ticker-body');
+            table.innerHTML = '<tr><td colspan="3" style="text-align:center;">Fetching...</td></tr>';
+            
+            try {
+                const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`);
+                const data = await res.json();
+                
+                let html = '';
+                // Map pretty names
+                const names = { ripple:'XRP', monero:'XMR', litecoin:'LTC', solana:'SOL', ethereum:'ETH', dogecoin:'DOGE' };
+                
+                for(const [key, val] of Object.entries(data)) {
+                    const change = val.usd_24h_change.toFixed(2);
+                    const color = change >= 0 ? '#00E676' : '#D50000';
+                    const symbol = names[key] || key.toUpperCase();
+                    
+                    html += `
+                        <tr>
+                            <td style="font-weight:bold; color:#fff;">${symbol}</td>
+                            <td>$${val.usd.toLocaleString()}</td>
+                            <td style="color:${color};">${change > 0 ? '+' : ''}${change}%</td>
+                        </tr>
+                    `;
+                }
+                table.innerHTML = html;
+            } catch(e) {
+                table.innerHTML = '<tr><td colspan="3" style="color:red;">API Error</td></tr>';
+            }
+        },
+
+        // 3. BITCOIN HISTORY CHART
+        renderHistory: async (days) => {
+            // Map our filter strings to CoinGecko 'days' param
+            // 'day' -> 1, 'week' -> 7, 'month' -> 30, 'year' -> 365
+            const dayMap = { 'day': 1, 'week': 7, 'month': 30, 'year': 365, 'all': 'max', 'custom': 30 };
+            const d = dayMap[days] || 30;
+
+            try {
+                const res = await fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=${d}`);
+                const data = await res.json();
+                const prices = data.prices; // Array of [timestamp, price]
+
+                const ctx = document.getElementById('btcHistoryChart').getContext('2d');
+                
+                // Format Labels based on range
+                const labels = prices.map(p => {
+                    const date = new Date(p[0]);
+                    if(d === 1) return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    return date.toLocaleDateString([], {month:'short', day:'numeric'});
+                });
+                
+                const val = prices.map(p => p[1]);
+
+                if(app.crypto.btcChartInstance) app.crypto.btcChartInstance.destroy();
+
+                app.crypto.btcChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'BTC Price ($)',
+                            data: val,
+                            borderColor: '#F7931A',
+                            backgroundColor: 'rgba(247, 147, 26, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            pointRadius: 0,
+                            tension: 0.2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { 
+                            y: { grid: { color: '#222' } }, 
+                            x: { grid: { display: false }, ticks: { maxTicksLimit: 6 } } 
+                        }
+                    }
+                });
+
+            } catch(e) { console.error("BTC Chart Error", e); }
         }
     },
 

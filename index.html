@@ -231,6 +231,46 @@ input[type="checkbox"].visible-box {
     margin-bottom: 8px;
     border: 1px solid #333;
 }
+/* NBA STAT SHEET STYLES */
+.nba-table-container {
+    overflow-x: auto;
+    background: #111;
+    border-radius: 8px;
+    border: 1px solid #333;
+}
+.nba-stat-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+    color: #ccc;
+    white-space: nowrap;
+}
+.nba-stat-table th {
+    background: #222;
+    color: #aaa;
+    font-weight: bold;
+    padding: 10px;
+    text-align: center;
+    border-bottom: 2px solid #444;
+}
+.nba-stat-table td {
+    padding: 8px;
+    text-align: center;
+    border-bottom: 1px solid #222;
+}
+.player-header-row {
+    background: #1A1A1A;
+    border-top: 2px solid #FF9100;
+}
+.player-name-cell {
+    text-align: left !important;
+    font-weight: bold;
+    color: #FF9100;
+    font-size: 0.85rem;
+    padding: 12px !important;
+}
+.game-row:nth-child(even) { background: #0e0e0e; }
+.stat-high { color: #00E676; font-weight: bold; } /* Green for good stats */
 
     </style>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -332,6 +372,21 @@ input[type="checkbox"].visible-box {
                 <button onclick="app.openNoteModal()" style="background:none; border:none; color:var(--primary); font-size:12px; font-weight:bold;">+ ADD NOTE</button>
             </div>
             <div id="notes-list" style="margin-bottom: 30px;"></div>
+<div class="card" style="border-left: 4px solid #FF9100;">
+    <h2>NBA HISTORICAL RESEARCH (LAST 10)</h2>
+    <div class="grid">
+        <div>
+            <label>PLAYER NAME</label>
+            <input type="text" id="nba-search-name" placeholder="e.g. Luka Doncic">
+        </div>
+        <button class="btn btn-primary" style="margin-top:22px;" onclick="app.sports.generateChart()">
+            GENERATE CHART
+        </button>
+    </div>
+    <div style="font-size:0.65rem; color:#777; margin-top:5px;">
+        *Chart will appear on the <strong>STATS</strong> tab.
+    </div>
+</div>
 
 
 
@@ -547,6 +602,58 @@ input[type="checkbox"].visible-box {
                 <h2>GROWTH CHART</h2>
                 <canvas id="mainChart" height="250"></canvas>
             </div>
+<div class="card">
+    <h2>BITCOIN PRICE HISTORY (FILTERED)</h2>
+    <div style="height:250px;">
+        <canvas id="btcHistoryChart"></canvas>
+    </div>
+</div>
+
+<div class="card">
+    <h2>LIVE MARKET TICKER</h2>
+    <table class="stats-table">
+        <thead>
+            <tr><th>ASSET</th><th>PRICE ($)</th><th>24H %</th></tr>
+        </thead>
+        <tbody id="crypto-ticker-body">
+            <tr><td colspan="3" style="text-align:center; color:#555;">Loading...</td></tr>
+        </tbody>
+    </table>
+    <button class="btn btn-sec" style="margin-top:10px; padding:8px;" onclick="app.crypto.fetchTicker()">REFRESH PRICES</button>
+</div>
+
+<div class="card" id="nba-chart-card" style="display:none; border-top: 4px solid #FF9100;">
+    <div style="display:flex; justify-content:space-between;">
+        <h2 id="nba-chart-title">PLAYER STATS</h2>
+        <button onclick="document.getElementById('nba-chart-card').style.display='none'" style="background:none; border:none; color:#555;">x</button>
+    </div>
+    <div style="height:250px;">
+        <div class="card" id="nba-chart-card" style="display:none; border-top: 4px solid #FF9100; padding:0;">
+    <div style="display:flex; justify-content:space-between; padding:10px 15px; background:#1A1A1A; border-bottom:1px solid #333;">
+        <h2 id="nba-chart-title" style="margin:0;">PLAYER STATS (L10)</h2>
+        <button onclick="document.getElementById('nba-chart-card').style.display='none'" style="background:none; border:none; color:#555; font-size:1.2rem;">✕</button>
+    </div>
+    
+    <div class="nba-table-container">
+        <table class="nba-stat-table">
+            <thead>
+                <tr>
+                    <th style="text-align:left;">GAME</th>
+                    <th>MIN</th>
+                    <th>PTS</th>
+                    <th>REB</th>
+                    <th>AST</th>
+                    <th>3PM</th>
+                    <th>FG%</th>
+                </tr>
+            </thead>
+            <tbody id="nba-stats-body">
+                </tbody>
+        </table>
+    </div>
+</div>
+    </div>
+</div>
 
             <div class="card">
                 <h2>RECURRING EXPENSES TRACKER</h2>
@@ -625,6 +732,33 @@ input[type="checkbox"].visible-box {
             <div class="card"><label>BITCOIN (BTC)</label><div class="row"><span id="btc-price" style="color:var(--sub);">Loading...</span></div><input type="number" id="btc-holdings" placeholder="0.00" oninput="app.calcCrypto()"></div>
             <div class="card"><label>ETHEREUM (ETH)</label><div class="row"><span id="eth-price" style="color:var(--sub);">Loading...</span></div><input type="number" id="eth-holdings" placeholder="0.00" oninput="app.calcCrypto()"></div>
             <div class="card" style="border-top: 4px solid #FFEA00;">
+            <div class="card" style="border-top: 4px solid #651FFF;">
+    <h2>MEMPOOL TRANSACTION TRACKER</h2>
+    <label>TRANSACTION ID (TXID)</label>
+    <div style="display:flex; gap:8px;">
+        <input type="text" id="mp-txid" placeholder="Paste full hex string..." style="font-size:0.7rem;">
+        <button class="btn btn-primary" style="width:auto; padding:0 12px; margin-bottom:10px;" onclick="app.crypto.trackTx()">
+            <i class="material-icons-round">search</i>
+        </button>
+    </div>
+    
+    <div id="mp-res" style="display:none; background:#111; padding:10px; border-radius:6px; margin-top:10px; border:1px solid #333;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+            <span style="color:#aaa;">Status:</span>
+            <span id="mp-status" style="font-weight:bold; color:#fff;">-</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+            <span style="color:#aaa;">Confirmations:</span>
+            <span id="mp-conf" style="font-weight:bold; color:#00E676;">-</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+            <span style="color:#aaa;">Fee Paid:</span>
+            <span id="mp-fee" style="font-weight:bold; color:#FFEA00;">-</span>
+        </div>
+        <div style="font-size:0.65rem; color:#555; margin-top:8px; word-break:break-all;" id="mp-hash">-</div>
+    </div>
+</div>
+
     <div style="display:flex; justify-content:space-between; align-items:center;">
         <h2 style="margin:0;">BITCOIN WALLET (HOT)</h2>
         <div id="wallet-status" style="font-size:0.7rem; color:#555;">OFFLINE</div>
