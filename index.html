@@ -675,27 +675,38 @@ input[type="checkbox"].visible-box {
             </div>
         </div>
 
-        <div class="toggle-row">
-            <label for="v-caps" style="margin:0; font-size:0.75rem; color:#fff;">ALL UPPERCASE (No a-z)</label>
+        <div class="miner-row">
             <div>
-                <input type="checkbox" id="v-caps" class="toggle-checkbox">
-                <label for="v-caps" class="toggle-switch"></label>
+                <input type="checkbox" id="v-max-lower-check" class="toggle-checkbox">
+                <label for="v-max-lower-check" class="toggle-switch" style="transform:scale(0.8);"></label>
             </div>
+            <div>
+                <label style="margin:0;">MAX ALLOWED LOWERCASE CHARS</label>
+                <input type="number" id="v-max-lower-val" value="3" placeholder="#" style="margin:0; height:30px; font-size:0.8rem;">
+            </div>
+            <div style="font-size:0.6rem; color:#555; text-align:center;">
+                (Global)
+            </div>
+        </div>
+
+        <div style="font-size:0.65rem; color:#666; margin:-4px 0 10px 0; font-style:italic;">
+            *Tip: Set "Max Lowercase" to 0 for strict All Caps (Hard). Set to 3-5 for "Clean" look (Easier).
         </div>
 
         <div style="margin-top:10px;">
             <label style="margin-bottom:4px;">MUST START WITH (PREFIX)</label>
-            <div style="display:flex; gap:8px; align-items:center;">
-                <div style="background:#222; color:#777; padding:12px; border-radius:4px; font-weight:bold;">1</div>
-                <input type="text" id="v-prefix" placeholder="Leave empty for any..." maxlength="5" style="margin:0;">
+            <div style="display:grid; grid-template-columns: auto 1fr auto; gap:8px; align-items:center;">
+                <div style="background:#222; color:#777; padding:0 12px; height:36px; display:flex; align-items:center; border-radius:4px; font-weight:bold;">1</div>
+                <input type="text" id="v-prefix" placeholder="Leave empty for any..." maxlength="5" style="margin:0; height:36px;">
+                <div style="text-align:center;">
+                    <input type="checkbox" id="v-prefix-caps" class="visible-box">
+                    <div style="font-size:0.6rem; color:#777; margin-top:2px;">CAPS</div>
+                </div>
             </div>
         </div>
     </div>
 
     <label style="color:#aaa; margin-bottom:8px;">SEARCH TARGETS (OR)</label>
-    <div style="font-size:0.65rem; color:#555; margin-bottom:8px; font-style:italic;">
-        *If you enable these, the address must contain at least one.
-    </div>
 
     <div class="toggle-row">
         <label for="v-word-start" style="margin:0; font-size:0.75rem; color:#fff;">STARTS WITH DICTIONARY WORD</label>
@@ -761,6 +772,7 @@ input[type="checkbox"].visible-box {
         <button id="btn-vanity-stop" class="btn btn-sec" onclick="app.vanity.stop()" disabled>STOP</button>
     </div>
 </div>
+
 
 
 
