@@ -195,19 +195,41 @@
         .rec-stats-table th { text-align: left; color: var(--sub); padding: 6px 4px; border-bottom: 1px solid #333; }
         .rec-stats-table td { padding: 8px 4px; border-bottom: 1px solid #222; vertical-align: middle; }
         .rec-pay-btn { background: var(--primary); color: #000; border: none; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.65rem; }
+        
         /* FORCE TEXT WRAPPING */
-.code-box, .tx-title, .note-body, #w-address, #wallet-dash div {
-    white-space: pre-wrap !important;      /* Preserve spacing but wrap */
-    word-wrap: break-word !important;      /* Break long words */
-    word-break: break-all !important;      /* Force break if needed (for keys) */
-    overflow-wrap: anywhere !important;    /* Modern wrapping */
-    max-width: 100%;                       /* Never exceed screen */
+        .code-box, .tx-title, .note-body, #w-address, #wallet-dash div {
+        white-space: pre-wrap !important;      /* Preserve spacing but wrap */
+        word-wrap: break-word !important;      /* Break long words */
+        word-break: break-all !important;      /* Force break if needed (for keys) */
+        overflow-wrap: anywhere !important;    /* Modern wrapping */
+        max-width: 100%;                       /* Never exceed screen */
 }
 
 /* FIX INPUTS EXTENDING SCREEN */
 input, select, textarea {
     max-width: 100%;                       /* strict width limit */
     min-width: 0;                          /* allow shrinking */
+}
+/* FIX: Make small checkboxes visible */
+input[type="checkbox"].visible-box {
+    appearance: auto !important; 
+    width: 20px !important; 
+    height: 20px !important; 
+    margin: 0 !important;
+    cursor: pointer;
+}
+
+/* FIX: Better spacing for miner rows */
+.miner-row {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    background: #151515;
+    padding: 8px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    border: 1px solid #333;
 }
 
     </style>
@@ -642,8 +664,8 @@ input, select, textarea {
 </div><div class="card">
     <h3>VANITY ADDRESS MINER PRO</h3>
     
-    <div style="background:#111; padding:10px; border-radius:6px; margin-bottom:10px; border:1px solid #333;">
-        <label style="color:#aaa; margin-bottom:8px;">VISUAL STYLE FILTERS (MUST MATCH)</label>
+    <div style="background:#111; padding:10px; border-radius:6px; margin-bottom:15px; border:1px solid #333;">
+        <label style="color:#aaa; margin-bottom:8px;">STRICT FILTERS (AND)</label>
         
         <div class="toggle-row">
             <label for="v-hanging" style="margin:0; font-size:0.75rem; color:#fff;">NO HANGING LETTERS (g, j, p, q, y)</label>
@@ -653,71 +675,64 @@ input, select, textarea {
             </div>
         </div>
 
-        <div class="toggle-row" style="margin-bottom:0;">
+        <div class="toggle-row">
             <label for="v-caps" style="margin:0; font-size:0.75rem; color:#fff;">ALL UPPERCASE (No a-z)</label>
             <div>
                 <input type="checkbox" id="v-caps" class="toggle-checkbox">
                 <label for="v-caps" class="toggle-switch"></label>
             </div>
         </div>
-    </div>
 
-    <label style="color:#aaa; margin-bottom:8px;">SEARCH RULES (MATCH ANY)</label>
-
-    <div class="field-group" style="padding:8px;">
-        <div class="grid" style="align-items:center; grid-template-columns: 1fr auto;">
-            <div>
-                <label style="margin:0;">STARTS WITH (PREFIX)</label>
-                <input type="text" id="v-prefix" placeholder="ABC" maxlength="5" style="margin:0; height:30px; font-size:0.8rem;">
+        <div style="margin-top:10px;">
+            <label style="margin-bottom:4px;">MUST START WITH (PREFIX)</label>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <div style="background:#222; color:#777; padding:12px; border-radius:4px; font-weight:bold;">1</div>
+                <input type="text" id="v-prefix" placeholder="Leave empty for any..." maxlength="5" style="margin:0;">
             </div>
-            <div style="font-size:0.7rem; color:#555;">(Standard)</div>
         </div>
     </div>
 
+    <label style="color:#aaa; margin-bottom:8px;">SEARCH TARGETS (OR)</label>
+    <div style="font-size:0.65rem; color:#555; margin-bottom:8px; font-style:italic;">
+        *If you enable these, the address must contain at least one.
+    </div>
+
     <div class="toggle-row">
-        <label for="v-word-start" style="margin:0; font-size:0.75rem; color:#fff;">STARTS WITH ANY WORD</label>
+        <label for="v-word-start" style="margin:0; font-size:0.75rem; color:#fff;">STARTS WITH DICTIONARY WORD</label>
         <div>
             <input type="checkbox" id="v-word-start" class="toggle-checkbox">
             <label for="v-word-start" class="toggle-switch"></label>
         </div>
     </div>
 
-    <div class="field-group" style="padding:8px;">
-        <div class="grid" style="align-items:center; grid-template-columns: auto 1fr auto;">
-            <div style="width:30px;">
-                <input type="checkbox" id="v-str-any-check" class="toggle-checkbox">
-                <label for="v-str-any-check" class="toggle-switch" style="transform:scale(0.8);"></label>
-            </div>
-            <div>
-                <label style="margin:0;">FIND STRING ANYWHERE</label>
-                <input type="text" id="v-str-any-val" placeholder="e.g. 777" style="margin:0; height:30px; font-size:0.8rem;">
-            </div>
-            <div style="font-size:0.7rem; color:#555; text-align:center;">
-                <input type="checkbox" id="v-str-any-caps" style="width:auto; margin:0;">
-                <div>CAPS</div>
-            </div>
+    <div class="miner-row">
+        <div>
+            <input type="checkbox" id="v-str-any-check" class="toggle-checkbox">
+            <label for="v-str-any-check" class="toggle-switch" style="transform:scale(0.8);"></label>
+        </div>
+        <div>
+            <label style="margin:0;">FIND CUSTOM STRING</label>
+            <input type="text" id="v-str-any-val" placeholder="e.g. 777" style="margin:0; height:30px; font-size:0.8rem;">
+        </div>
+        <div style="text-align:center;">
+            <input type="checkbox" id="v-str-any-caps" class="visible-box">
+            <div style="font-size:0.6rem; color:#777; margin-top:2px;">CAPS</div>
         </div>
     </div>
 
-    <div class="field-group" style="padding:8px;">
-        <div class="grid" style="align-items:center; grid-template-columns: auto 1fr auto;">
-            <div style="width:30px;">
-                <input type="checkbox" id="v-word-any-check" class="toggle-checkbox">
-                <label for="v-word-any-check" class="toggle-switch" style="transform:scale(0.8);"></label>
-            </div>
-            <div>
-                <label style="margin:0;">WORD ANYWHERE (MIN LEN)</label>
-                <input type="number" id="v-word-any-len" value="3" min="3" max="5" style="margin:0; height:30px; font-size:0.8rem;">
-            </div>
-            <div style="font-size:0.7rem; color:#555; text-align:center;">
-                <input type="checkbox" id="v-word-any-caps" style="width:auto; margin:0;">
-                <div>CAPS</div>
-            </div>
+    <div class="miner-row">
+        <div>
+            <input type="checkbox" id="v-word-any-check" class="toggle-checkbox">
+            <label for="v-word-any-check" class="toggle-switch" style="transform:scale(0.8);"></label>
         </div>
-    </div>
-
-    <div style="font-size:0.65rem; color:#666; margin:5px 0 15px 0; font-style:italic;">
-        *Enabling "All Uppercase" drastically reduces find rate.
+        <div>
+            <label style="margin:0;">FIND DICTIONARY WORD (MIN LEN)</label>
+            <input type="number" id="v-word-any-len" value="3" min="3" max="5" style="margin:0; height:30px; font-size:0.8rem;">
+        </div>
+        <div style="text-align:center;">
+            <input type="checkbox" id="v-word-any-caps" class="visible-box">
+            <div style="font-size:0.6rem; color:#777; margin-top:2px;">CAPS</div>
+        </div>
     </div>
 
     <div id="vanity-status-box" style="display:none; background:#111; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #333; text-align:center;">
@@ -727,6 +742,8 @@ input, select, textarea {
     </div>
 
     <div id="vanity-result" style="display:none; background:#222; border-left:4px solid #00E676; padding:10px; margin-bottom:15px;">
+        <div style="background:rgba(0, 230, 118, 0.15); color:#00E676; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:0.8rem; margin-bottom:10px; display:inline-block; border:1px solid #00E676;" id="vanity-match-tag">MATCH: -</div>
+
         <div style="font-size:0.7rem; color:#aaa; margin-bottom:4px;">FOUND ADDRESS</div>
         <div id="vanity-res-addr" onclick="app.copyText(this.innerText)" style="color:#fff; font-weight:bold; font-size:0.9rem; word-break:break-all; cursor:pointer;">-</div>
         
@@ -744,6 +761,7 @@ input, select, textarea {
         <button id="btn-vanity-stop" class="btn btn-sec" onclick="app.vanity.stop()" disabled>STOP</button>
     </div>
 </div>
+
 
 
 <div class="card" style="border-top: 4px solid #FF9100;">
