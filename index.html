@@ -643,31 +643,89 @@ input, select, textarea {
 <div class="card">
     <h3>VANITY ADDRESS MINER</h3>
     
-    <div class="grid">
-        <div>
-            <label>TARGET PREFIX (Case Sensitive)</label>
-            <div style="display:flex; gap:8px;">
-                <div style="background:#222; color:#aaa; padding:10px; border-radius:4px; display:flex; align-items:center;">1</div>
-                <input type="text" id="vanity-prefix" placeholder="ABC" maxlength="5" style="text-transform:none;">
+    <div class="card">
+    <h3>VANITY ADDRESS MINER PRO</h3>
+    
+    <div style="background:#111; padding:10px; border-radius:6px; margin-bottom:10px; border:1px solid #333;">
+        <label style="color:#aaa; margin-bottom:8px;">VISUAL STYLE FILTERS (MUST MATCH)</label>
+        
+        <div class="toggle-row">
+            <label for="v-hanging" style="margin:0; font-size:0.75rem; color:#fff;">NO HANGING LETTERS (g, j, p, q, y)</label>
+            <div>
+                <input type="checkbox" id="v-hanging" class="toggle-checkbox">
+                <label for="v-hanging" class="toggle-switch"></label>
             </div>
         </div>
-        <div style="display:flex; align-items:flex-end; padding-bottom:5px;">
-            <div class="toggle-row" style="width:100%; justify-content:space-between; background:#222; padding:8px 12px; border-radius:4px;">
-                <label for="vanity-any" style="margin:0; font-size:0.8rem; color:#fff;">FIND ANY WORD?</label>
-                <div>
-                    <input type="checkbox" id="vanity-any" class="toggle-checkbox" onchange="app.vanity.toggleMode()">
-                    <label for="vanity-any" class="toggle-switch"></label>
-                </div>
+
+        <div class="toggle-row" style="margin-bottom:0;">
+            <label for="v-caps" style="margin:0; font-size:0.75rem; color:#fff;">ALL UPPERCASE (No a-z)</label>
+            <div>
+                <input type="checkbox" id="v-caps" class="toggle-checkbox">
+                <label for="v-caps" class="toggle-switch"></label>
             </div>
         </div>
     </div>
 
-    <div style="font-size:0.7rem; color:#666; margin-top:5px; margin-bottom:15px; font-style:italic;">
-        *Warning: 4 chars takes minutes. 5 chars takes hours/days.
+    <label style="color:#aaa; margin-bottom:8px;">SEARCH RULES (MATCH ANY)</label>
+
+    <div class="field-group" style="padding:8px;">
+        <div class="grid" style="align-items:center; grid-template-columns: 1fr auto;">
+            <div>
+                <label style="margin:0;">STARTS WITH (PREFIX)</label>
+                <input type="text" id="v-prefix" placeholder="ABC" maxlength="5" style="margin:0; height:30px; font-size:0.8rem;">
+            </div>
+            <div style="font-size:0.7rem; color:#555;">(Standard)</div>
+        </div>
+    </div>
+
+    <div class="toggle-row">
+        <label for="v-word-start" style="margin:0; font-size:0.75rem; color:#fff;">STARTS WITH ANY WORD</label>
+        <div>
+            <input type="checkbox" id="v-word-start" class="toggle-checkbox">
+            <label for="v-word-start" class="toggle-switch"></label>
+        </div>
+    </div>
+
+    <div class="field-group" style="padding:8px;">
+        <div class="grid" style="align-items:center; grid-template-columns: auto 1fr auto;">
+            <div style="width:30px;">
+                <input type="checkbox" id="v-str-any-check" class="toggle-checkbox">
+                <label for="v-str-any-check" class="toggle-switch" style="transform:scale(0.8);"></label>
+            </div>
+            <div>
+                <label style="margin:0;">FIND STRING ANYWHERE</label>
+                <input type="text" id="v-str-any-val" placeholder="e.g. 777" style="margin:0; height:30px; font-size:0.8rem;">
+            </div>
+            <div style="font-size:0.7rem; color:#555; text-align:center;">
+                <input type="checkbox" id="v-str-any-caps" style="width:auto; margin:0;">
+                <div>CAPS</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="field-group" style="padding:8px;">
+        <div class="grid" style="align-items:center; grid-template-columns: auto 1fr auto;">
+            <div style="width:30px;">
+                <input type="checkbox" id="v-word-any-check" class="toggle-checkbox">
+                <label for="v-word-any-check" class="toggle-switch" style="transform:scale(0.8);"></label>
+            </div>
+            <div>
+                <label style="margin:0;">WORD ANYWHERE (MIN LEN)</label>
+                <input type="number" id="v-word-any-len" value="3" min="3" max="5" style="margin:0; height:30px; font-size:0.8rem;">
+            </div>
+            <div style="font-size:0.7rem; color:#555; text-align:center;">
+                <input type="checkbox" id="v-word-any-caps" style="width:auto; margin:0;">
+                <div>CAPS</div>
+            </div>
+        </div>
+    </div>
+
+    <div style="font-size:0.65rem; color:#666; margin:5px 0 15px 0; font-style:italic;">
+        *Enabling "All Uppercase" drastically reduces find rate.
     </div>
 
     <div id="vanity-status-box" style="display:none; background:#111; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #333; text-align:center;">
-        <div id="vanity-status-text" style="color:#00E676; font-weight:bold; margin-bottom:5px;">MINING IN PROGRESS...</div>
+        <div id="vanity-status-text" style="color:#00E676; font-weight:bold; margin-bottom:5px;">MINING...</div>
         <div style="font-size:0.8rem; color:#aaa;">Speed: <span id="vanity-speed" style="color:#fff;">0</span> keys/s</div>
         <div style="font-size:0.8rem; color:#aaa;">Checked: <span id="vanity-count" style="color:#fff;">0</span></div>
     </div>
@@ -679,7 +737,7 @@ input, select, textarea {
         <div style="font-size:0.7rem; color:#aaa; margin:10px 0 4px 0;">PRIVATE KEY (WIF)</div>
         <div id="vanity-res-wif" onclick="app.copyText(this.innerText)" style="color:#FFEA00; font-family:'Martian Mono'; font-size:0.8rem; word-break:break-all; cursor:pointer;">-</div>
         
-        <div style="font-size:0.7rem; color:#aaa; margin:10px 0 4px 0;">PUBLIC HEX (For Timelock)</div>
+        <div style="font-size:0.7rem; color:#aaa; margin:10px 0 4px 0;">PUBLIC HEX</div>
         <div id="vanity-res-hex" onclick="app.copyText(this.innerText)" style="color:#00E676; font-family:'Martian Mono'; font-size:0.7rem; word-break:break-all; cursor:pointer;">-</div>
 
         <button class="btn btn-sec" style="margin-top:10px;" onclick="app.vanity.saveToNotes()">SAVE TO NOTES</button>
@@ -690,6 +748,7 @@ input, select, textarea {
         <button id="btn-vanity-stop" class="btn btn-sec" onclick="app.vanity.stop()" disabled>STOP</button>
     </div>
 </div>
+
 
 <div class="card" style="border-top: 4px solid #FF9100;">
                 <h2>BITCOIN CRYPTO VAULT</h2>
