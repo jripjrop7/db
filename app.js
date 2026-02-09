@@ -1247,7 +1247,7 @@ setTimeout(() => {
         } 
     },
     
-                                // --- KALSHI EXPLORER (V7: CLEAN "MAIN LINES" ONLY) ---
+                                    // --- KALSHI EXPLORER (V8: REAL TEAM NAMES) ---
     kalshi: {
         events: [],
         currentCat: 'all',
@@ -1256,10 +1256,8 @@ setTimeout(() => {
             const div = document.getElementById('kalshi-results');
             div.innerHTML = '<div style="text-align:center; color:#aaa;">Fetching Live Events...</div>';
 
-            // Get Events with ALL markets nested inside
             const target = 'https://api.elections.kalshi.com/trade-api/v2/events?limit=100&status=open&with_nested_markets=true';
             
-            // Proxy Rotation (CodeTabs is usually best for Mobile)
             const proxies = [
                 { url: 'https://api.codetabs.com/v1/proxy?quest=', type: 'direct' },
                 { url: 'https://api.allorigins.win/get?url=', type: 'json_wrap' },
@@ -1336,38 +1334,26 @@ setTimeout(() => {
                 return;
             }
 
-            // 2. RENDER CLEANED EVENTS
+            // 2. RENDER EVENTS
             filteredEvents.forEach(e => {
-                // --- THE CLEANING FILTER ---
-                // We remove markets that are complicated Parlays OR have no sellers (Ask = 0/null)
                 const cleanMarkets = e.markets.filter(m => {
                     const sub = (m.subtitle || '').toLowerCase();
-                    const tick = (m.ticker || '').toLowerCase();
+                    if (!m.yes_ask && !m.no_ask) return false; // Dead market
                     
-                    // A. Remove Dead Markets (No one selling)
-                    if (!m.yes_ask && !m.no_ask) return false;
-
-                    // B. Remove Complex Combos (Unless user searches for "Parlay")
                     if (!query.includes('parlay')) {
-                        if (sub.includes('parlay')) return false;
-                        if (sub.includes('combo')) return false;
-                        if (sub.includes(' & ')) return false; // Hides "Kelce & Mahomes" combos
-                        if (sub.includes('same game')) return false;
-                        if (sub.includes('sgp')) return false;
+                        if (sub.includes('parlay') || sub.includes('combo') || sub.includes(' & ') || sub.includes('same game') || sub.includes('sgp')) return false;
                     }
-
                     return true;
                 });
 
                 if (cleanMarkets.length === 0) return; 
 
-                // Sort markets by Volume so the "Main" lines show first
+                // Sort by Volume
                 cleanMarkets.sort((a,b) => (b.volume || 0) - (a.volume || 0));
-
-                // LIMIT: Only show Top 3 Markets per event to save space (Show More button optional logic)
+                
+                // Show Top 3 Markets
                 const displayMarkets = cleanMarkets.slice(0, 3);
 
-                // Build Card
                 const eventCard = document.createElement('div');
                 eventCard.style.background = '#111';
                 eventCard.style.marginBottom = '12px';
@@ -1376,18 +1362,21 @@ setTimeout(() => {
                 eventCard.style.overflow = 'hidden';
 
                 let html = `
-                    <div style="padding:10px; background:#1A1A1A; border-bottom:1px solid #222; display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                            <div style="font-weight:bold; color:#fff; font-size:0.9rem;">${e.title}</div>
-                            <div style="font-size:0.65rem; color:#aaa;">${e.category}</div>
-                        </div>
+                    <div style="padding:10px; background:#1A1A1A; border-bottom:1px solid #222;">
+                        <div style="font-weight:bold; color:#fff; font-size:0.9rem;">${e.title}</div>
+                        <div style="font-size:0.65rem; color:#aaa;">${e.category}</div>
                     </div>
                     <div style="padding:8px;">
                 `;
 
                 displayMarkets.forEach(m => {
-                    const yesCost = m.yes_ask || 0; // The price you PAY
+                    const yesCost = m.yes_ask || 0;
                     const noCost = m.no_ask || 0;
+
+                    // FIX: Use Real Team/Option Names if available
+                    // If 'yes_sub_title' exists (e.g. "Chiefs"), use it. Otherwise use "YES".
+                    const yesName = m.yes_sub_title || 'YES';
+                    const noName = m.no_sub_title || 'NO';
 
                     // Math
                     const getStats = (price) => {
@@ -1404,13 +1393,15 @@ setTimeout(() => {
                         <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap:8px; margin-bottom:8px; align-items:center; padding-bottom:8px; border-bottom:1px dashed #222;">
                             <div style="font-size:0.75rem; color:#ccc;">${m.subtitle || 'Winner'}</div>
                             
-                            <div style="text-align:center; background:rgba(0, 230, 118, 0.1); padding:4px; border-radius:4px;">
-                                <div style="color:#00E676; font-weight:bold; font-size:0.85rem;">${yesCost}¢</div>
+                            <div style="text-align:center; background:rgba(0, 230, 118, 0.1); padding:4px; border-radius:4px; border:1px solid rgba(0,230,118,0.2);">
+                                <div style="font-size:0.6rem; color:#00E676; font-weight:bold; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${yesName}</div>
+                                <div style="color:#fff; font-weight:bold; font-size:0.85rem;">${yesCost}¢</div>
                                 <div style="font-size:0.6rem; color:#aaa;">${yes.am}</div>
                             </div>
 
-                            <div style="text-align:center; background:rgba(213, 0, 0, 0.1); padding:4px; border-radius:4px;">
-                                <div style="color:#D50000; font-weight:bold; font-size:0.85rem;">${noCost}¢</div>
+                            <div style="text-align:center; background:rgba(213, 0, 0, 0.1); padding:4px; border-radius:4px; border:1px solid rgba(213,0,0,0.2);">
+                                <div style="font-size:0.6rem; color:#FF5252; font-weight:bold; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${noName}</div>
+                                <div style="color:#fff; font-weight:bold; font-size:0.85rem;">${noCost}¢</div>
                                 <div style="font-size:0.6rem; color:#aaa;">${no.am}</div>
                             </div>
                         </div>
@@ -1423,6 +1414,7 @@ setTimeout(() => {
             });
         }
     },
+
 
 
 
