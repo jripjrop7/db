@@ -10,6 +10,77 @@ const app = {
         } catch(e) { alert("Fee Fetch Error"); }
     },
     
+        // --- UNIVERSAL COLLAPSER ---
+    // Automatically turns every Card in 'view-tools' into a collapsible folder
+    setupCollapsibles: () => {
+        const toolView = document.getElementById('view-tools');
+        if(!toolView) return;
+
+        // Find all cards that haven't been processed yet
+        const cards = toolView.querySelectorAll('.card:not(.processed)');
+
+        cards.forEach(card => {
+            // Mark as processed so we don't do it twice
+            card.classList.add('processed');
+
+            // 1. Identify the Header (It's usually the first element)
+            const header = card.firstElementChild;
+            
+            // Safety: If no header, skip
+            if(!header) return;
+
+            // 2. Create a Content Wrapper for everything else
+            // We move all other children into this wrapper
+            const wrapper = document.createElement('div');
+            wrapper.className = 'card-content-wrapper';
+            wrapper.style.display = 'none'; // Default to CLOSED
+            wrapper.style.marginTop = '15px';
+            wrapper.style.paddingTop = '15px';
+            wrapper.style.borderTop = '1px solid #333';
+
+            // Move existing elements (inputs, buttons, etc) into wrapper
+            while (card.children.length > 1) {
+                wrapper.appendChild(card.children[1]);
+            }
+            card.appendChild(wrapper);
+
+            // 3. Make Header Clickable
+            header.style.cursor = 'pointer';
+            header.style.display = 'flex';
+            header.style.justifyContent = 'space-between';
+            header.style.alignItems = 'center';
+            
+            // Add Arrow Icon
+            const icon = document.createElement('i');
+            icon.className = 'material-icons-round';
+            icon.innerText = 'expand_more';
+            icon.style.color = '#777';
+            icon.style.transition = 'transform 0.3s';
+            
+            // Append icon to header (if header is a flex row, add to end. if H2, make it flex)
+            if (header.tagName === 'H2') {
+                // Wrap text to keep it clean
+                const text = header.innerText;
+                header.innerHTML = `<span>${text}</span>`;
+                header.appendChild(icon);
+            } else {
+                // If header is a DIV (like Kalshi), just append icon
+                header.appendChild(icon);
+            }
+
+            // 4. Click Event
+            header.onclick = (e) => {
+                // Prevent triggering if clicking a button inside the header (like Refresh)
+                if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+
+                const isOpen = wrapper.style.display === 'block';
+                wrapper.style.display = isOpen ? 'none' : 'block';
+                icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+                icon.style.color = isOpen ? '#777' : '#fff';
+            };
+        });
+    },
+
     makeQR: () => {
         const txt = document.getElementById('qr-input').value;
         const container = document.getElementById('qrcode');
@@ -1414,13 +1485,6 @@ setTimeout(() => {
             });
         }
     },
-
-
-
-
-
-
-
 
         // --- HOT WALLET FUNCTIONALITY ---
         // --- HOT WALLET MANAGER (Universal Version) ---
