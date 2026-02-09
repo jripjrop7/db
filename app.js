@@ -1247,17 +1247,18 @@ setTimeout(() => {
         } 
     },
     
-                    // --- KALSHI EXPLORER (V4: EVENTS API + CATEGORIES) ---
+                        // --- KALSHI EXPLORER (V5: MARKETS + STRICT FILTERS) ---
     kalshi: {
-        events: [],
+        markets: [],
         currentCat: 'all',
 
         fetch: async () => {
             const div = document.getElementById('kalshi-results');
-            div.innerHTML = '<div style="text-align:center; color:#aaa;">Fetching Live Events...</div>';
+            div.innerHTML = '<div style="text-align:center; color:#aaa;">Fetching Live Markets...</div>';
 
-            // SWITCH TO '/events' -> This groups markets and removes parlay clutter
-            const target = 'https://api.elections.kalshi.com/trade-api/v2/events?limit=200&status=open';
+            // Use '/markets' to get individual tradeable items
+            // Limit 300 to capture enough data to filter through
+            const target = 'https://api.elections.kalshi.com/trade-api/v2/markets?limit=300&status=open';
             
             const proxies = [
                 { url: 'https://api.allorigins.win/get?url=', type: 'json_wrap' },
@@ -1283,12 +1284,10 @@ setTimeout(() => {
                         data = raw;
                     }
 
-                    if (!data.events) throw new Error("No event data");
+                    if (!data.markets) throw new Error("No market data");
 
                     // SUCCESS
-                    app.kalshi.events = data.events;
-                    
-                    // Initial Render
+                    app.kalshi.markets = data.markets;
                     app.kalshi.render();
                     success = true;
                     break;
@@ -1298,19 +1297,17 @@ setTimeout(() => {
 
             if (!success) {
                 div.innerHTML = `<div style="text-align:center; color:#D50000; padding:10px;">
-                    Connection Failed. <a href="https://kalshi.com/markets" target="_blank" style="color:#fff;">Open Kalshi</a>
+                    Connection Blocked. <a href="https://kalshi.com/markets" target="_blank" style="color:#fff;">Open Kalshi</a>
                 </div>`;
             }
         },
 
         setCat: (cat) => {
             app.kalshi.currentCat = cat;
-            // Update UI chips
             document.querySelectorAll('#view-tools .filter-chip').forEach(el => el.classList.remove('active'));
             const id = 'k-cat-' + cat.toLowerCase();
             const btn = document.getElementById(id);
             if(btn) btn.classList.add('active');
-            
             app.kalshi.render();
         },
 
@@ -1319,60 +1316,59 @@ setTimeout(() => {
             const div = document.getElementById('kalshi-results');
             div.innerHTML = '';
 
-            if (app.kalshi.events.length === 0) {
-                div.innerHTML = '<div style="text-align:center; color:#555;">No events loaded. Click Refresh.</div>';
-                return;
-            }
+            const cat = app.kalshi.currentCat;
 
-            // FILTER: By Category AND Search Term
-            let filtered = app.kalshi.events.filter(e => {
-                // 1. Check Category Button
-                if (app.kalshi.currentCat !== 'all') {
-                    // Kalshi categories are typically "Politics", "Economics", etc.
-                    // We check if the event category matches (or contains) our button text
-                    if (!e.category || !e.category.includes(app.kalshi.currentCat)) return false;
+            // --- SMART FILTERING ---
+            let filtered = app.kalshi.markets.filter(m => {
+                const title = (m.title || '').toLowerCase();
+                const ticker = (m.ticker || '').toLowerCase();
+                const category = (m.category || '').toLowerCase();
+                const subtitle = (m.subtitle || '').toLowerCase();
+
+                // 1. Search Bar Input
+                if (query && !title.includes(query) && !ticker.includes(query) && !subtitle.includes(query)) return false;
+
+                // 2. Category Buttons
+                if (cat === 'Sports') {
+                    // Kalshi sports categories usually contain 'sport', 'nba', 'nfl', etc.
+                    return category.includes('sport') || category.includes('nba') || category.includes('nfl') || category.includes('mlb');
                 }
-
-                // 2. Check Search Bar
-                const searchMatch = (e.title && e.title.toLowerCase().includes(query)) || 
-                                    (e.ticker && e.ticker.toLowerCase().includes(query));
+                if (cat === 'Mentions') {
+                    // Keyword filter for "Mentions"
+                    return title.includes('mention') || title.includes('say') || title.includes('said') || title.includes('word');
+                }
+                if (cat === 'Politics') return category.includes('politic') || category.includes('gov');
+                if (cat === 'Economics') return category.includes('econ') || category.includes('fed');
                 
-                return searchMatch;
+                return true; // 'all' passes everything
             });
 
-            // Sort by Volume (Liquidity)
-            // Events usually don't have a root volume, so we sum up market volumes or check root props
-            // Note: API v2 events might not have a direct 'volume' key, relying on default order or market data
-            // We will trust the API order (usually Trending) or sort by the volume of the first market
-            
+            // --- SORT BY VOLUME (Push Parlays down, Main Lines up) ---
+            filtered.sort((a,b) => (b.volume || 0) - (a.volume || 0));
+
+            // Limit to 50
+            filtered = filtered.slice(0, 50);
+
             if(filtered.length === 0) {
-                div.innerHTML = '<div style="text-align:center; color:#555;">No matches found.</div>';
+                div.innerHTML = '<div style="text-align:center; color:#555; padding:20px;">No active markets found for this filter.</div>';
                 return;
             }
 
-            filtered.forEach(e => {
-                // An Event contains a 'markets' array. 
-                // The first market is usually the "Main" Yes/No or the nearest expiration.
-                // We want to skip complex parlay markets if possible.
-                if (!e.markets || e.markets.length === 0) return;
-
-                // Grab the first market (Primary)
-                const m = e.markets[0];
-
+            filtered.forEach(m => {
+                // PRICING LOGIC: Use ASK (Cost to Buy)
                 const yesCost = m.yes_ask || 0;
                 const noCost = m.no_ask || 0;
 
                 // Helper for Math
                 const getStats = (price) => {
-                    if(!price || price <= 0 || price >= 100) return { mult: '-', am: '-', prob: '0%' };
-                    const probStr = price + '%';
+                    if(!price || price <= 0 || price >= 100) return { mult: '-', am: '-' };
                     const mult = (100 / price).toFixed(2) + 'x';
                     const p = price / 100;
                     let am = 0;
                     if (p > 0.5) am = -((p / (1 - p)) * 100);
                     else am = ((1 - p) / p) * 100;
                     const amStr = am > 0 ? `+${Math.round(am)}` : Math.round(am);
-                    return { mult, am: amStr, prob: probStr };
+                    return { mult, am: amStr };
                 };
 
                 const yes = getStats(yesCost);
@@ -1382,26 +1378,21 @@ setTimeout(() => {
                 el.className = 'bill-row';
                 el.style.display = 'block';
                 el.style.marginBottom = '8px';
-                // Color code sidebar based on category if possible, else default purple
                 el.style.borderLeft = '3px solid #651FFF';
                 
                 el.innerHTML = `
-                    <div style="font-weight:bold; font-size:0.85rem; color:#fff; margin-bottom:4px;">${e.title}</div>
-                    <div style="font-size:0.65rem; color:#aaa; margin-bottom:8px;">${m.subtitle || e.category || m.ticker}</div>
+                    <div style="font-weight:bold; font-size:0.85rem; color:#fff; margin-bottom:4px; line-height:1.2;">${m.title}</div>
+                    <div style="font-size:0.65rem; color:#aaa; margin-bottom:8px;">${m.subtitle || m.ticker} • Vol: ${m.volume || 0}</div>
                     
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
                         <div style="background:#151515; padding:8px; border-radius:4px; text-align:center; border:1px solid #333;">
                             <div style="color:#00E676; font-weight:bold; font-size:1rem;">${yesCost > 0 ? yesCost + '¢' : '-'}</div>
-                            <div style="font-size:0.6rem; color:#aaa; text-transform:uppercase;">Buy Yes</div>
-                            <div style="font-size:0.75rem; color:#fff; margin-top:4px; font-weight:bold;">${yes.mult}</div>
-                            <div style="font-size:0.6rem; color:#777;">${yes.am}</div>
+                            <div style="font-size:0.6rem; color:#aaa;">${yes.mult} / ${yes.am}</div>
                         </div>
 
                         <div style="background:#151515; padding:8px; border-radius:4px; text-align:center; border:1px solid #333;">
                             <div style="color:#D50000; font-weight:bold; font-size:1rem;">${noCost > 0 ? noCost + '¢' : '-'}</div>
-                            <div style="font-size:0.6rem; color:#aaa; text-transform:uppercase;">Buy No</div>
-                            <div style="font-size:0.75rem; color:#fff; margin-top:4px; font-weight:bold;">${no.mult}</div>
-                            <div style="font-size:0.6rem; color:#777;">${no.am}</div>
+                            <div style="font-size:0.6rem; color:#aaa;">${no.mult} / ${no.am}</div>
                         </div>
                     </div>
                 `;
@@ -1409,6 +1400,7 @@ setTimeout(() => {
             });
         }
     },
+
 
 
 
