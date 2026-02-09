@@ -1247,7 +1247,7 @@ setTimeout(() => {
         } 
     },
     
-                            // --- KALSHI EXPLORER (V6: EVENTS + NESTED MARKETS) ---
+                                // --- KALSHI EXPLORER (V7: CLEAN "MAIN LINES" ONLY) ---
     kalshi: {
         events: [],
         currentCat: 'all',
@@ -1256,13 +1256,13 @@ setTimeout(() => {
             const div = document.getElementById('kalshi-results');
             div.innerHTML = '<div style="text-align:center; color:#aaa;">Fetching Live Events...</div>';
 
-            // CRITICAL CHANGE: Use 'events' endpoint with nested markets
-            // This groups the data correctly (Event -> Markets)
+            // Get Events with ALL markets nested inside
             const target = 'https://api.elections.kalshi.com/trade-api/v2/events?limit=100&status=open&with_nested_markets=true';
             
+            // Proxy Rotation (CodeTabs is usually best for Mobile)
             const proxies = [
-                { url: 'https://api.allorigins.win/get?url=', type: 'json_wrap' },
                 { url: 'https://api.codetabs.com/v1/proxy?quest=', type: 'direct' },
+                { url: 'https://api.allorigins.win/get?url=', type: 'json_wrap' },
                 { url: 'https://corsproxy.io/?', type: 'direct' }
             ];
 
@@ -1315,17 +1315,15 @@ setTimeout(() => {
 
             const cat = app.kalshi.currentCat;
 
-            // 1. FILTER EVENTS
+            // 1. FILTER PARENT EVENTS
             let filteredEvents = app.kalshi.events.filter(e => {
                 const title = (e.title || '').toLowerCase();
                 const category = (e.category || '').toLowerCase();
                 const ticker = (e.ticker || '').toLowerCase();
 
-                // Search Filter
                 if (query && !title.includes(query) && !ticker.includes(query)) return false;
 
-                // Category Filter
-                if (cat === 'Sports') return category.includes('sport') || title.includes('nfl') || title.includes('nba');
+                if (cat === 'Sports') return category.includes('sport') || title.includes('nfl') || title.includes('nba') || title.includes('game');
                 if (cat === 'Mentions') return title.includes('mention') || title.includes('say') || title.includes('said');
                 if (cat === 'Politics') return category.includes('politic') || category.includes('gov');
                 if (cat === 'Economics') return category.includes('econ') || category.includes('fed');
@@ -1338,21 +1336,38 @@ setTimeout(() => {
                 return;
             }
 
-            // 2. RENDER EVENTS
+            // 2. RENDER CLEANED EVENTS
             filteredEvents.forEach(e => {
-                // Filter Nested Markets (Remove Parlays/Combos)
-                // We keep markets that DO NOT have "parlay", "combo", or "&" in their subtitle/ticker
+                // --- THE CLEANING FILTER ---
+                // We remove markets that are complicated Parlays OR have no sellers (Ask = 0/null)
                 const cleanMarkets = e.markets.filter(m => {
                     const sub = (m.subtitle || '').toLowerCase();
                     const tick = (m.ticker || '').toLowerCase();
-                    // If user is searching specifically for parlays, let them see it. Otherwise hide.
-                    if (query.includes('parlay')) return true; 
-                    return !sub.includes('parlay') && !sub.includes('combo') && !sub.includes(' & ');
+                    
+                    // A. Remove Dead Markets (No one selling)
+                    if (!m.yes_ask && !m.no_ask) return false;
+
+                    // B. Remove Complex Combos (Unless user searches for "Parlay")
+                    if (!query.includes('parlay')) {
+                        if (sub.includes('parlay')) return false;
+                        if (sub.includes('combo')) return false;
+                        if (sub.includes(' & ')) return false; // Hides "Kelce & Mahomes" combos
+                        if (sub.includes('same game')) return false;
+                        if (sub.includes('sgp')) return false;
+                    }
+
+                    return true;
                 });
 
-                if (cleanMarkets.length === 0) return; // Skip empty events
+                if (cleanMarkets.length === 0) return; 
 
-                // Container for the whole Event
+                // Sort markets by Volume so the "Main" lines show first
+                cleanMarkets.sort((a,b) => (b.volume || 0) - (a.volume || 0));
+
+                // LIMIT: Only show Top 3 Markets per event to save space (Show More button optional logic)
+                const displayMarkets = cleanMarkets.slice(0, 3);
+
+                // Build Card
                 const eventCard = document.createElement('div');
                 eventCard.style.background = '#111';
                 eventCard.style.marginBottom = '12px';
@@ -1360,18 +1375,18 @@ setTimeout(() => {
                 eventCard.style.border = '1px solid #333';
                 eventCard.style.overflow = 'hidden';
 
-                // Header
                 let html = `
-                    <div style="padding:10px; background:#1A1A1A; border-bottom:1px solid #222;">
-                        <div style="font-weight:bold; color:#fff; font-size:0.9rem;">${e.title}</div>
-                        <div style="font-size:0.65rem; color:#aaa;">${e.category} • ${cleanMarkets.length} Mkts</div>
+                    <div style="padding:10px; background:#1A1A1A; border-bottom:1px solid #222; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div style="font-weight:bold; color:#fff; font-size:0.9rem;">${e.title}</div>
+                            <div style="font-size:0.65rem; color:#aaa;">${e.category}</div>
+                        </div>
                     </div>
                     <div style="padding:8px;">
                 `;
 
-                // Render Markets inside the Event
-                cleanMarkets.forEach(m => {
-                    const yesCost = m.yes_ask || 0;
+                displayMarkets.forEach(m => {
+                    const yesCost = m.yes_ask || 0; // The price you PAY
                     const noCost = m.no_ask || 0;
 
                     // Math
@@ -1391,12 +1406,12 @@ setTimeout(() => {
                             
                             <div style="text-align:center; background:rgba(0, 230, 118, 0.1); padding:4px; border-radius:4px;">
                                 <div style="color:#00E676; font-weight:bold; font-size:0.85rem;">${yesCost}¢</div>
-                                <div style="font-size:0.6rem; color:#aaa;">${yes.mult}</div>
+                                <div style="font-size:0.6rem; color:#aaa;">${yes.am}</div>
                             </div>
 
                             <div style="text-align:center; background:rgba(213, 0, 0, 0.1); padding:4px; border-radius:4px;">
                                 <div style="color:#D50000; font-weight:bold; font-size:0.85rem;">${noCost}¢</div>
-                                <div style="font-size:0.6rem; color:#aaa;">${no.mult}</div>
+                                <div style="font-size:0.6rem; color:#aaa;">${no.am}</div>
                             </div>
                         </div>
                     `;
@@ -1408,6 +1423,7 @@ setTimeout(() => {
             });
         }
     },
+
 
 
 
