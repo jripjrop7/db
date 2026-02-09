@@ -753,9 +753,29 @@
         </div>
 
         <div id="view-crypto" class="container" style="display:none;">
-            <div class="card"><h2>CRYPTO PORTFOLIO</h2><div class="big-val" id="crypto-total-display">$0</div></div>
-            <div class="card"><label>BITCOIN (BTC)</label><div class="row"><span id="btc-price" style="color:var(--sub);">Loading...</span></div><input type="number" id="btc-holdings" placeholder="0.00" oninput="app.calcCrypto()"></div>
-            <div class="card"><label>ETHEREUM (ETH)</label><div class="row"><span id="eth-price" style="color:var(--sub);">Loading...</span></div><input type="number" id="eth-holdings" placeholder="0.00" oninput="app.calcCrypto()"></div>
+            <div class="card" style="display:flex; justify-content:space-between; align-items:center; padding:12px;">
+    <h2 style="margin:0;">PORTFOLIO VALUE</h2>
+    <div class="big-val" id="crypto-total-display" style="font-size:1.8rem;">$0</div>
+</div>
+
+<div class="grid">
+    <div class="card" style="padding:10px; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <label style="margin:0;">BTC</label>
+            <span id="btc-price" style="font-size:0.65rem; color:var(--sub);">...</span>
+        </div>
+        <input type="number" id="btc-holdings" placeholder="0.00" oninput="app.calcCrypto()" style="margin:0; padding:8px; font-size:0.9rem;">
+    </div>
+    
+    <div class="card" style="padding:10px; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <label style="margin:0;">ETH</label>
+            <span id="eth-price" style="font-size:0.65rem; color:var(--sub);">...</span>
+        </div>
+        <input type="number" id="eth-holdings" placeholder="0.00" oninput="app.calcCrypto()" style="margin:0; padding:8px; font-size:0.9rem;">
+    </div>
+</div>
+
             
             <div class="card" style="border-top: 4px solid #651FFF;">
                 <h2>MEMPOOL EXPLORER</h2>
