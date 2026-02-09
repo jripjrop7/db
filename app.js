@@ -1247,18 +1247,18 @@ setTimeout(() => {
         } 
     },
     
-                        // --- KALSHI EXPLORER (V5: MARKETS + STRICT FILTERS) ---
+                            // --- KALSHI EXPLORER (V6: EVENTS + NESTED MARKETS) ---
     kalshi: {
-        markets: [],
+        events: [],
         currentCat: 'all',
 
         fetch: async () => {
             const div = document.getElementById('kalshi-results');
-            div.innerHTML = '<div style="text-align:center; color:#aaa;">Fetching Live Markets...</div>';
+            div.innerHTML = '<div style="text-align:center; color:#aaa;">Fetching Live Events...</div>';
 
-            // Use '/markets' to get individual tradeable items
-            // Limit 300 to capture enough data to filter through
-            const target = 'https://api.elections.kalshi.com/trade-api/v2/markets?limit=300&status=open';
+            // CRITICAL CHANGE: Use 'events' endpoint with nested markets
+            // This groups the data correctly (Event -> Markets)
+            const target = 'https://api.elections.kalshi.com/trade-api/v2/events?limit=100&status=open&with_nested_markets=true';
             
             const proxies = [
                 { url: 'https://api.allorigins.win/get?url=', type: 'json_wrap' },
@@ -1284,10 +1284,9 @@ setTimeout(() => {
                         data = raw;
                     }
 
-                    if (!data.markets) throw new Error("No market data");
+                    if (!data.events) throw new Error("No event data");
 
-                    // SUCCESS
-                    app.kalshi.markets = data.markets;
+                    app.kalshi.events = data.events;
                     app.kalshi.render();
                     success = true;
                     break;
@@ -1296,9 +1295,7 @@ setTimeout(() => {
             }
 
             if (!success) {
-                div.innerHTML = `<div style="text-align:center; color:#D50000; padding:10px;">
-                    Connection Blocked. <a href="https://kalshi.com/markets" target="_blank" style="color:#fff;">Open Kalshi</a>
-                </div>`;
+                div.innerHTML = `<div style="text-align:center; color:#D50000; padding:10px;">Connection Blocked. <a href="https://kalshi.com/markets" target="_blank" style="color:#fff;">Open Kalshi</a></div>`;
             }
         },
 
@@ -1318,88 +1315,100 @@ setTimeout(() => {
 
             const cat = app.kalshi.currentCat;
 
-            // --- SMART FILTERING ---
-            let filtered = app.kalshi.markets.filter(m => {
-                const title = (m.title || '').toLowerCase();
-                const ticker = (m.ticker || '').toLowerCase();
-                const category = (m.category || '').toLowerCase();
-                const subtitle = (m.subtitle || '').toLowerCase();
+            // 1. FILTER EVENTS
+            let filteredEvents = app.kalshi.events.filter(e => {
+                const title = (e.title || '').toLowerCase();
+                const category = (e.category || '').toLowerCase();
+                const ticker = (e.ticker || '').toLowerCase();
 
-                // 1. Search Bar Input
-                if (query && !title.includes(query) && !ticker.includes(query) && !subtitle.includes(query)) return false;
+                // Search Filter
+                if (query && !title.includes(query) && !ticker.includes(query)) return false;
 
-                // 2. Category Buttons
-                if (cat === 'Sports') {
-                    // Kalshi sports categories usually contain 'sport', 'nba', 'nfl', etc.
-                    return category.includes('sport') || category.includes('nba') || category.includes('nfl') || category.includes('mlb');
-                }
-                if (cat === 'Mentions') {
-                    // Keyword filter for "Mentions"
-                    return title.includes('mention') || title.includes('say') || title.includes('said') || title.includes('word');
-                }
+                // Category Filter
+                if (cat === 'Sports') return category.includes('sport') || title.includes('nfl') || title.includes('nba');
+                if (cat === 'Mentions') return title.includes('mention') || title.includes('say') || title.includes('said');
                 if (cat === 'Politics') return category.includes('politic') || category.includes('gov');
                 if (cat === 'Economics') return category.includes('econ') || category.includes('fed');
                 
-                return true; // 'all' passes everything
+                return true;
             });
 
-            // --- SORT BY VOLUME (Push Parlays down, Main Lines up) ---
-            filtered.sort((a,b) => (b.volume || 0) - (a.volume || 0));
-
-            // Limit to 50
-            filtered = filtered.slice(0, 50);
-
-            if(filtered.length === 0) {
-                div.innerHTML = '<div style="text-align:center; color:#555; padding:20px;">No active markets found for this filter.</div>';
+            if(filteredEvents.length === 0) {
+                div.innerHTML = '<div style="text-align:center; color:#555;">No events found.</div>';
                 return;
             }
 
-            filtered.forEach(m => {
-                // PRICING LOGIC: Use ASK (Cost to Buy)
-                const yesCost = m.yes_ask || 0;
-                const noCost = m.no_ask || 0;
+            // 2. RENDER EVENTS
+            filteredEvents.forEach(e => {
+                // Filter Nested Markets (Remove Parlays/Combos)
+                // We keep markets that DO NOT have "parlay", "combo", or "&" in their subtitle/ticker
+                const cleanMarkets = e.markets.filter(m => {
+                    const sub = (m.subtitle || '').toLowerCase();
+                    const tick = (m.ticker || '').toLowerCase();
+                    // If user is searching specifically for parlays, let them see it. Otherwise hide.
+                    if (query.includes('parlay')) return true; 
+                    return !sub.includes('parlay') && !sub.includes('combo') && !sub.includes(' & ');
+                });
 
-                // Helper for Math
-                const getStats = (price) => {
-                    if(!price || price <= 0 || price >= 100) return { mult: '-', am: '-' };
-                    const mult = (100 / price).toFixed(2) + 'x';
-                    const p = price / 100;
-                    let am = 0;
-                    if (p > 0.5) am = -((p / (1 - p)) * 100);
-                    else am = ((1 - p) / p) * 100;
-                    const amStr = am > 0 ? `+${Math.round(am)}` : Math.round(am);
-                    return { mult, am: amStr };
-                };
+                if (cleanMarkets.length === 0) return; // Skip empty events
 
-                const yes = getStats(yesCost);
-                const no = getStats(noCost);
+                // Container for the whole Event
+                const eventCard = document.createElement('div');
+                eventCard.style.background = '#111';
+                eventCard.style.marginBottom = '12px';
+                eventCard.style.borderRadius = '8px';
+                eventCard.style.border = '1px solid #333';
+                eventCard.style.overflow = 'hidden';
 
-                const el = document.createElement('div');
-                el.className = 'bill-row';
-                el.style.display = 'block';
-                el.style.marginBottom = '8px';
-                el.style.borderLeft = '3px solid #651FFF';
-                
-                el.innerHTML = `
-                    <div style="font-weight:bold; font-size:0.85rem; color:#fff; margin-bottom:4px; line-height:1.2;">${m.title}</div>
-                    <div style="font-size:0.65rem; color:#aaa; margin-bottom:8px;">${m.subtitle || m.ticker} • Vol: ${m.volume || 0}</div>
-                    
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-                        <div style="background:#151515; padding:8px; border-radius:4px; text-align:center; border:1px solid #333;">
-                            <div style="color:#00E676; font-weight:bold; font-size:1rem;">${yesCost > 0 ? yesCost + '¢' : '-'}</div>
-                            <div style="font-size:0.6rem; color:#aaa;">${yes.mult} / ${yes.am}</div>
-                        </div>
-
-                        <div style="background:#151515; padding:8px; border-radius:4px; text-align:center; border:1px solid #333;">
-                            <div style="color:#D50000; font-weight:bold; font-size:1rem;">${noCost > 0 ? noCost + '¢' : '-'}</div>
-                            <div style="font-size:0.6rem; color:#aaa;">${no.mult} / ${no.am}</div>
-                        </div>
+                // Header
+                let html = `
+                    <div style="padding:10px; background:#1A1A1A; border-bottom:1px solid #222;">
+                        <div style="font-weight:bold; color:#fff; font-size:0.9rem;">${e.title}</div>
+                        <div style="font-size:0.65rem; color:#aaa;">${e.category} • ${cleanMarkets.length} Mkts</div>
                     </div>
+                    <div style="padding:8px;">
                 `;
-                div.appendChild(el);
+
+                // Render Markets inside the Event
+                cleanMarkets.forEach(m => {
+                    const yesCost = m.yes_ask || 0;
+                    const noCost = m.no_ask || 0;
+
+                    // Math
+                    const getStats = (price) => {
+                        if(!price || price >= 100) return { mult: '-', am: '-' };
+                        const mult = (100 / price).toFixed(2) + 'x';
+                        const p = price / 100;
+                        let am = p > 0.5 ? -((p / (1-p)) * 100) : ((1-p) / p) * 100;
+                        return { mult, am: am > 0 ? `+${Math.round(am)}` : Math.round(am) };
+                    };
+                    const yes = getStats(yesCost);
+                    const no = getStats(noCost);
+
+                    html += `
+                        <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap:8px; margin-bottom:8px; align-items:center; padding-bottom:8px; border-bottom:1px dashed #222;">
+                            <div style="font-size:0.75rem; color:#ccc;">${m.subtitle || 'Winner'}</div>
+                            
+                            <div style="text-align:center; background:rgba(0, 230, 118, 0.1); padding:4px; border-radius:4px;">
+                                <div style="color:#00E676; font-weight:bold; font-size:0.85rem;">${yesCost}¢</div>
+                                <div style="font-size:0.6rem; color:#aaa;">${yes.mult}</div>
+                            </div>
+
+                            <div style="text-align:center; background:rgba(213, 0, 0, 0.1); padding:4px; border-radius:4px;">
+                                <div style="color:#D50000; font-weight:bold; font-size:0.85rem;">${noCost}¢</div>
+                                <div style="font-size:0.6rem; color:#aaa;">${no.mult}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `</div>`;
+                eventCard.innerHTML = html;
+                div.appendChild(eventCard);
             });
         }
     },
+
 
 
 
