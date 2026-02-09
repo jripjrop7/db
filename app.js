@@ -161,7 +161,8 @@ setTimeout(() => {
         if(app.data.liveSession.active) app.startLiveTimer();
         app.render(); 
         app.fetchCrypto();
-        app.renderRecurringTools();
+        app.renderRecurringTools();    
+        app.setupCollapsibles(); 
     },
 
     save: () => { localStorage.setItem('bankroll_os_v19_1', JSON.stringify(app.data)); app.render(); },
