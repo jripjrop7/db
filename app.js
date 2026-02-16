@@ -573,58 +573,72 @@ setTimeout(() => {
         }
     },
 
-        render: () => {
-        // --- 1. CALCULATE GLOBAL TOTALS (For the Header Card) ---
+            render: () => {
+        // --- 1. CALCULATE ASSETS ---
+        const bankroll = app.data.txs.reduce((sum, t) => sum + t.amt, 0);
+        const retire = parseFloat(localStorage.getItem('401k')) || 0;
         
-        // A. Bankroll (Sum of ALL transactions)
-        const totalBankroll = app.data.txs.reduce((sum, t) => sum + t.amt, 0);
-
-        // B. 401k (Sum of ALL 'k401' entries, regardless of filter)
-        const total401k = app.data.txs.reduce((sum, t) => {
-            if(t.cat === 'job' && t.details && t.details.k401) return sum + parseFloat(t.details.k401);
-            return sum;
-        }, 0);
-
-        // C. Crypto (Live Value: BTC + ETH)
-        // Checks if app.prices exists to prevent errors
         const btcPrice = (app.prices && app.prices.btc) ? app.prices.btc : 0;
         const ethPrice = (app.prices && app.prices.eth) ? app.prices.eth : 0;
         const btcVal = (parseFloat(localStorage.getItem('btc_qty')) || 0) * btcPrice;
         const ethVal = (parseFloat(localStorage.getItem('eth_qty')) || 0) * ethPrice;
-        const totalCrypto = btcVal + ethVal;
+        const cryptoTotal = btcVal + ethVal;
 
-        // D. Net Worth & Goal Progress
-        const netWorth = totalBankroll + total401k + totalCrypto;
-        const goal = app.data.goal || 100000;
-        const pct = Math.min(100, Math.max(0, (netWorth / goal) * 100));
-
-        // --- 2. UPDATE THE NEW MASTER CARD ---
+        const netWorth = bankroll + retire + cryptoTotal;
+        const goal = parseFloat(localStorage.getItem('goal')) || 100000;
         
-        // Helper to format money cleanly (e.g. $1,200)
+        // Calculate % (capped between 0 and 100 for the bar width)
+        const pctRaw = (netWorth / goal) * 100;
+        const pct = Math.min(100, Math.max(0, pctRaw));
+
+        // --- 2. UPDATE DASHBOARD CARD ---
         const fmt = (n) => `$${Math.round(n).toLocaleString()}`;
 
-        // Update Text Values
-        if(document.getElementById('dash-total')) document.getElementById('dash-total').innerText = fmt(netWorth);
-        if(document.getElementById('dash-bankroll')) document.getElementById('dash-bankroll').innerText = fmt(totalBankroll);
-        if(document.getElementById('dash-crypto')) document.getElementById('dash-crypto').innerText = fmt(totalCrypto);
-        if(document.getElementById('dash-401k')) document.getElementById('dash-401k').innerText = fmt(total401k);
-
-        // Update Progress Bar
-        if(document.getElementById('dash-bar')) {
-            document.getElementById('dash-bar').style.width = `${pct}%`;
-            document.getElementById('dash-pct').innerText = `${pct.toFixed(1)}%`;
-            document.getElementById('dash-target').innerText = `Target: ${fmt(goal)}`;
+        // HERO: Liquid Bankroll
+        if(document.getElementById('dash-hero')) {
+            document.getElementById('dash-hero').innerText = fmt(bankroll);
+            // Turn red if negative
+            document.getElementById('dash-hero').style.color = bankroll < 0 ? '#FF5252' : '#00FF41';
         }
 
-        // --- 3. RENDER TRANSACTION LIST (Existing Logic) ---
-        
+        // GRID: Net Worth, Crypto, 401k
+        if(document.getElementById('dash-networth')) document.getElementById('dash-networth').innerText = fmt(netWorth);
+        if(document.getElementById('dash-crypto')) document.getElementById('dash-crypto').innerText = fmt(cryptoTotal);
+        if(document.getElementById('dash-401k')) document.getElementById('dash-401k').innerText = fmt(retire);
+
+        // PROGRESS BAR (Color Changing Logic)
+        if(document.getElementById('dash-bar')) {
+            const bar = document.getElementById('dash-bar');
+            const pctText = document.getElementById('dash-pct');
+            
+            bar.style.width = `${pct}%`;
+            pctText.innerText = `${pct.toFixed(1)}%`;
+            document.getElementById('dash-target').innerText = `Target: ${fmt(goal)}`;
+
+            // Dynamic Colors
+            if (pct < 25) {
+                // Red/Orange for low progress
+                bar.style.background = 'linear-gradient(90deg, #D50000, #FF5252)'; 
+                pctText.style.color = '#FF5252';
+            } else if (pct < 75) {
+                // Yellow/Amber for mid progress
+                bar.style.background = 'linear-gradient(90deg, #FF6D00, #FFAB40)';
+                pctText.style.color = '#FFAB40';
+            } else {
+                // Green for high progress
+                bar.style.background = 'linear-gradient(90deg, #00C853, #00E676)';
+                pctText.style.color = '#00E676';
+            }
+        }
+
+        // --- 3. RENDER LIST (Standard) ---
         const list = document.getElementById('tx-list');
+        if (!list) return;
         list.innerHTML = '';
         
-        // Filter transactions based on current view/search
         const filteredTxs = app.data.txs.filter(t => app.checkFilter(t));
+        const sorted = [...filteredTxs].sort((a, b) => new Date(b.date) - new Date(a.date));
         
-        // Update "Period Profit" (The small +/- number above the list)
         const periodTotal = filteredTxs.reduce((sum, t) => sum + t.amt, 0);
         const periodEl = document.getElementById('period-profit');
         if(periodEl) {
@@ -632,9 +646,6 @@ setTimeout(() => {
             periodEl.style.color = periodTotal >= 0 ? 'var(--success)' : 'var(--error)';
         }
 
-        // Sort by Date (Newest first)
-        const sorted = [...filteredTxs].sort((a, b) => new Date(b.date) - new Date(a.date));
-        
         sorted.forEach(t => {
             const div = document.createElement('div');
             div.className = 'tx-item';
@@ -642,7 +653,6 @@ setTimeout(() => {
             const color = app.colors[t.cat] || '#FFF';
             div.style.borderLeftColor = color;
             
-            // Icon Selection
             let iconCode = 'attach_money';
             if (t.cat === 'pokerCash') iconCode = 'spades'; 
             else {
@@ -650,7 +660,6 @@ setTimeout(() => {
                 iconCode = iconMap[t.cat] || 'attach_money';
             }
 
-            // Tag Generation (Preserved exact logic)
             const tags = [];
             const dateStr = new Date(t.date).toLocaleString('en-US', {month:'short', day:'numeric'});
             let titleText = (t.desc && t.desc.trim() !== "") ? t.desc : app.catLabel(t.cat);
@@ -671,8 +680,6 @@ setTimeout(() => {
             else if (t.cat === 'casino') tags.push('Casino');
 
             const tagHtml = tags.map(tag => `<span class="tx-tag">${tag}</span>`).join('');
-            
-            // Icon HTML
             const iconHtml = (t.cat === 'pokerCash') 
                 ? `<div class="tx-icon" style="background:${color}20; color:${color}; font-family:serif;">♠</div>`
                 : `<div class="tx-icon" style="background:${color}20; color:${color}"><i class="material-icons-round">${iconCode}</i></div>`;

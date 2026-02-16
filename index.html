@@ -313,23 +313,24 @@
         </div>
 
         <div id="view-dash" class="container">
-        
         <div class="card" style="background:linear-gradient(135deg, #1a1c24 0%, #0e1117 100%); border:1px solid #333; padding:20px; margin-bottom:15px; position:relative; overflow:hidden;">
     
-    <button onclick="app.editGoal()" style="position:absolute; top:15px; right:15px; background:rgba(255,255,255,0.05); border:none; padding:8px; border-radius:50%; cursor:pointer;">
+    <div class="card" style="background:linear-gradient(135deg, #1a1c24 0%, #0e1117 100%); border:1px solid #333; padding:20px; margin-bottom:15px; position:relative; overflow:hidden;">
+    
+    <button onclick="app.editGoal()" style="position:absolute; top:15px; right:15px; background:rgba(255,255,255,0.05); border:none; padding:8px; border-radius:50%; cursor:pointer; z-index:10;">
         <i class="material-icons-round" style="font-size:1.2rem; color:#aaa;">settings</i>
     </button>
 
     <div style="margin-bottom:20px;">
-        <div style="font-size:0.75rem; color:#777; letter-spacing:1.5px; margin-bottom:5px;">TOTAL NET WORTH</div>
-        <div id="dash-total" style="font-size:2.2rem; font-weight:bold; color:#fff; letter-spacing:-1px;">$0.00</div>
+        <div style="font-size:0.75rem; color:#777; letter-spacing:1.5px; margin-bottom:5px;">AVAILABLE BANKROLL</div>
+        <div id="dash-hero" style="font-size:2.2rem; font-weight:bold; color:#00FF41; letter-spacing:-1px;">$0.00</div>
     </div>
 
     <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:20px; border-top:1px solid #333; border-bottom:1px solid #333; padding:15px 0;">
         
         <div style="text-align:center;">
-            <div style="font-size:0.65rem; color:#aaa; margin-bottom:2px;">BANKROLL</div>
-            <div id="dash-bankroll" style="font-size:0.9rem; color:#00FF41; font-weight:bold;">$0</div>
+            <div style="font-size:0.65rem; color:#aaa; margin-bottom:2px;">NET WORTH</div>
+            <div id="dash-networth" style="font-size:0.9rem; color:#fff; font-weight:bold;">$0</div>
         </div>
 
         <div style="text-align:center; border-left:1px solid #333; border-right:1px solid #333;">
@@ -339,7 +340,7 @@
 
         <div style="text-align:center;">
             <div style="font-size:0.65rem; color:#aaa; margin-bottom:2px;">401K</div>
-            <div id="dash-401k" style="font-size:0.9rem; color:#fff; font-weight:bold;">$0</div>
+            <div id="dash-401k" style="font-size:0.9rem; color:#aaa; font-weight:bold;">$0</div>
         </div>
     </div>
 
@@ -349,41 +350,11 @@
             <span id="dash-target" style="font-size:0.7rem; color:#555;">Target: $100k</span>
         </div>
         <div style="height:6px; background:#222; border-radius:10px; overflow:hidden;">
-            <div id="dash-bar" style="height:100%; width:0%; background:linear-gradient(90deg, #00FF41, #00E676); box-shadow: 0 0 10px rgba(0,255,65,0.3); transition: width 1s ease;"></div>
+            <div id="dash-bar" style="height:100%; width:0%; background:linear-gradient(90deg, #00FF41, #00E676); box-shadow: 0 0 10px rgba(0,255,65,0.3); transition: width 1s ease, background 0.5s;"></div>
         </div>
     </div>
 </div>
 
-        
-            <div class="card" id="goal-card">
-                <div class="row">
-                    <h2 style="margin:0;" id="goal-label">BANKROLL GOAL</h2>
-                    <button onclick="app.openGoalModal()" style="background:none; border:none; color:var(--sub); font-size:16px;"><i class="material-icons-round">edit</i></button>
-                </div>
-                <div class="row" style="margin-top:8px;">
-                    <span style="font-size:0.8rem; color:#fff;" id="goal-current">$0</span>
-                    <span style="font-size:0.8rem; color:var(--sub);" id="goal-target">/ $10,000</span>
-                </div>
-                <div class="progress-container">
-                    <div class="progress-bar" id="goal-bar"></div>
-                </div>
-                <div style="text-align:right; font-size:0.6rem; color:var(--primary); margin-top:4px;" id="goal-pct">0%</div>
-            </div>
-
-            <div class="card">
-                <h2 style="margin-bottom:5px;">NET LIQUIDITY (TOTAL)</h2>
-                <div class="big-val" id="total-liquidity">$0.00</div>
-                <div style="margin-top: 15px; border-top: 1px solid #333; padding-top: 10px;">
-                    <div class="row">
-                        <span style="font-size:0.8rem; color:var(--sub); text-transform:uppercase;">Period P/L</span>
-                        <span id="period-profit" class="sub-val">$0.00</span>
-                    </div>
-                </div>
-                <div class="row" style="margin-top: 10px;">
-                    <div><span style="font-size:0.7rem; color:var(--crypto);">CRYPTO</span> <span id="crypto-mini" style="font-weight:bold;">$0</span></div>
-                    <div><span style="font-size:0.7rem; color:var(--job);">401K</span> <span id="401k-mini" style="font-weight:bold;">$0</span></div>
-                </div>
-            </div>
             <div id="tx-list"></div>
         </div>
 
