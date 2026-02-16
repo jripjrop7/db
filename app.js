@@ -573,11 +573,12 @@ setTimeout(() => {
         }
     },
 
-            render: () => {
-        // --- 1. CALCULATE ASSETS ---
+                render: () => {
+        // --- 1. CALCULATE GLOBAL VALUES ---
         const bankroll = app.data.txs.reduce((sum, t) => sum + t.amt, 0);
         const retire = parseFloat(localStorage.getItem('401k')) || 0;
         
+        // Crypto Logic
         const btcPrice = (app.prices && app.prices.btc) ? app.prices.btc : 0;
         const ethPrice = (app.prices && app.prices.eth) ? app.prices.eth : 0;
         const btcVal = (parseFloat(localStorage.getItem('btc_qty')) || 0) * btcPrice;
@@ -587,18 +588,30 @@ setTimeout(() => {
         const netWorth = bankroll + retire + cryptoTotal;
         const goal = parseFloat(localStorage.getItem('goal')) || 100000;
         
-        // Calculate % (capped between 0 and 100 for the bar width)
+        // Goal Percentage
         const pctRaw = (netWorth / goal) * 100;
         const pct = Math.min(100, Math.max(0, pctRaw));
 
-        // --- 2. UPDATE DASHBOARD CARD ---
+        // --- 2. CALCULATE PERIOD PROFIT (FILTERED) ---
+        const filteredTxs = app.data.txs.filter(t => app.checkFilter(t));
+        const periodTotal = filteredTxs.reduce((sum, t) => sum + t.amt, 0);
+        const sorted = [...filteredTxs].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        // --- 3. UPDATE DASHBOARD CARD ---
         const fmt = (n) => `$${Math.round(n).toLocaleString()}`;
 
-        // HERO: Liquid Bankroll
+        // HERO: Bankroll
         if(document.getElementById('dash-hero')) {
             document.getElementById('dash-hero').innerText = fmt(bankroll);
-            // Turn red if negative
             document.getElementById('dash-hero').style.color = bankroll < 0 ? '#FF5252' : '#00FF41';
+        }
+
+        // NEW: PERIOD P/L (Inside the Card)
+        if(document.getElementById('dash-period')) {
+            const el = document.getElementById('dash-period');
+            const sign = periodTotal >= 0 ? '+' : '-';
+            el.innerText = sign + fmt(Math.abs(periodTotal));
+            el.style.color = periodTotal >= 0 ? '#00E676' : '#FF5252';
         }
 
         // GRID: Net Worth, Crypto, 401k
@@ -606,7 +619,7 @@ setTimeout(() => {
         if(document.getElementById('dash-crypto')) document.getElementById('dash-crypto').innerText = fmt(cryptoTotal);
         if(document.getElementById('dash-401k')) document.getElementById('dash-401k').innerText = fmt(retire);
 
-        // PROGRESS BAR (Color Changing Logic)
+        // PROGRESS BAR
         if(document.getElementById('dash-bar')) {
             const bar = document.getElementById('dash-bar');
             const pctText = document.getElementById('dash-pct');
@@ -615,85 +628,82 @@ setTimeout(() => {
             pctText.innerText = `${pct.toFixed(1)}%`;
             document.getElementById('dash-target').innerText = `Target: ${fmt(goal)}`;
 
-            // Dynamic Colors
+            // Color Logic
             if (pct < 25) {
-                // Red/Orange for low progress
                 bar.style.background = 'linear-gradient(90deg, #D50000, #FF5252)'; 
                 pctText.style.color = '#FF5252';
             } else if (pct < 75) {
-                // Yellow/Amber for mid progress
                 bar.style.background = 'linear-gradient(90deg, #FF6D00, #FFAB40)';
                 pctText.style.color = '#FFAB40';
             } else {
-                // Green for high progress
                 bar.style.background = 'linear-gradient(90deg, #00C853, #00E676)';
                 pctText.style.color = '#00E676';
             }
         }
 
-        // --- 3. RENDER LIST (Standard) ---
+        // --- 4. RENDER TRANSACTION LIST ---
         const list = document.getElementById('tx-list');
-        if (!list) return;
-        list.innerHTML = '';
-        
-        const filteredTxs = app.data.txs.filter(t => app.checkFilter(t));
-        const sorted = [...filteredTxs].sort((a, b) => new Date(b.date) - new Date(a.date));
-        
-        const periodTotal = filteredTxs.reduce((sum, t) => sum + t.amt, 0);
-        const periodEl = document.getElementById('period-profit');
-        if(periodEl) {
-            periodEl.innerText = (periodTotal >= 0 ? '+' : '-') + `$${Math.abs(Math.round(periodTotal)).toLocaleString()}`;
-            periodEl.style.color = periodTotal >= 0 ? 'var(--success)' : 'var(--error)';
+        if (list) {
+            list.innerHTML = '';
+            
+            // Note: We already calculated 'filteredTxs' and 'sorted' above in Step 2
+
+            // (Optional) Update the external period profit text if you still have it in HTML
+            const periodEl = document.getElementById('period-profit');
+            if(periodEl) {
+                periodEl.innerText = (periodTotal >= 0 ? '+' : '-') + `$${Math.abs(Math.round(periodTotal)).toLocaleString()}`;
+                periodEl.style.color = periodTotal >= 0 ? 'var(--success)' : 'var(--error)';
+            }
+
+            sorted.forEach(t => {
+                const div = document.createElement('div');
+                div.className = 'tx-item';
+                div.onclick = () => app.openModal(t);
+                const color = app.colors[t.cat] || '#FFF';
+                div.style.borderLeftColor = color;
+                
+                let iconCode = 'attach_money';
+                if (t.cat === 'pokerCash') iconCode = 'spades'; 
+                else {
+                    const iconMap = { job:'work', bets:'sports_football', sales:'sell', expenses:'receipt', dice:'casino', casino:'local_play', crypto:'currency_bitcoin', miscIncome:'savings', kalshi:'query_stats' };
+                    iconCode = iconMap[t.cat] || 'attach_money';
+                }
+
+                const tags = [];
+                const dateStr = new Date(t.date).toLocaleString('en-US', {month:'short', day:'numeric'});
+                let titleText = (t.desc && t.desc.trim() !== "") ? t.desc : app.catLabel(t.cat);
+
+                if (t.cat === 'bets' && t.details) {
+                    titleText = t.desc || "Bet";
+                    if(t.details.wager) tags.push(`$${t.details.wager}`);
+                    const w = t.details.won||0;
+                    const l = t.details.lost||0;
+                    const totalTickets = (t.details.tickets) ? t.details.tickets : (w + l);
+                    tags.push(`${w}/${totalTickets}`);
+                    if(t.details.book) tags.push(app.bookAbbr[t.details.book] || t.details.book);
+                    if(t.details.sport) tags.push(t.details.sport);
+                }
+                else if (t.cat === 'pokerCash' && t.details && t.details.dur) tags.push(`${t.details.dur}h`);
+                else if (t.cat === 'expenses' && t.details && t.details.sub) tags.push(t.details.sub.toUpperCase());
+                else if (t.cat === 'dice') tags.push('Dice');
+                else if (t.cat === 'casino') tags.push('Casino');
+
+                const tagHtml = tags.map(tag => `<span class="tx-tag">${tag}</span>`).join('');
+                const iconHtml = (t.cat === 'pokerCash') 
+                    ? `<div class="tx-icon" style="background:${color}20; color:${color}; font-family:serif;">♠</div>`
+                    : `<div class="tx-icon" style="background:${color}20; color:${color}"><i class="material-icons-round">${iconCode}</i></div>`;
+                const amtStr = `$${Math.abs(t.amt).toLocaleString()}`;
+
+                div.innerHTML = `
+                    ${iconHtml}
+                    <div class="tx-info"><div class="tx-title" style="color:${color}">${titleText}</div><div class="tx-meta"><span>${dateStr}</span>${tagHtml}</div></div>
+                    <div class="tx-amt ${t.amt < 0 ? 'neg' : 'pos'}">${amtStr}</div>
+                `;
+                list.appendChild(div);
+            });
         }
-
-        sorted.forEach(t => {
-            const div = document.createElement('div');
-            div.className = 'tx-item';
-            div.onclick = () => app.openModal(t);
-            const color = app.colors[t.cat] || '#FFF';
-            div.style.borderLeftColor = color;
-            
-            let iconCode = 'attach_money';
-            if (t.cat === 'pokerCash') iconCode = 'spades'; 
-            else {
-                const iconMap = { job:'work', bets:'sports_football', sales:'sell', expenses:'receipt', dice:'casino', casino:'local_play', crypto:'currency_bitcoin', miscIncome:'savings', kalshi:'query_stats' };
-                iconCode = iconMap[t.cat] || 'attach_money';
-            }
-
-            const tags = [];
-            const dateStr = new Date(t.date).toLocaleString('en-US', {month:'short', day:'numeric'});
-            let titleText = (t.desc && t.desc.trim() !== "") ? t.desc : app.catLabel(t.cat);
-
-            if (t.cat === 'bets' && t.details) {
-                titleText = t.desc || "Bet";
-                if(t.details.wager) tags.push(`$${t.details.wager}`);
-                const w = t.details.won||0;
-                const l = t.details.lost||0;
-                const totalTickets = (t.details.tickets) ? t.details.tickets : (w + l);
-                tags.push(`${w}/${totalTickets}`);
-                if(t.details.book) tags.push(app.bookAbbr[t.details.book] || t.details.book);
-                if(t.details.sport) tags.push(t.details.sport);
-            }
-            else if (t.cat === 'pokerCash' && t.details && t.details.dur) tags.push(`${t.details.dur}h`);
-            else if (t.cat === 'expenses' && t.details && t.details.sub) tags.push(t.details.sub.toUpperCase());
-            else if (t.cat === 'dice') tags.push('Dice');
-            else if (t.cat === 'casino') tags.push('Casino');
-
-            const tagHtml = tags.map(tag => `<span class="tx-tag">${tag}</span>`).join('');
-            const iconHtml = (t.cat === 'pokerCash') 
-                ? `<div class="tx-icon" style="background:${color}20; color:${color}; font-family:serif;">♠</div>`
-                : `<div class="tx-icon" style="background:${color}20; color:${color}"><i class="material-icons-round">${iconCode}</i></div>`;
-            
-            const amtStr = `$${Math.abs(t.amt).toLocaleString()}`;
-
-            div.innerHTML = `
-                ${iconHtml}
-                <div class="tx-info"><div class="tx-title" style="color:${color}">${titleText}</div><div class="tx-meta"><span>${dateStr}</span>${tagHtml}</div></div>
-                <div class="tx-amt ${t.amt < 0 ? 'neg' : 'pos'}">${amtStr}</div>
-            `;
-            list.appendChild(div);
-        });
     },
+
 
 
 
