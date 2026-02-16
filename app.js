@@ -9,7 +9,226 @@ const app = {
             if(document.getElementById('w-fee')) document.getElementById('w-fee').value = data.fastestFee;
         } catch(e) { alert("Fee Fetch Error"); }
     },
-    
+        // --- PARLAY ENGINE v2 (ADVANCED) ---
+    parlay: {
+        legs: [],
+        
+        // 1. UTILITIES
+        americanToDecimal: (odds) => {
+            if (odds >= 100) return (odds / 100) + 1;
+            if (odds <= -100) return (100 / Math.abs(odds)) + 1;
+            return 1.0;
+        },
+        decimalToAmerican: (dec) => {
+            if (dec < 1.01) return -10000;
+            if (dec >= 2.0) return (dec - 1) * 100;
+            return -100 / (dec - 1);
+        },
+
+        // 2. UI MANAGEMENT
+        addLegModal: () => {
+            document.getElementById('leg-name').value = '';
+            document.getElementById('leg-odds').value = '-110';
+            document.getElementById('leg-conf').value = '';
+            document.getElementById('leg-group-a').value = '';
+            document.getElementById('leg-group-b').value = '';
+            document.getElementById('modal-leg').style.display = 'flex';
+        },
+
+        saveLeg: () => {
+            const name = document.getElementById('leg-name').value || 'Untitled';
+            const odds = parseFloat(document.getElementById('leg-odds').value) || -110;
+            const groupA = document.getElementById('leg-group-a').value.trim();
+            const groupB = document.getElementById('leg-group-b').value.trim();
+            const confInput = parseFloat(document.getElementById('leg-conf').value) || 0;
+
+            const dec = app.parlay.americanToDecimal(odds);
+            const implied = 1 / dec;
+            const conf = confInput > 0 ? confInput : implied;
+
+            app.parlay.legs.push({
+                id: Date.now() + Math.random().toString(),
+                name: name,
+                odds: odds,
+                dec: dec,
+                groupA: groupA,
+                groupB: groupB,
+                conf: conf
+            });
+
+            document.getElementById('modal-leg').style.display = 'none';
+            app.parlay.renderLegs();
+        },
+
+        renderLegs: () => {
+            const div = document.getElementById('pe-legs-list');
+            document.getElementById('pe-leg-count').innerText = `${app.parlay.legs.length} Legs`;
+            
+            if(app.parlay.legs.length === 0) {
+                div.innerHTML = '<div style="text-align:center; color:#555; padding:10px;">No legs added.</div>';
+                return;
+            }
+
+            div.innerHTML = app.parlay.legs.map((l, i) => `
+                <div style="background:#111; border:1px solid #333; padding:8px; margin-bottom:5px; border-radius:4px; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-weight:bold; color:#fff;">${l.name}</div>
+                        <div style="font-size:0.65rem; color:#aaa;">
+                            ${l.odds} • ${(l.conf*100).toFixed(0)}% Win
+                            ${l.groupA ? `<span style="color:#FF5252; margin-left:4px;">⛔ ${l.groupA}</span>` : ''}
+                            ${l.groupB ? `<span style="color:#FFAB40; margin-left:4px;">🔗 ${l.groupB}</span>` : ''}
+                        </div>
+                    </div>
+                    <button onclick="app.parlay.removeLeg(${i})" style="color:red; background:none; border:none; cursor:pointer;">✕</button>
+                </div>
+            `).join('');
+        },
+
+        removeLeg: (i) => {
+            app.parlay.legs.splice(i, 1);
+            app.parlay.renderLegs();
+        },
+        
+        clearLegs: () => {
+            if(confirm("Clear all legs?")) {
+                app.parlay.legs = [];
+                app.parlay.renderLegs();
+                document.getElementById('pe-results').innerHTML = '';
+            }
+        },
+
+        // 3. THE ADVANCED ALGORITHM
+        generate: () => {
+            const legs = app.parlay.legs;
+            if(legs.length < 2) return alert("Need at least 2 legs.");
+
+            // Inputs
+            const bankroll = parseFloat(document.getElementById('pe-bankroll').value) || 1000;
+            const kellyFrac = parseFloat(document.getElementById('pe-kelly').value) || 0.25;
+            const minLegs = parseInt(document.getElementById('pe-min').value) || 2;
+            const maxLegs = parseInt(document.getElementById('pe-max').value) || 4;
+            const targetCount = parseInt(document.getElementById('pe-count').value) || 10;
+            const maxExposurePct = (parseFloat(document.getElementById('pe-exposure').value) || 50) / 100;
+            const strategyMix = (parseInt(document.getElementById('pe-strategy').value) || 30) / 100;
+
+            const resultsDiv = document.getElementById('pe-results');
+            resultsDiv.innerHTML = '<div style="text-align:center; color:#aaa;">Running Simulations...</div>';
+
+            // A. GENERATE POOL
+            const pool = [];
+            const uniqueHashes = new Set();
+            let attempts = 0;
+
+            // Try to find up to 2000 valid combos
+            while (pool.length < 2000 && attempts < 10000) {
+                attempts++;
+                const size = Math.floor(Math.random() * (maxLegs - minLegs + 1)) + minLegs;
+                const shuffled = [...legs].sort(() => 0.5 - Math.random());
+                
+                const combo = [];
+                const usedGroupA = new Set();
+                const usedGroupB = new Set();
+
+                for(let leg of shuffled) {
+                    if (combo.length >= size) break;
+
+                    // CHECK CONFLICTS
+                    if (leg.groupA && usedGroupA.has(leg.groupA)) continue; // Conflict A
+                    if (leg.groupB && usedGroupB.has(leg.groupB)) continue; // Conflict B
+
+                    combo.push(leg);
+                    if(leg.groupA) usedGroupA.add(leg.groupA);
+                    if(leg.groupB) usedGroupB.add(leg.groupB);
+                }
+
+                if(combo.length < minLegs) continue;
+
+                // Unique ID
+                combo.sort((a,b) => a.id > b.id ? 1 : -1);
+                const hash = combo.map(c => c.id).join('|');
+                if(uniqueHashes.has(hash)) continue;
+                uniqueHashes.add(hash);
+
+                // Math
+                const totalDec = combo.reduce((acc, l) => acc * l.dec, 1);
+                const trueProb = combo.reduce((acc, l) => acc * l.conf, 1);
+                
+                // Kelly
+                const b = totalDec - 1;
+                const p = trueProb;
+                const q = 1 - p;
+                let f = ((b * p) - q) / b;
+                const wager = Math.max(0, bankroll * (f * kellyFrac));
+                const ev = (p * (totalDec * wager - wager)) - (q * wager);
+
+                if(ev > 0 && wager > 0) {
+                    pool.push({ legs: combo, odds: totalDec, prob: trueProb, wager, ev, payout: wager * totalDec });
+                }
+            }
+
+            // B. SELECTION (Greedy + Random Mix + Exposure Cap)
+            pool.sort((a, b) => b.ev - a.ev); // Best first
+
+            const finalPortfolio = [];
+            const legCounts = {};
+
+            const canAdd = (bet) => {
+                for(let l of bet.legs) {
+                    const currentCount = legCounts[l.id] || 0;
+                    if ((currentCount + 1) / targetCount > maxExposurePct) return false;
+                }
+                return true;
+            };
+
+            const commit = (bet) => {
+                finalPortfolio.push(bet);
+                for(let l of bet.legs) legCounts[l.id] = (legCounts[l.id] || 0) + 1;
+            };
+
+            // 1. Greedy Pass
+            const greedyTarget = Math.floor(targetCount * (1 - strategyMix));
+            for (let i = 0; i < pool.length; i++) {
+                if (finalPortfolio.length >= greedyTarget) break;
+                if (canAdd(pool[i])) commit(pool[i]);
+            }
+
+            // 2. Random/Diversity Pass
+            const remainingPool = pool.filter(p => !finalPortfolio.includes(p));
+            remainingPool.sort(() => 0.5 - Math.random()); // Shuffle
+            for (let i = 0; i < remainingPool.length; i++) {
+                if (finalPortfolio.length >= targetCount) break;
+                if (canAdd(remainingPool[i])) commit(remainingPool[i]);
+            }
+
+            // C. RENDER
+            resultsDiv.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; margin-top:20px;">
+                    <h3>${finalPortfolio.length} TICKETS GENERATED</h3>
+                </div>
+            ` + finalPortfolio.map((t, i) => {
+                const amer = app.parlay.decimalToAmerican(t.odds);
+                const oddsStr = amer > 0 ? `+${amer.toFixed(0)}` : amer.toFixed(0);
+                
+                return `
+                <div class="card" style="border-left: 4px solid #00FF41; margin-bottom:10px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <span style="font-weight:bold; color:#00FF41;">TICKET #${i+1}</span>
+                        <span style="font-weight:bold; color:#fff;">${oddsStr}</span>
+                    </div>
+                    <div style="font-size:0.8rem; color:#ccc; margin-bottom:8px;">
+                        ${t.legs.map(l => l.name).join(' + ')}
+                    </div>
+                    <div style="background:#111; padding:5px; border-radius:4px; font-size:0.75rem; display:flex; justify-content:space-between;">
+                        <span>Bet: <b style="color:#fff">$${t.wager.toFixed(2)}</b></span>
+                        <span>Pay: <b style="color:#00E676">$${t.payout.toFixed(2)}</b></span>
+                        <span>EV: <b style="color:#00FF41">$${t.ev.toFixed(2)}</b></span>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+    },
+
         // --- UNIVERSAL COLLAPSER ---
     // Automatically turns every Card in 'view-tools' into a collapsible folder
     setupCollapsibles: () => {
@@ -333,20 +552,44 @@ setTimeout(() => {
         }
     },
 
-    render: () => {
-        const list = document.getElementById('tx-list');
-        list.innerHTML = '';
-        const allTimeTotal = app.data.txs.reduce((sum, t) => sum + t.amt, 0);
-        document.getElementById('total-liquidity').innerText = `$${Math.round(allTimeTotal).toLocaleString()}`;
-        document.getElementById('total-liquidity').className = `big-val ${allTimeTotal < 0 ? 'neg' : ''}`;
+        render: () => {
+        // 1. GET VALUES
+        const bankroll = parseFloat(localStorage.getItem('bankroll')) || 0;
+        const retire = parseFloat(localStorage.getItem('401k')) || 0;
+        const goal = parseFloat(localStorage.getItem('goal')) || 100000;
         
-        const goal = app.data.goal || 10000;
-        const pct = Math.min(100, Math.max(0, (allTimeTotal / goal) * 100));
-        document.getElementById('goal-current').innerText = `$${Math.round(allTimeTotal).toLocaleString()}`;
-        document.getElementById('goal-target').innerText = `/ $${goal.toLocaleString()}`;
-        document.getElementById('goal-bar').style.width = `${pct}%`;
-        document.getElementById('goal-pct').innerText = `${pct.toFixed(1)}% Completed`;
+        // 2. CALCULATE CRYPTO (Live Value)
+        const btcQty = parseFloat(localStorage.getItem('btc_qty')) || 0;
+        const ethQty = parseFloat(localStorage.getItem('eth_qty')) || 0;
+        const btcPrice = app.prices ? (app.prices.btc || 0) : 0;
+        const ethPrice = app.prices ? (app.prices.eth || 0) : 0;
+        
+        const cryptoTotal = (btcQty * btcPrice) + (ethQty * ethPrice);
 
+        // 3. TOTAL NET WORTH
+        const netWorth = bankroll + retire + cryptoTotal;
+
+        // 4. UPDATE DASHBOARD CARD
+        // Hero Total
+        if(document.getElementById('dash-total')) {
+            document.getElementById('dash-total').innerText = app.formatMoney(netWorth);
+        }
+        
+        // Breakdown
+        if(document.getElementById('dash-bankroll')) document.getElementById('dash-bankroll').innerText = app.formatMoney(bankroll);
+        if(document.getElementById('dash-crypto')) document.getElementById('dash-crypto').innerText = app.formatMoney(cryptoTotal);
+        if(document.getElementById('dash-401k')) document.getElementById('dash-401k').innerText = app.formatMoney(retire);
+
+        // Progress Bar
+        const pct = Math.min(100, (netWorth / goal) * 100);
+        if(document.getElementById('dash-bar')) {
+            document.getElementById('dash-bar').style.width = `${pct}%`;
+            document.getElementById('dash-pct').innerText = `${pct.toFixed(1)}% COMPLETE`;
+            document.getElementById('dash-target').innerText = `GOAL: ${app.formatMoney(goal)}`;
+        }
+
+        // ... (Rest of your render function for transactions, charts, etc.) ...
+        
         const filteredTxs = app.data.txs.filter(t => app.checkFilter(t));
         const periodTotal = filteredTxs.reduce((sum, t) => sum + t.amt, 0);
         const periodEl = document.getElementById('period-profit');

@@ -289,6 +289,46 @@
             <h1>BANKROLL OS</h1>
             <button onclick="app.openSettings()" style="background:none; border:none; color:var(--sub);"><i class="material-icons-round" style="font-size:20px;">settings</i></button>
         </div>
+<div class="card" style="background:linear-gradient(135deg, #1a1c24 0%, #0e1117 100%); border:1px solid #333; padding:20px; margin-bottom:15px; position:relative; overflow:hidden;">
+    
+    <button onclick="app.editGoal()" style="position:absolute; top:15px; right:15px; background:rgba(255,255,255,0.05); border:none; padding:8px; border-radius:50%; cursor:pointer;">
+        <i class="material-icons-round" style="font-size:1.2rem; color:#aaa;">settings</i>
+    </button>
+
+    <div style="margin-bottom:20px;">
+        <div style="font-size:0.75rem; color:#777; letter-spacing:1.5px; margin-bottom:5px;">TOTAL NET WORTH</div>
+        <div id="dash-total" style="font-size:2.2rem; font-weight:bold; color:#fff; letter-spacing:-1px;">$0.00</div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:20px; border-top:1px solid #333; border-bottom:1px solid #333; padding:15px 0;">
+        
+        <div style="text-align:center;">
+            <div style="font-size:0.65rem; color:#aaa; margin-bottom:2px;">BANKROLL</div>
+            <div id="dash-bankroll" style="font-size:0.9rem; color:#00FF41; font-weight:bold;">$0</div>
+        </div>
+
+        <div style="text-align:center; border-left:1px solid #333; border-right:1px solid #333;">
+            <div style="font-size:0.65rem; color:#aaa; margin-bottom:2px;">CRYPTO</div>
+            <div id="dash-crypto" style="font-size:0.9rem; color:#b388ff; font-weight:bold;">$0</div>
+        </div>
+
+        <div style="text-align:center;">
+            <div style="font-size:0.65rem; color:#aaa; margin-bottom:2px;">401K</div>
+            <div id="dash-401k" style="font-size:0.9rem; color:#fff; font-weight:bold;">$0</div>
+        </div>
+    </div>
+
+    <div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span id="dash-pct" style="font-size:0.7rem; color:#00FF41; font-weight:bold;">0%</span>
+            <span id="dash-target" style="font-size:0.7rem; color:#555;">Target: $100k</span>
+        </div>
+        <div style="height:6px; background:#222; border-radius:10px; overflow:hidden;">
+            <div id="dash-bar" style="height:100%; width:0%; background:linear-gradient(90deg, #00FF41, #00E676); box-shadow: 0 0 10px rgba(0,255,65,0.3); transition: width 1s ease;"></div>
+        </div>
+    </div>
+</div>
+
 
         <div class="filter-bar">
             <div class="filter-row-top">
@@ -1206,6 +1246,108 @@
                 <button class="btn btn-primary" style="margin-top:10px;" onclick="app.liveFinish()">CASH OUT</button>
             </div>
         </div>
+        <div id="view-parlay" class="view-section" style="display:none;">
+    
+    <div class="card">
+        <h2 style="color:#00FF41; border-bottom:1px solid #333; padding-bottom:10px; margin-bottom:15px;">PARLAY GENERATOR v2</h2>
+        
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+                <label>Bankroll ($)</label>
+                <input type="number" id="pe-bankroll" value="1000">
+            </div>
+            <div>
+                <label>Kelly Frac (0.1-1.0)</label>
+                <input type="number" id="pe-kelly" value="0.25" step="0.05">
+            </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+                <label>Min Legs</label>
+                <input type="number" id="pe-min" value="2">
+            </div>
+            <div>
+                <label>Max Legs</label>
+                <input type="number" id="pe-max" value="4">
+            </div>
+            <div>
+                <label>Tickets</label>
+                <input type="number" id="pe-count" value="10">
+            </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
+            <div>
+                <label>Max Exposure %</label>
+                <input type="number" id="pe-exposure" value="50">
+                <div style="font-size:0.65rem; color:#777;">Max % of tickets a leg can be in.</div>
+            </div>
+            <div>
+                <label>Strategy Mix</label>
+                <input type="range" id="pe-strategy" min="0" max="100" value="30">
+                <div style="display:flex; justify-content:space-between; font-size:0.65rem; color:#777;">
+                    <span>Best EV</span>
+                    <span>Random</span>
+                </div>
+            </div>
+        </div>
+        
+        <div style="display:flex; gap:10px;">
+            <button class="btn" onclick="app.parlay.addLegModal()">+ ADD LEG</button>
+            <button class="btn btn-sec" onclick="app.parlay.generate()">GENERATE</button>
+            <button class="btn btn-sec" onclick="app.parlay.clearLegs()" style="background:#333; width:auto;">🗑</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3>AVAILABLE LEGS</h3>
+            <span id="pe-leg-count" style="color:var(--sub); font-size:0.8rem;">0 Legs</span>
+        </div>
+        <div id="pe-legs-list" style="max-height:200px; overflow-y:auto; margin-top:10px;">
+            <div style="text-align:center; color:var(--sub); padding:10px;">No legs added.</div>
+        </div>
+    </div>
+
+    <div id="pe-results"></div>
+</div>
+
+<div id="modal-leg" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; justify-content:center; align-items:center;">
+    <div class="card" style="width:90%; max-width:400px; border:1px solid #00FF41; box-shadow: 0 0 20px rgba(0,255,65,0.2);">
+        <h3>ADD LEG</h3>
+        
+        <label>Name</label>
+        <input type="text" id="leg-name" placeholder="e.g. Travis Kelce TD">
+        
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap:10px;">
+            <div>
+                <label>Odds (Amer)</label>
+                <input type="number" id="leg-odds" value="-110">
+            </div>
+            <div>
+                <label>Conf (0-1.0)</label>
+                <input type="number" id="leg-conf" placeholder="Auto">
+            </div>
+        </div>
+        
+        <div style="background:#222; padding:10px; border-radius:4px; margin-top:10px; border:1px dashed #444;">
+            <label style="color:#FF5252; font-size:0.8rem;">⛔ GROUP A (Impossible)</label>
+            <div style="font-size:0.65rem; color:#aaa; margin-bottom:4px;">Cannot happen together (e.g. KC Win vs BAL Win)</div>
+            <input type="text" id="leg-group-a" placeholder="e.g. GAME_WINNER">
+
+            <label style="color:#FFAB40; font-size:0.8rem; margin-top:10px;">🔗 GROUP B (Ladder)</label>
+            <div style="font-size:0.65rem; color:#aaa; margin-bottom:4px;">Don't put in same bet (e.g. Kelce 1 TD vs Kelce 2 TDs)</div>
+            <input type="text" id="leg-group-b" placeholder="e.g. KELCE_PROPS">
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:15px;">
+            <button class="btn" onclick="app.parlay.saveLeg()">SAVE LEG</button>
+            <button class="btn btn-sec" onclick="document.getElementById('modal-leg').style.display='none'">CANCEL</button>
+        </div>
+    </div>
+</div>
+
 
         <nav class="nav">
             <button class="nav-item active" id="nav-dash" onclick="app.nav('dash')"><i class="material-icons-round">dashboard</i>Dash</button>
@@ -1213,6 +1355,10 @@
             <button class="nav-item" id="nav-crypto" onclick="app.nav('crypto')"><i class="material-icons-round">currency_bitcoin</i>Crypto</button>
             <button class="nav-item" id="nav-stats" onclick="app.nav('stats')"><i class="material-icons-round">bar_chart</i>Stats</button>
             <button class="nav-item" id="nav-tools" onclick="app.nav('tools')"><i class="material-icons-round">build</i>Tools</button>
+            <button class="nav-btn" onclick="app.switchView('view-parlay')">
+    <i class="material-icons-round">flash_on</i>
+    <span>ENGINE</span>
+</button>
         </nav>
         <button class="fab" onclick="app.openModal()">+</button>
     </div> <script src="app.js"></script>
