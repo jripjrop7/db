@@ -574,74 +574,85 @@ setTimeout(() => {
     },
 
         render: () => {
-        // ... (Keep existing variable setup) ...
-        const bankroll = parseFloat(localStorage.getItem('bankroll')) || 0;
-        const retire = parseFloat(localStorage.getItem('401k')) || 0;
-        const goal = parseFloat(localStorage.getItem('goal')) || 100000;
+        // --- 1. CALCULATE GLOBAL TOTALS (For the Header Card) ---
         
-        // Calculate Crypto Total (Live)
-        const btc = (parseFloat(localStorage.getItem('btc_qty')) || 0) * (app.prices.btc || 0);
-        const eth = (parseFloat(localStorage.getItem('eth_qty')) || 0) * (app.prices.eth || 0);
-        const cryptoTotal = btc + eth;
+        // A. Bankroll (Sum of ALL transactions)
+        const totalBankroll = app.data.txs.reduce((sum, t) => sum + t.amt, 0);
 
-        const totalAssets = bankroll + retire + cryptoTotal;
+        // B. 401k (Sum of ALL 'k401' entries, regardless of filter)
+        const total401k = app.data.txs.reduce((sum, t) => {
+            if(t.cat === 'job' && t.details && t.details.k401) return sum + parseFloat(t.details.k401);
+            return sum;
+        }, 0);
 
-        // --- UPDATE NEW STICKY HEADER ---
-        document.getElementById('total-assets').innerText = app.formatMoney(totalAssets);
-        document.getElementById('bankroll-display').innerText = app.formatMoney(bankroll);
-        document.getElementById('401k-display').innerText = app.formatMoney(retire);
+        // C. Crypto (Live Value: BTC + ETH)
+        // Checks if app.prices exists to prevent errors
+        const btcPrice = (app.prices && app.prices.btc) ? app.prices.btc : 0;
+        const ethPrice = (app.prices && app.prices.eth) ? app.prices.eth : 0;
+        const btcVal = (parseFloat(localStorage.getItem('btc_qty')) || 0) * btcPrice;
+        const ethVal = (parseFloat(localStorage.getItem('eth_qty')) || 0) * ethPrice;
+        const totalCrypto = btcVal + ethVal;
+
+        // D. Net Worth & Goal Progress
+        const netWorth = totalBankroll + total401k + totalCrypto;
+        const goal = app.data.goal || 100000;
+        const pct = Math.min(100, Math.max(0, (netWorth / goal) * 100));
+
+        // --- 2. UPDATE THE NEW MASTER CARD ---
         
-        // Update the new Crypto box in header
-        const cryptoHeader = document.getElementById('crypto-total-header');
-        if(cryptoHeader) cryptoHeader.innerText = app.formatMoney(cryptoTotal);
+        // Helper to format money cleanly (e.g. $1,200)
+        const fmt = (n) => `$${Math.round(n).toLocaleString()}`;
 
-        // Update Goal Bar
-        const pct = Math.min(100, (totalAssets / goal) * 100);
-        document.getElementById('goal-bar').style.width = `${pct}%`;
-        document.getElementById('goal-progress-text').innerText = `${pct.toFixed(1)}% Complete`;
-        document.getElementById('goal-target-text').innerText = `Target: ${app.formatMoney(goal)}`;
+        // Update Text Values
+        if(document.getElementById('dash-total')) document.getElementById('dash-total').innerText = fmt(netWorth);
+        if(document.getElementById('dash-bankroll')) document.getElementById('dash-bankroll').innerText = fmt(totalBankroll);
+        if(document.getElementById('dash-crypto')) document.getElementById('dash-crypto').innerText = fmt(totalCrypto);
+        if(document.getElementById('dash-401k')) document.getElementById('dash-401k').innerText = fmt(total401k);
 
-        // ... (Rest of your render function, chart updates, etc.) ...
-    },
+        // Update Progress Bar
+        if(document.getElementById('dash-bar')) {
+            document.getElementById('dash-bar').style.width = `${pct}%`;
+            document.getElementById('dash-pct').innerText = `${pct.toFixed(1)}%`;
+            document.getElementById('dash-target').innerText = `Target: ${fmt(goal)}`;
+        }
 
+        // --- 3. RENDER TRANSACTION LIST (Existing Logic) ---
+        
         const list = document.getElementById('tx-list');
         list.innerHTML = '';
-        const allTimeTotal = app.data.txs.reduce((sum, t) => sum + t.amt, 0);
-        document.getElementById('total-liquidity').innerText = `$${Math.round(allTimeTotal).toLocaleString()}`;
-        document.getElementById('total-liquidity').className = `big-val ${allTimeTotal < 0 ? 'neg' : ''}`;
         
-        const goal = app.data.goal || 10000;
-        const pct = Math.min(100, Math.max(0, (allTimeTotal / goal) * 100));
-        document.getElementById('goal-current').innerText = `$${Math.round(allTimeTotal).toLocaleString()}`;
-        document.getElementById('goal-target').innerText = `/ $${goal.toLocaleString()}`;
-        document.getElementById('goal-bar').style.width = `${pct}%`;
-        document.getElementById('goal-pct').innerText = `${pct.toFixed(1)}% Completed`;
-
+        // Filter transactions based on current view/search
         const filteredTxs = app.data.txs.filter(t => app.checkFilter(t));
+        
+        // Update "Period Profit" (The small +/- number above the list)
         const periodTotal = filteredTxs.reduce((sum, t) => sum + t.amt, 0);
         const periodEl = document.getElementById('period-profit');
-        periodEl.innerText = (periodTotal >= 0 ? '+' : '-') + `$${Math.abs(Math.round(periodTotal)).toLocaleString()}`;
-        periodEl.style.color = periodTotal >= 0 ? 'var(--success)' : 'var(--error)';
+        if(periodEl) {
+            periodEl.innerText = (periodTotal >= 0 ? '+' : '-') + `$${Math.abs(Math.round(periodTotal)).toLocaleString()}`;
+            periodEl.style.color = periodTotal >= 0 ? 'var(--success)' : 'var(--error)';
+        }
+
+        // Sort by Date (Newest first)
         const sorted = [...filteredTxs].sort((a, b) => new Date(b.date) - new Date(a.date));
-        let k401 = 0; 
         
         sorted.forEach(t => {
-            if(t.cat === 'job' && t.details && t.details.k401) k401 += parseFloat(t.details.k401);
             const div = document.createElement('div');
             div.className = 'tx-item';
             div.onclick = () => app.openModal(t);
             const color = app.colors[t.cat] || '#FFF';
             div.style.borderLeftColor = color;
             
+            // Icon Selection
             let iconCode = 'attach_money';
             if (t.cat === 'pokerCash') iconCode = 'spades'; 
             else {
                 const iconMap = { job:'work', bets:'sports_football', sales:'sell', expenses:'receipt', dice:'casino', casino:'local_play', crypto:'currency_bitcoin', miscIncome:'savings', kalshi:'query_stats' };
                 iconCode = iconMap[t.cat] || 'attach_money';
             }
+
+            // Tag Generation (Preserved exact logic)
             const tags = [];
             const dateStr = new Date(t.date).toLocaleString('en-US', {month:'short', day:'numeric'});
-            
             let titleText = (t.desc && t.desc.trim() !== "") ? t.desc : app.catLabel(t.cat);
 
             if (t.cat === 'bets' && t.details) {
@@ -651,9 +662,7 @@ setTimeout(() => {
                 const l = t.details.lost||0;
                 const totalTickets = (t.details.tickets) ? t.details.tickets : (w + l);
                 tags.push(`${w}/${totalTickets}`);
-                if(t.details.book) {
-                    tags.push(app.bookAbbr[t.details.book] || t.details.book);
-                }
+                if(t.details.book) tags.push(app.bookAbbr[t.details.book] || t.details.book);
                 if(t.details.sport) tags.push(t.details.sport);
             }
             else if (t.cat === 'pokerCash' && t.details && t.details.dur) tags.push(`${t.details.dur}h`);
@@ -662,6 +671,8 @@ setTimeout(() => {
             else if (t.cat === 'casino') tags.push('Casino');
 
             const tagHtml = tags.map(tag => `<span class="tx-tag">${tag}</span>`).join('');
+            
+            // Icon HTML
             const iconHtml = (t.cat === 'pokerCash') 
                 ? `<div class="tx-icon" style="background:${color}20; color:${color}; font-family:serif;">♠</div>`
                 : `<div class="tx-icon" style="background:${color}20; color:${color}"><i class="material-icons-round">${iconCode}</i></div>`;
@@ -675,8 +686,9 @@ setTimeout(() => {
             `;
             list.appendChild(div);
         });
-        document.getElementById('401k-mini').innerText = `$${Math.round(k401).toLocaleString()}`;
     },
+
+
 
     renderTickets: () => { 
         const div = document.getElementById('ticket-list'); 
