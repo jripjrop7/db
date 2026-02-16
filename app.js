@@ -9,6 +9,27 @@ const app = {
             if(document.getElementById('w-fee')) document.getElementById('w-fee').value = data.fastestFee;
         } catch(e) { alert("Fee Fetch Error"); }
     },
+    
+        // --- UNIVERSAL NAVIGATION ---
+    nav: (page) => {
+        // 1. Hide ALL view sections
+        document.querySelectorAll('.view-section').forEach(el => el.style.display = 'none');
+        
+        // 2. Remove 'active' class from ALL nav buttons
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
+        // 3. Show the SPECIFIC view (e.g. view-parlay)
+        const targetView = document.getElementById('view-' + page);
+        if (targetView) targetView.style.display = 'block';
+
+        // 4. Highlight the SPECIFIC button (e.g. nav-parlay)
+        const targetBtn = document.getElementById('nav-' + page);
+        if (targetBtn) targetBtn.classList.add('active');
+        
+        // 5. Scroll to top for a clean feel
+        window.scrollTo(0,0);
+    },
+
         // --- PARLAY ENGINE v2 (ADVANCED) ---
     parlay: {
         legs: [],
@@ -552,44 +573,20 @@ setTimeout(() => {
         }
     },
 
-        render: () => {
-        // 1. GET VALUES
-        const bankroll = parseFloat(localStorage.getItem('bankroll')) || 0;
-        const retire = parseFloat(localStorage.getItem('401k')) || 0;
-        const goal = parseFloat(localStorage.getItem('goal')) || 100000;
+    render: () => {
+        const list = document.getElementById('tx-list');
+        list.innerHTML = '';
+        const allTimeTotal = app.data.txs.reduce((sum, t) => sum + t.amt, 0);
+        document.getElementById('total-liquidity').innerText = `$${Math.round(allTimeTotal).toLocaleString()}`;
+        document.getElementById('total-liquidity').className = `big-val ${allTimeTotal < 0 ? 'neg' : ''}`;
         
-        // 2. CALCULATE CRYPTO (Live Value)
-        const btcQty = parseFloat(localStorage.getItem('btc_qty')) || 0;
-        const ethQty = parseFloat(localStorage.getItem('eth_qty')) || 0;
-        const btcPrice = app.prices ? (app.prices.btc || 0) : 0;
-        const ethPrice = app.prices ? (app.prices.eth || 0) : 0;
-        
-        const cryptoTotal = (btcQty * btcPrice) + (ethQty * ethPrice);
+        const goal = app.data.goal || 10000;
+        const pct = Math.min(100, Math.max(0, (allTimeTotal / goal) * 100));
+        document.getElementById('goal-current').innerText = `$${Math.round(allTimeTotal).toLocaleString()}`;
+        document.getElementById('goal-target').innerText = `/ $${goal.toLocaleString()}`;
+        document.getElementById('goal-bar').style.width = `${pct}%`;
+        document.getElementById('goal-pct').innerText = `${pct.toFixed(1)}% Completed`;
 
-        // 3. TOTAL NET WORTH
-        const netWorth = bankroll + retire + cryptoTotal;
-
-        // 4. UPDATE DASHBOARD CARD
-        // Hero Total
-        if(document.getElementById('dash-total')) {
-            document.getElementById('dash-total').innerText = app.formatMoney(netWorth);
-        }
-        
-        // Breakdown
-        if(document.getElementById('dash-bankroll')) document.getElementById('dash-bankroll').innerText = app.formatMoney(bankroll);
-        if(document.getElementById('dash-crypto')) document.getElementById('dash-crypto').innerText = app.formatMoney(cryptoTotal);
-        if(document.getElementById('dash-401k')) document.getElementById('dash-401k').innerText = app.formatMoney(retire);
-
-        // Progress Bar
-        const pct = Math.min(100, (netWorth / goal) * 100);
-        if(document.getElementById('dash-bar')) {
-            document.getElementById('dash-bar').style.width = `${pct}%`;
-            document.getElementById('dash-pct').innerText = `${pct.toFixed(1)}% COMPLETE`;
-            document.getElementById('dash-target').innerText = `GOAL: ${app.formatMoney(goal)}`;
-        }
-
-        // ... (Rest of your render function for transactions, charts, etc.) ...
-        
         const filteredTxs = app.data.txs.filter(t => app.checkFilter(t));
         const periodTotal = filteredTxs.reduce((sum, t) => sum + t.amt, 0);
         const periodEl = document.getElementById('period-profit');
