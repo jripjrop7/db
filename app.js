@@ -573,7 +573,37 @@ setTimeout(() => {
         }
     },
 
-    render: () => {
+        render: () => {
+        // ... (Keep existing variable setup) ...
+        const bankroll = parseFloat(localStorage.getItem('bankroll')) || 0;
+        const retire = parseFloat(localStorage.getItem('401k')) || 0;
+        const goal = parseFloat(localStorage.getItem('goal')) || 100000;
+        
+        // Calculate Crypto Total (Live)
+        const btc = (parseFloat(localStorage.getItem('btc_qty')) || 0) * (app.prices.btc || 0);
+        const eth = (parseFloat(localStorage.getItem('eth_qty')) || 0) * (app.prices.eth || 0);
+        const cryptoTotal = btc + eth;
+
+        const totalAssets = bankroll + retire + cryptoTotal;
+
+        // --- UPDATE NEW STICKY HEADER ---
+        document.getElementById('total-assets').innerText = app.formatMoney(totalAssets);
+        document.getElementById('bankroll-display').innerText = app.formatMoney(bankroll);
+        document.getElementById('401k-display').innerText = app.formatMoney(retire);
+        
+        // Update the new Crypto box in header
+        const cryptoHeader = document.getElementById('crypto-total-header');
+        if(cryptoHeader) cryptoHeader.innerText = app.formatMoney(cryptoTotal);
+
+        // Update Goal Bar
+        const pct = Math.min(100, (totalAssets / goal) * 100);
+        document.getElementById('goal-bar').style.width = `${pct}%`;
+        document.getElementById('goal-progress-text').innerText = `${pct.toFixed(1)}% Complete`;
+        document.getElementById('goal-target-text').innerText = `Target: ${app.formatMoney(goal)}`;
+
+        // ... (Rest of your render function, chart updates, etc.) ...
+    },
+
         const list = document.getElementById('tx-list');
         list.innerHTML = '';
         const allTimeTotal = app.data.txs.reduce((sum, t) => sum + t.amt, 0);
