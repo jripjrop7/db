@@ -572,7 +572,26 @@ setTimeout(() => {
             document.getElementById('modal-goal').classList.remove('open');
         }
     },
+   // --- SETTINGS POPUP ---
+    editGoal: () => {
+        const currentGoal = localStorage.getItem('goal') || 100000;
+        const current401k = localStorage.getItem('401k') || 0;
 
+        // 1. Ask for Goal
+        const newGoal = prompt("Set your Net Worth Goal ($):", currentGoal);
+        if (newGoal !== null) {
+            localStorage.setItem('goal', parseFloat(newGoal));
+            
+            // 2. Ask for 401k Balance
+            const newRetire = prompt("Update 401k/Retirement Balance ($):", current401k);
+            if (newRetire !== null) {
+                localStorage.setItem('401k', parseFloat(newRetire));
+            }
+            
+            // 3. FORCE REFRESH
+            app.render(); 
+        }
+    }, // <--- Add a comma here too if there is code below it
                 render: () => {
         // --- 1. CALCULATE GLOBAL VALUES ---
         const bankroll = app.data.txs.reduce((sum, t) => sum + t.amt, 0);
