@@ -315,8 +315,6 @@
         <div id="view-dash" class="container">
         <div class="card" style="background:linear-gradient(135deg, #1a1c24 0%, #0e1117 100%); border:1px solid #333; padding:20px; margin-bottom:15px; position:relative; overflow:hidden;">
     
-    <div class="card" style="background:linear-gradient(135deg, #1a1c24 0%, #0e1117 100%); border:1px solid #333; padding:20px; margin-bottom:15px; position:relative; overflow:hidden;">
-    
     <button onclick="app.editGoal()" style="position:absolute; top:15px; right:15px; background:rgba(255,255,255,0.05); border:none; padding:8px; border-radius:50%; cursor:pointer; z-index:10;">
         <i class="material-icons-round" style="font-size:1.2rem; color:#aaa;">settings</i>
     </button>
@@ -355,6 +353,37 @@
     </div>
 </div>
 
+
+
+            <div class="card" id="goal-card">
+                <div class="row">
+                    <h2 style="margin:0;" id="goal-label">BANKROLL GOAL</h2>
+                    <button onclick="app.openGoalModal()" style="background:none; border:none; color:var(--sub); font-size:16px;"><i class="material-icons-round">edit</i></button>
+                </div>
+                <div class="row" style="margin-top:8px;">
+                    <span style="font-size:0.8rem; color:#fff;" id="goal-current">$0</span>
+                    <span style="font-size:0.8rem; color:var(--sub);" id="goal-target">/ $10,000</span>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar" id="goal-bar"></div>
+                </div>
+                <div style="text-align:right; font-size:0.6rem; color:var(--primary); margin-top:4px;" id="goal-pct">0%</div>
+            </div>
+
+            <div class="card">
+                <h2 style="margin-bottom:5px;">NET LIQUIDITY (TOTAL)</h2>
+                <div class="big-val" id="total-liquidity">$0.00</div>
+                <div style="margin-top: 15px; border-top: 1px solid #333; padding-top: 10px;">
+                    <div class="row">
+                        <span style="font-size:0.8rem; color:var(--sub); text-transform:uppercase;">Period P/L</span>
+                        <span id="period-profit" class="sub-val">$0.00</span>
+                    </div>
+                </div>
+                <div class="row" style="margin-top: 10px;">
+                    <div><span style="font-size:0.7rem; color:var(--crypto);">CRYPTO</span> <span id="crypto-mini" style="font-weight:bold;">$0</span></div>
+                    <div><span style="font-size:0.7rem; color:var(--job);">401K</span> <span id="401k-mini" style="font-weight:bold;">$0</span></div>
+                </div>
+            </div>
             <div id="tx-list"></div>
         </div>
 
