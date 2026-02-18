@@ -1,77 +1,112 @@
 require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
-const bodyParser = require('body-parser');
-
+const crypto = require('crypto');
 const app = express();
+
+// ==========================================
+// 🔐 CONFIGURATION
+// ==========================================
 const PORT = process.env.PORT || 3000;
+const BASE_URL = 'https://api.elections.kalshi.com/trade-api/v2'; // Use this for REAL money
+// const BASE_URL = 'https://demo-api.kalshi.co/trade-api/v2'; // Use this for DEMO
 
-// 1. SERVE YOUR EXISTING APP
-// This line makes your 'public' folder (index.html, app.js) visible on the web
-app.use(express.static('public'));
-app.use(bodyParser.json());
+// FIX: Sometimes Replit squashes the key into one line. This fixes it.
+const RAW_KEY = process.env.KALSHI_PRIVATE_KEY || "";
+const PRIVATE_KEY = RAW_KEY.replace(/\\n/g, '\n'); 
+const KEY_ID = process.env.KALSHI_KEY_ID;
 
-// 2. KALSHI CONFIGURATION
-const KALSHI_API = 'https://api.elections.kalshi.com/trade-api/v2'; // or demo-api
-let token = null;
+// ==========================================
+// 🧠 THE "SIGNING" BRAIN (The Complex Part)
+// ==========================================
+function getHeaders(method, path) {
+    if (!PRIVATE_KEY || !KEY_ID) {
+        console.error("❌ MISSING KEYS: Check your Replit Secrets!");
+        return {};
+    }
 
-// 3. LOGIN FUNCTION
-async function login() {
+    const timestamp = Date.now().toString();
+    
+    // 1. Create the string to sign: Timestamp + Method + Path
+    // (Example: "1700000000000GET/trade-api/v2/portfolio/balance")
+    const msgString = timestamp + method + path;
+
+    // 2. Sign it using your Private Key (SHA-256)
+    const sign = crypto.createSign('SHA256');
+    sign.update(msgString);
+    sign.end();
+    const signature = sign.sign({
+        key: PRIVATE_KEY,
+        padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+        saltLength: crypto.constants.RSA_PSS_SALTLENGTH_DIGEST
+    }).toString('base64');
+
+    // 3. Return the headers Kalshi needs
+    return {
+        'Content-Type': 'application/json',
+        'KALSHI-ACCESS-KEY': KEY_ID,
+        'KALSHI-ACCESS-SIGNATURE': signature,
+        'KALSHI-ACCESS-TIMESTAMP': timestamp
+    };
+}
+
+// ==========================================
+// 🤖 API FUNCTIONS
+// ==========================================
+async function checkConnection() {
     try {
-        const response = await axios.post(`${KALSHI_API}/login`, {
-            email: process.env.KALSHI_EMAIL,
-            password: process.env.KALSHI_PASSWORD
-        });
-        token = response.data.token;
-        console.log("✅ Bot Logged In");
+        const path = '/portfolio/balance'; // Simple test endpoint
+        const headers = getHeaders('GET', '/trade-api/v2' + path);
+        
+        const response = await axios.get(BASE_URL + path, { headers });
+        console.log("✅ CONNECTED! Balance:", response.data.balance);
+        return { success: true, balance: response.data.balance };
     } catch (error) {
-        console.error("❌ Login Failed:", error.message);
+        console.error("❌ Connection Failed:", error.response ? error.response.data : error.message);
+        return { success: false, error: error.message };
     }
 }
 
-// 4. API ENDPOINT (Connects Frontend to Backend)
-// Your app.js will call this to toggle the bot or update settings
-app.post('/api/update-settings', (req, res) => {
-    const settings = req.body;
-    console.log("⚙️ Settings Updated:", settings);
-    // TODO: Update your bot's internal logic variables here
-    res.json({ status: 'success', message: 'Bot updated!' });
-});
-// STORE STATE
-let botState = {
-    isRunning: false,
-    logs: ["System initialized..."]
-};
+// ==========================================
+// 🖥️ SERVER & DASHBOARD
+// ==========================================
+app.use(express.static('public'));
+app.use(express.json());
 
-// HELPER: Add a log message
+let botState = { isRunning: false, logs: [] };
+
 function log(msg) {
     const time = new Date().toLocaleTimeString();
     botState.logs.push(`[${time}] ${msg}`);
-    if (botState.logs.length > 50) botState.logs.shift(); // Keep last 50
+    if (botState.logs.length > 50) botState.logs.shift();
+    console.log(msg);
 }
 
-// API 1: Frontend asks for status
+// 1. STATUS ENDPOINT
 app.get('/api/status', (req, res) => {
     res.json(botState);
 });
 
-// API 2: Frontend sends command
-app.post('/api/toggle', (req, res) => {
+// 2. TOGGLE ENDPOINT
+app.post('/api/toggle', async (req, res) => {
     botState.isRunning = !botState.isRunning;
-    log(botState.isRunning ? "🚀 Bot Started by User" : "🛑 Bot Stopped by User");
+    log(botState.isRunning ? "🚀 Bot Started" : "🛑 Bot Stopped");
+    
+    if (botState.isRunning) {
+        // Run a connection test immediately when started
+        const result = await checkConnection();
+        if (result.success) {
+            log(`✅ Login OK. Balance: $${result.balance / 100}`);
+        } else {
+            log("❌ Login Failed. Check Console.");
+            botState.isRunning = false; // Stop if we can't login
+        }
+    }
     res.json({ success: true });
 });
 
-// SIMULATION LOOP (Replace with real trading logic later)
-setInterval(() => {
-    if (botState.isRunning) {
-        // Randomly log something to prove it's working
-        if (Math.random() > 0.7) log("🔎 Scanning markets... No setup found.");
-    }
-}, 3000);
-
-// 5. START THE SERVER
-app.listen(PORT, async () => {
-    console.log(`🚀 Bankroll OS running on http://localhost:${PORT}`);
-    await login(); // Log in when server starts
+app.listen(PORT, () => {
+    console.log(`Bot running on port ${PORT}`);
+    // Check connection on startup
+    checkConnection();
 });
