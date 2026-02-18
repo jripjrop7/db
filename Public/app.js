@@ -1,55 +1,4 @@
 const app = {
-	    // ... (Your existing code is above this) ...
-
-    // --- START OF BOT LOGIC ---
-
-    // 1. Initialize the Bot (Call this inside your App.init function!)
-    initBot: function() {
-        console.log("🤖 Connecting to Trading Bot...");
-        const statusEl = document.getElementById('bot-status');
-        const logBox = document.getElementById('bot-logs');
-
-        // Poll the server every 2 seconds
-        setInterval(async () => {
-            try {
-                // Ask the server for the latest status
-                const response = await fetch('/api/status');
-                const data = await response.json();
-
-                // Update the Status Text
-                if (statusEl) {
-                    statusEl.innerText = data.isRunning ? "🟢 RUNNING" : "🔴 PAUSED";
-                    statusEl.style.color = data.isRunning ? "#0f0" : "#f00"; // Green or Red
-                }
-
-                // Update the Logs (Only if there's new data)
-                if (logBox && data.logs) {
-                    // Turn the array of logs into HTML lines
-                    logBox.innerHTML = data.logs.map(log => 
-                        `<div style="border-bottom: 1px solid #333; padding: 2px;">${log}</div>`
-                    ).join('');
-                    
-                    // Auto-scroll to the bottom to see new logs
-                    logBox.scrollTop = logBox.scrollHeight;
-                }
-            } catch (error) {
-                console.log("⚠️ Backend not connected yet.");
-            }
-        }, 2000);
-    },
-
-    // 2. The Button Action
-    toggleBot: async function() {
-        console.log("🖱️ Toggling Bot...");
-        try {
-            await fetch('/api/toggle', { method: 'POST' });
-        } catch (error) {
-            alert("Error: Could not talk to the bot server.");
-        }
-    },
-
-    // --- END OF BOT LOGIC ---
-
 	    getFees: async () => {
         try {
             const res = await fetch('https://mempool.space/api/v1/fees/recommended');
@@ -480,8 +429,6 @@ setTimeout(() => {
         app.fetchCrypto();
         app.renderRecurringTools();    
         app.setupCollapsibles(); 
-        
-        this.initBot();
     },
 
     save: () => { localStorage.setItem('bankroll_os_v19_1', JSON.stringify(app.data)); app.render(); },
