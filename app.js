@@ -29,6 +29,31 @@ const app = {
         // 5. Scroll to top for a clean feel
         window.scrollTo(0,0);
     },
+    // --- DASHBOARD SETTINGS UI ---
+    editDashSettings: () => {
+        // 1. Get current values
+        document.getElementById('set-btc').value = localStorage.getItem('btc_qty') || 0;
+        document.getElementById('set-eth').value = localStorage.getItem('eth_qty') || 0;
+        document.getElementById('set-goal').value = localStorage.getItem('goal') || 10000;
+        
+        // 2. Open Modal
+        document.getElementById('modal-dash-settings').classList.add('open');
+    },
+
+    saveDashSettings: () => {
+        // 1. Save inputs
+        const btc = parseFloat(document.getElementById('set-btc').value) || 0;
+        const eth = parseFloat(document.getElementById('set-eth').value) || 0;
+        const goal = parseFloat(document.getElementById('set-goal').value) || 10000;
+
+        localStorage.setItem('btc_qty', btc);
+        localStorage.setItem('eth_qty', eth);
+        localStorage.setItem('goal', goal);
+
+        // 2. Close & Render
+        document.getElementById('modal-dash-settings').classList.remove('open');
+        app.render();
+    },
 
         // --- PARLAY ENGINE v2 (ADVANCED) ---
     parlay: {
@@ -592,48 +617,46 @@ setTimeout(() => {
             app.render(); 
         }
     }, // <--- Add a comma here too if there is code below it
-                render: () => {
-        // --- 1. CALCULATE GLOBAL VALUES ---
-        const bankroll = app.data.txs.reduce((sum, t) => sum + t.amt, 0);
-        const retire = parseFloat(localStorage.getItem('401k')) || 0;
+                    render: () => {
+        // --- 1. CALCULATE ASSETS ---
         
-        // Crypto Logic
+        // A. Bankroll (Sum of all transactions)
+        const bankroll = app.data.txs.reduce((sum, t) => sum + t.amt, 0);
+
+        // B. 401k (Sum of paycheck contributions)
+        // We look for category 'job' and add the 'k401' detail if it exists
+        const retire = app.data.txs.reduce((sum, t) => {
+            if (t.cat === 'job' && t.details && t.details.k401) {
+                return sum + (parseFloat(t.details.k401) || 0);
+            }
+            return sum;
+        }, 0);
+
+        // C. Crypto (Live Value)
         const btcPrice = (app.prices && app.prices.btc) ? app.prices.btc : 0;
         const ethPrice = (app.prices && app.prices.eth) ? app.prices.eth : 0;
         const btcVal = (parseFloat(localStorage.getItem('btc_qty')) || 0) * btcPrice;
         const ethVal = (parseFloat(localStorage.getItem('eth_qty')) || 0) * ethPrice;
         const cryptoTotal = btcVal + ethVal;
 
+        // D. Net Worth (Total of all 3)
         const netWorth = bankroll + retire + cryptoTotal;
-        const goal = parseFloat(localStorage.getItem('goal')) || 100000;
         
-        // Goal Percentage
-        const pctRaw = (netWorth / goal) * 100;
+        // E. Goal Progress (Bankroll vs Goal)
+        const goal = parseFloat(localStorage.getItem('goal')) || 10000;
+        const pctRaw = (bankroll / goal) * 100; // Changed from netWorth to bankroll
         const pct = Math.min(100, Math.max(0, pctRaw));
 
-        // --- 2. CALCULATE PERIOD PROFIT (FILTERED) ---
-        const filteredTxs = app.data.txs.filter(t => app.checkFilter(t));
-        const periodTotal = filteredTxs.reduce((sum, t) => sum + t.amt, 0);
-        const sorted = [...filteredTxs].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-        // --- 3. UPDATE DASHBOARD CARD ---
+        // --- 2. UPDATE DASHBOARD CARD ---
         const fmt = (n) => `$${Math.round(n).toLocaleString()}`;
 
-        // HERO: Bankroll
+        // HERO: Bankroll (Green/Red Logic)
         if(document.getElementById('dash-hero')) {
             document.getElementById('dash-hero').innerText = fmt(bankroll);
             document.getElementById('dash-hero').style.color = bankroll < 0 ? '#FF5252' : '#00FF41';
         }
 
-        // NEW: PERIOD P/L (Inside the Card)
-        if(document.getElementById('dash-period')) {
-            const el = document.getElementById('dash-period');
-            const sign = periodTotal >= 0 ? '+' : '-';
-            el.innerText = sign + fmt(Math.abs(periodTotal));
-            el.style.color = periodTotal >= 0 ? '#00E676' : '#FF5252';
-        }
-
-        // GRID: Net Worth, Crypto, 401k
+        // GRID: Net Worth (Orange), Crypto (Purple), 401k (Pink)
         if(document.getElementById('dash-networth')) document.getElementById('dash-networth').innerText = fmt(netWorth);
         if(document.getElementById('dash-crypto')) document.getElementById('dash-crypto').innerText = fmt(cryptoTotal);
         if(document.getElementById('dash-401k')) document.getElementById('dash-401k').innerText = fmt(retire);
@@ -641,38 +664,31 @@ setTimeout(() => {
         // PROGRESS BAR
         if(document.getElementById('dash-bar')) {
             const bar = document.getElementById('dash-bar');
-            const pctText = document.getElementById('dash-pct');
-            
             bar.style.width = `${pct}%`;
-            pctText.innerText = `${pct.toFixed(1)}%`;
-            document.getElementById('dash-target').innerText = `Target: ${fmt(goal)}`;
-
-            // Color Logic
-            if (pct < 25) {
-                bar.style.background = 'linear-gradient(90deg, #D50000, #FF5252)'; 
-                pctText.style.color = '#FF5252';
-            } else if (pct < 75) {
-                bar.style.background = 'linear-gradient(90deg, #FF6D00, #FFAB40)';
-                pctText.style.color = '#FFAB40';
-            } else {
-                bar.style.background = 'linear-gradient(90deg, #00C853, #00E676)';
-                pctText.style.color = '#00E676';
-            }
+            document.getElementById('dash-pct').innerText = `${pct.toFixed(1)}%`;
+            document.getElementById('dash-target').innerText = `Goal: ${fmt(goal)}`;
+            
+            // Color Logic for Bar
+            if (pct < 25) bar.style.background = 'linear-gradient(90deg, #D50000, #FF5252)'; 
+            else if (pct < 75) bar.style.background = 'linear-gradient(90deg, #FF6D00, #FFAB40)';
+            else bar.style.background = 'linear-gradient(90deg, #00C853, #00E676)';
         }
 
-        // --- 4. RENDER TRANSACTION LIST ---
+        // --- 3. FILTERED PERIOD PROFIT ---
+        const filteredTxs = app.data.txs.filter(t => app.checkFilter(t));
+        const periodTotal = filteredTxs.reduce((sum, t) => sum + t.amt, 0);
+        
+        if(document.getElementById('dash-period')) {
+            const el = document.getElementById('dash-period');
+            el.innerText = (periodTotal >= 0 ? '+' : '-') + `$${Math.abs(Math.round(periodTotal)).toLocaleString()}`;
+            el.style.color = periodTotal >= 0 ? '#00E676' : '#FF5252';
+        }
+
+        // --- 4. RENDER LIST ---
         const list = document.getElementById('tx-list');
         if (list) {
             list.innerHTML = '';
-            
-            // Note: We already calculated 'filteredTxs' and 'sorted' above in Step 2
-
-            // (Optional) Update the external period profit text if you still have it in HTML
-            const periodEl = document.getElementById('period-profit');
-            if(periodEl) {
-                periodEl.innerText = (periodTotal >= 0 ? '+' : '-') + `$${Math.abs(Math.round(periodTotal)).toLocaleString()}`;
-                periodEl.style.color = periodTotal >= 0 ? 'var(--success)' : 'var(--error)';
-            }
+            const sorted = [...filteredTxs].sort((a, b) => new Date(b.date) - new Date(a.date));
 
             sorted.forEach(t => {
                 const div = document.createElement('div');
@@ -722,6 +738,7 @@ setTimeout(() => {
             });
         }
     },
+
 
 
 

@@ -318,7 +318,7 @@
     
     <div class="card" style="background:linear-gradient(135deg, #1a1c24 0%, #0e1117 100%); border:1px solid #333; padding:20px; margin-bottom:15px; position:relative; overflow:hidden;">
     
-    <button onclick="app.editGoal()" style="position:absolute; top:15px; right:15px; background:rgba(255,255,255,0.05); border:none; padding:8px; border-radius:50%; cursor:pointer; z-index:10;">
+    <button onclick="app.editDashSettings()" style="position:absolute; top:15px; right:15px; background:rgba(255,255,255,0.05); border:none; padding:8px; border-radius:50%; cursor:pointer; z-index:10;">
         <i class="material-icons-round" style="font-size:1.2rem; color:#aaa;">settings</i>
     </button>
 
@@ -337,28 +337,29 @@
     <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:20px; border-top:1px solid #333; border-bottom:1px solid #333; padding:15px 0;">
         <div style="text-align:center;">
             <div style="font-size:0.65rem; color:#aaa; margin-bottom:2px;">NET WORTH</div>
-            <div id="dash-networth" style="font-size:0.9rem; color:#fff; font-weight:bold;">$0</div>
+            <div id="dash-networth" style="font-size:0.9rem; color:#FF9100; font-weight:bold;">$0</div>
         </div>
         <div style="text-align:center; border-left:1px solid #333; border-right:1px solid #333;">
             <div style="font-size:0.65rem; color:#aaa; margin-bottom:2px;">CRYPTO</div>
-            <div id="dash-crypto" style="font-size:0.9rem; color:#b388ff; font-weight:bold;">$0</div>
+            <div id="dash-crypto" style="font-size:0.9rem; color:#D500F9; font-weight:bold;">$0</div>
         </div>
         <div style="text-align:center;">
             <div style="font-size:0.65rem; color:#aaa; margin-bottom:2px;">401K</div>
-            <div id="dash-401k" style="font-size:0.9rem; color:#aaa; font-weight:bold;">$0</div>
+            <div id="dash-401k" style="font-size:0.9rem; color:#F50057; font-weight:bold;">$0</div>
         </div>
     </div>
 
     <div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
             <span id="dash-pct" style="font-size:0.7rem; color:#00FF41; font-weight:bold;">0%</span>
-            <span id="dash-target" style="font-size:0.7rem; color:#555;">Target: $100k</span>
+            <span id="dash-target" style="font-size:0.7rem; color:#555;">Goal: $100k</span>
         </div>
         <div style="height:6px; background:#222; border-radius:10px; overflow:hidden;">
-            <div id="dash-bar" style="height:100%; width:0%; background:linear-gradient(90deg, #00FF41, #00E676); box-shadow: 0 0 10px rgba(0,255,65,0.3); transition: width 1s ease, background 0.5s;"></div>
+            <div id="dash-bar" style="height:100%; width:0%; background:linear-gradient(90deg, #00FF41, #00E676); box-shadow: 0 0 10px rgba(0,255,65,0.3); transition: width 1s ease;"></div>
         </div>
     </div>
 </div>
+
 
 
     <div id="tx-list" style="padding-bottom:20px;"></div>
@@ -1292,6 +1293,39 @@
     </div>
 
     <div id="pe-results"></div>
+</div>
+<div id="modal-dash-settings" class="modal">
+    <div class="container">
+        <div class="modal-header">
+            <h1>DASHBOARD CONFIG</h1>
+            <i class="material-icons-round" style="color:white; cursor:pointer;" onclick="document.getElementById('modal-dash-settings').classList.remove('open')">close</i>
+        </div>
+        
+        <div class="card">
+            <h2 style="color:#D500F9;">CRYPTO HOLDINGS</h2>
+            <div class="grid">
+                <div>
+                    <label>BITCOIN (BTC)</label>
+                    <input type="number" id="set-btc" placeholder="0.00">
+                </div>
+                <div>
+                    <label>ETHEREUM (ETH)</label>
+                    <input type="number" id="set-eth" placeholder="0.00">
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 style="color:#00FF41;">BANKROLL TARGET</h2>
+            <label>BANKROLL GOAL ($)</label>
+            <input type="number" id="set-goal" placeholder="e.g. 25000">
+            <div style="font-size:0.65rem; color:#777; margin-top:5px;">
+                *Progress bar tracks Liquid Bankroll vs This Goal.
+            </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="app.saveDashSettings()">SAVE SETTINGS</button>
+    </div>
 </div>
 
 <div id="modal-leg" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; justify-content:center; align-items:center;">
