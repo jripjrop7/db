@@ -203,6 +203,65 @@
         .rec-stats-table td { padding: 8px 4px; border-bottom: 1px solid #222; vertical-align: middle; }
         .rec-pay-btn { background: var(--primary); color: #000; border: none; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.65rem; }
         
+        /* TRADING TERMINAL STYLES */
+.bot-terminal {
+    background: #1e1e1e; /* Dark Grey Background */
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 20px;
+    font-family: 'Courier New', monospace; /* Hacker/Coder Font */
+}
+
+.bot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.status-badge {
+    background: #333;
+    color: #aaa;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+.btn-trade {
+    width: 100%;
+    padding: 12px;
+    background: #00d1b2; /* Teal Color */
+    color: #000;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 16px;
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
+.btn-trade:active {
+    transform: scale(0.98); /* Click effect */
+}
+
+.log-window {
+    background: #000;
+    border: 1px solid #444;
+    border-radius: 4px;
+    height: 150px; /* Fixed height for scrolling */
+    overflow-y: scroll; /* Allow scrolling */
+    padding: 10px;
+    color: #0f0; /* Matrix Green Text */
+    font-size: 12px;
+}
+
+.log-entry {
+    margin-bottom: 4px;
+    border-bottom: 1px solid #111;
+}
+
         /* FORCE TEXT WRAPPING */
         .code-box, .tx-title, .note-body, #w-address, #wallet-dash div {
             white-space: pre-wrap !important;
@@ -393,6 +452,39 @@
                 <button onclick="app.openNoteModal()" style="background:none; border:none; color:var(--primary); font-size:12px; font-weight:bold;">+ ADD NOTE</button>
             </div>
             <div id="notes-list" style="margin-bottom: 30px;"></div>
+            <div class="bot-terminal">
+    <div class="bot-header">
+        <h3>🤖 Auto-Trader</h3>
+        <span id="bot-status" class="status-badge">🔴 OFFLINE</span>
+    </div>
+
+    <div class="bot-controls">
+        <button onclick="App.toggleBot()" class="btn-trade">
+            Start / Stop
+        </button>
+    </div>
+
+    <div class="log-window">
+        <div id="bot-logs">
+            <div class="log-entry">> System initialized...</div>
+            <div class="log-entry">> Waiting for server connection...</div>
+        </div>
+    </div>
+</div>
+
+            <div id="bot-dashboard" style="border: 2px solid #333; padding: 20px; margin-top: 20px;">
+    <h3>🤖 Auto-Trader</h3>
+    
+    <div id="bot-status">🔴 OFFline</div>
+
+    <button onclick="App.toggleBot()">Start / Stop Auto-Trader</button>
+
+    
+    <div id="bot-logs" style="height: 150px; overflow-y: scroll; background: #000; color: #0f0; padding: 10px; margin-top: 10px; font-family: monospace;">
+        > Waiting for connection...
+    </div>
+</div>
+
             
             <div class="card" style="border-top: 4px solid #651FFF;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
