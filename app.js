@@ -54,6 +54,159 @@ const app = {
         document.getElementById('modal-dash-settings').classList.remove('open');
         app.render();
     },
+    // --- KALSHI AUTO-TRADER (RSA-PSS + PROXY) ---
+    bot: {
+        // 1. CREDENTIAL MANAGEMENT
+        saveKeys: () => {
+            const keyId = document.getElementById('k-key-id').value.trim();
+            const privKey = document.getElementById('k-priv-key').value.trim();
+            
+            if(!keyId || !privKey) return alert("Please enter both Key ID and Private Key.");
+
+            localStorage.setItem('k_key_id', keyId);
+            localStorage.setItem('k_priv_key', privKey); 
+            
+            alert("Secure Keys Saved!");
+            app.bot.log("Keys saved to device.");
+        },
+
+        clearKeys: () => {
+            localStorage.removeItem('k_key_id');
+            localStorage.removeItem('k_priv_key');
+            document.getElementById('k-key-id').value = '';
+            document.getElementById('k-priv-key').value = '';
+            alert("Keys Wiped.");
+            app.bot.log("Keys wiped from device.");
+        },
+
+        log: (msg) => {
+            const logDiv = document.getElementById('k-log');
+            if(logDiv) {
+                const time = new Date().toLocaleTimeString();
+                logDiv.innerHTML = `[${time}] ${msg}<br>` + logDiv.innerHTML;
+            }
+        },
+
+        // 2. CRYPTOGRAPHY ENGINE (The Hard Part)
+        // Converts PEM text to binary key
+        importPrivateKey: async (pem) => {
+            try {
+                // Strip headers and newlines to get just the Base64 body
+                const pemHeader = "-----BEGIN PRIVATE KEY-----";
+                const pemFooter = "-----END PRIVATE KEY-----";
+                const pemContents = pem.replace(pemHeader, "").replace(pemFooter, "").replace(/\s/g, "");
+                
+                // Decode Base64
+                const binaryDerString = window.atob(pemContents);
+                const binaryDer = new Uint8Array(binaryDerString.length);
+                for (let i = 0; i < binaryDerString.length; i++) {
+                    binaryDer[i] = binaryDerString.charCodeAt(i);
+                }
+
+                // Import as RSA-PSS (Required by Kalshi)
+                return await window.crypto.subtle.importKey(
+                    "pkcs8", 
+                    binaryDer.buffer, 
+                    { name: "RSA-PSS", hash: "SHA-256" }, 
+                    false, 
+                    ["sign"]
+                );
+            } catch (e) {
+                console.error("Key Import Error:", e);
+                throw new Error("Invalid Key Format. Ensure it is PKCS#8 (starts with 'BEGIN PRIVATE KEY', not 'RSA PRIVATE KEY').");
+            }
+        },
+
+        // Creates the digital signature
+        signRequest: async (key, timestamp, method, path) => {
+            // Signature String = timestamp + method + path (no query params)
+            const sigString = timestamp + method + path;
+            const encoder = new TextEncoder();
+            const data = encoder.encode(sigString);
+
+            const signature = await window.crypto.subtle.sign(
+                { name: "RSA-PSS", saltLength: 32 }, 
+                key, 
+                data
+            );
+
+            // Convert binary signature to Base64
+            return btoa(String.fromCharCode(...new Uint8Array(signature)));
+        },
+
+        // 3. MASTER REQUEST FUNCTION (HANDLES PROXY & SIGNING)
+        request: async (method, endpoint) => {
+            const keyId = localStorage.getItem('k_key_id');
+            const privKeyPem = localStorage.getItem('k_priv_key');
+
+            if(!keyId || !privKeyPem) {
+                app.bot.log("❌ Keys missing. Check Vault.");
+                return null;
+            }
+
+            try {
+                // A. Prepare Data
+                const timestamp = Date.now().toString();
+                // Strip query params for signing (e.g., "/path?foo=bar" -> "/path")
+                const pathForSigning = endpoint.split('?')[0]; 
+                
+                // B. Sign
+                const privateKey = await app.bot.importPrivateKey(privKeyPem);
+                const signature = await app.bot.signRequest(privateKey, timestamp, method, pathForSigning);
+
+                // C. Send via Proxy
+                const baseUrl = 'https://api.elections.kalshi.com'; // Live API
+                const targetUrl = baseUrl + endpoint;
+                const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+
+                const response = await fetch(proxyUrl, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'KALSHI-ACCESS-KEY': keyId,
+                        'KALSHI-ACCESS-SIGNATURE': signature,
+                        'KALSHI-ACCESS-TIMESTAMP': timestamp
+                    }
+                });
+
+                if(!response.ok) {
+                    const err = await response.text();
+                    throw new Error(`API Error ${response.status}: ${err}`);
+                }
+
+                return await response.json();
+
+            } catch (e) {
+                app.bot.log(`❌ Error: ${e.message}`);
+                // Helpful Tip for Key Format
+                if(e.message.includes("Invalid Key")) {
+                    alert("KEY ERROR: Your key file might be in the wrong format.\n\nIt must start with '-----BEGIN PRIVATE KEY-----'.\n\nIf it starts with '-----BEGIN RSA PRIVATE KEY-----', you need to convert it to PKCS#8.");
+                }
+                return null;
+            }
+        },
+
+        // 4. ACTIONS
+        login: async () => {
+            app.bot.log("Testing Connection...");
+            
+            // We use the 'Get Balance' endpoint to test if keys work
+            const data = await app.bot.request('GET', '/trade-api/v2/portfolio/balance');
+
+            if (data) {
+                app.bot.log("✅ CONNECTED SECURELY!");
+                
+                // Update UI
+                const bal = (data.balance || 0) / 100; // Kalshi uses cents
+                document.getElementById('k-bal').innerText = app.formatMoney(bal);
+                
+                const status = document.getElementById('bot-status');
+                status.innerText = "ONLINE";
+                status.style.color = "#00E676";
+                status.style.background = "rgba(0,230,118,0.15)";
+            }
+        }
+    },
 
 
         // --- PARLAY ENGINE v2 (ADVANCED) ---

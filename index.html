@@ -1362,10 +1362,63 @@
         </div>
     </div>
 </div>
+<div id="view-auto" class="view-section" style="display:none;">
+    
+    <div class="card" style="border-left: 4px solid #651FFF;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h2 style="color:#651FFF; margin:0;">KALSHI AUTO-PILOT</h2>
+            <div id="bot-status" style="font-size:0.7rem; font-weight:bold; color:#555; background:#111; padding:4px 8px; border-radius:4px;">OFFLINE</div>
+        </div>
+        
+        <div class="grid" style="margin-top:15px;">
+            <div style="background:#111; padding:10px; border-radius:6px; text-align:center;">
+                <div style="font-size:0.6rem; color:#aaa;">BALANCE</div>
+                <div id="k-bal" style="font-size:1.2rem; font-weight:bold; color:#fff;">$0.00</div>
+            </div>
+            <div style="background:#111; padding:10px; border-radius:6px; text-align:center;">
+                <div style="font-size:0.6rem; color:#aaa;">ACTIVE ORDERS</div>
+                <div id="k-orders" style="font-size:1.2rem; font-weight:bold; color:#fff;">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>SECURE KEY VAULT</h2>
+        <div style="font-size:0.7rem; color:#aaa; margin-bottom:10px;">
+            <strong>Instructions:</strong><br>
+            1. Go to Kalshi.com > Settings > API Keys.<br>
+            2. Create a key. Copy the <strong>Key ID</strong>.<br>
+            3. Open the downloaded <code>.key</code> file and copy <strong>ALL</strong> the text.
+        </div>
+        
+        <label>KEY ID (e.g. 123e4567...)</label>
+        <input type="text" id="k-key-id" placeholder="Paste Key ID here">
+
+        <label>PRIVATE KEY (Paste entire file content)</label>
+        <textarea id="k-priv-key" rows="8" placeholder="-----BEGIN PRIVATE KEY-----&#10;MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQ...&#10;-----END PRIVATE KEY-----" style="font-family:'Courier New'; font-size:0.6rem; color:#00E676;"></textarea>
+        
+        <div class="grid" style="margin-top:10px;">
+            <button class="btn btn-primary" onclick="app.bot.saveKeys()">SAVE KEYS LOCALLY</button>
+            <button class="btn btn-sec" onclick="app.bot.clearKeys()" style="background:#333; color:#aaa;">WIPE KEYS</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>SYSTEM CHECK</h2>
+        <button class="btn btn-sec" onclick="app.bot.login()">
+            <i class="material-icons-round" style="font-size:16px; vertical-align:middle; margin-right:5px;">wifi</i>
+            TEST CONNECTION
+        </button>
+        <div id="k-log" style="margin-top:10px; font-family:'Courier New'; font-size:0.65rem; color:#00E676; min-height:60px; max-height:150px; overflow-y:auto; background:#000; padding:10px; border-radius:4px; border:1px solid #333;">
+            System Ready...
+        </div>
+    </div>
+</div>
 
 
         <nav class="nav">
             <button class="nav-item active" id="nav-dash" onclick="app.nav('dash')"><i class="material-icons-round">dashboard</i>Dash</button>
+            <button class="nav-item" id="nav-auto" onclick="app.nav('auto')"><i class="material-icons-round">smart_toy</i>Auto</button>
             <button class="nav-item" id="nav-tickets" onclick="app.nav('tickets')"><i class="material-icons-round">receipt</i>Tickets</button>
             <button class="nav-item" id="nav-crypto" onclick="app.nav('crypto')"><i class="material-icons-round">currency_bitcoin</i>Crypto</button>
             <button class="nav-item" id="nav-stats" onclick="app.nav('stats')"><i class="material-icons-round">bar_chart</i>Stats</button>
