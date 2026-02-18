@@ -157,7 +157,8 @@ const app = {
                 // C. Send via Proxy
                 const baseUrl = 'https://api.elections.kalshi.com'; // Live API
                 const targetUrl = baseUrl + endpoint;
-                const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+                const proxyUrl = targetUrl; // Direct connection (requires Kiwi Browser + CORS Extension)
+
 
                 const response = await fetch(proxyUrl, {
                     method: method,
