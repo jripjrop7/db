@@ -7,3 +7,4 @@ if (typeof window !== 'undefined') {
         window.bitcoin = window.bitcoinjs;
     }
 }
+
