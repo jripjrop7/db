@@ -54,19 +54,17 @@ const app = {
         document.getElementById('modal-dash-settings').classList.remove('open');
         app.render();
     },
-    // --- KALSHI AUTO-TRADER (RSA + PROXY HYBRID) ---
+    // --- KALSHI AUTO-TRADER (DIRECT / KIWI BROWSER VERSION) ---
     bot: {
-        // 1. CREDENTIALS
+        // 1. SAVE CREDENTIALS
         saveKeys: () => {
             const keyId = document.getElementById('k-key-id').value.trim();
             const privKey = document.getElementById('k-priv-key').value.trim();
             
-            if(!keyId || !privKey) return alert("Missing Keys");
+            if(!keyId || !privKey) return alert("Please enter Key ID & Private Key");
             
-            // Validation: Key ID should be a UUID (long string with dashes)
-            if(!keyId.includes('-') || keyId.length < 20) {
-                alert("WARNING: Your Key ID looks short.\nMake sure you are pasting the 'Key ID' (UUID), not your Member ID or Email.");
-            }
+            // Basic validation
+            if(!keyId.includes('-')) alert("Warning: Key ID should look like a UUID (e.g. 123e4567-e89b...)");
 
             localStorage.setItem('k_key_id', keyId);
             localStorage.setItem('k_priv_key', privKey); 
@@ -94,7 +92,8 @@ const app = {
         // 2. CRYPTO ENGINE (RSA-PSS)
         importPrivateKey: async (pem) => {
             try {
-                // Clean headers
+                // CLEANUP: Remove headers/footers/newlines
+                // This fixes the "RSA PRIVATE KEY" vs "PRIVATE KEY" issue automatically
                 const cleanPem = pem.replace(/-----BEGIN.*?-----/g, "")
                                     .replace(/-----END.*?-----/g, "")
                                     .replace(/\s/g, "");
@@ -113,7 +112,8 @@ const app = {
                     ["sign"]
                 );
             } catch (e) {
-                throw new Error("Key Format Error. Your key must be PKCS#8 (Starts with BEGIN PRIVATE KEY). If it says 'RSA PRIVATE KEY', please convert it.");
+                console.error(e);
+                throw new Error("Key Format Error. Ensure your key content is correct.");
             }
         },
 
@@ -128,31 +128,33 @@ const app = {
             return btoa(String.fromCharCode(...new Uint8Array(signature)));
         },
 
-        // 3. REQUEST ENGINE (WITH PROXY)
+        // 3. REQUEST ENGINE (DIRECT)
         request: async (method, endpoint) => {
             const keyId = localStorage.getItem('k_key_id');
             const privKeyPem = localStorage.getItem('k_priv_key');
 
             if(!keyId || !privKeyPem) {
-                app.bot.log("❌ Keys missing.");
+                app.bot.log("❌ Keys missing. Check Vault.");
                 return null;
             }
 
             try {
                 // A. Prepare Signature
                 const timestamp = Date.now().toString();
+                // Strip query params for signing (e.g., "/path?foo=bar" -> "/path")
                 const pathForSigning = endpoint.split('?')[0]; 
+                
                 const privateKey = await app.bot.importPrivateKey(privKeyPem);
                 const signature = await app.bot.signRequest(privateKey, timestamp, method, pathForSigning);
 
-                // B. ROUTE THROUGH PROXY (Fixes Network Error)
+                // B. DIRECT URL (No Proxy)
+                // Since you have the extension, this will work.
                 const baseUrl = 'https://api.elections.kalshi.com';
                 const targetUrl = baseUrl + endpoint;
-                const proxyUrl = 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(targetUrl)
 
-                app.bot.log(`Sending ${method} to Proxy...`);
+                app.bot.log(`Sending ${method}...`);
 
-                const response = await fetch(proxyUrl, {
+                const response = await fetch(targetUrl, {
                     method: method,
                     headers: {
                         'Content-Type': 'application/json',
@@ -164,6 +166,8 @@ const app = {
 
                 if(!response.ok) {
                     const txt = await response.text();
+                    // Detect specific Extension issues
+                    if(response.status === 0) throw new Error("CORS Blocked. Is the Extension ON?");
                     throw new Error(`API Error ${response.status}: ${txt}`);
                 }
 
@@ -175,44 +179,29 @@ const app = {
             }
         },
 
-        // 4. CONNECTION TESTS
+        // 4. CONNECTION TEST
         login: async () => {
-            app.bot.log("--- STARTING TEST ---");
-
-            // TEST 1: Public Market Data (No Keys Needed)
-            // This proves if the Proxy/Internet works at all.
-            try {
-                app.bot.log("Step 1: Testing Public Cloud...");
-                const proxyPublic = 'https://corsproxy.io/?' + encodeURIComponent('https://api.elections.kalshi.com/trade-api/v2/markets?limit=1');
-                const pubRes = await fetch(proxyPublic);
-                if(pubRes.ok) {
-                    app.bot.log("✅ Public Internet: OK");
-                } else {
-                    throw new Error("Public Proxy Failed. Check Internet.");
-                }
-            } catch(e) {
-                app.bot.log("❌ NETWORK BLOCKED. The proxy cannot reach Kalshi.");
-                return;
-            }
-
-            // TEST 2: Private Balance (Keys Needed)
-            app.bot.log("Step 2: Authenticating...");
+            app.bot.log("--- STARTING DIRECT TEST ---");
+            
+            // We verify the connection by fetching your balance
             const data = await app.bot.request('GET', '/trade-api/v2/portfolio/balance');
 
             if (data) {
-                app.bot.log("✅ AUTH SUCCESS!");
-                const bal = (data.balance || 0) / 100;
+                app.bot.log("✅ CONNECTED DIRECTLY!");
+                
+                // Kalshi sends balance in cents
+                const bal = (data.balance || 0) / 100; 
+                
                 document.getElementById('k-bal').innerText = app.formatMoney(bal);
                 
                 const status = document.getElementById('bot-status');
                 status.innerText = "ONLINE";
                 status.style.color = "#00E676";
                 status.style.background = "rgba(0, 230, 118, 0.15)";
-            } else {
-                app.bot.log("⚠️ Auth Failed. Check Key ID vs Member ID.");
             }
         }
     },
+
 
 
 
