@@ -197,90 +197,88 @@ const app = {
             }
         },
 
-             // 5. SMART SEARCH (LIVE FILTER + 48H LOGIC)
-        searchMarkets: async (query = "") => {
+                // 5. TARGETED MARKET SEARCH (API-SIDE FILTERING)
+        searchMarkets: async (modeOrQuery = "") => {
             const list = document.getElementById('bot-market-list');
-            list.innerHTML = '<div style="text-align:center; color:#00E676; margin-top:20px;">Scanning Markets...</div>';
-            app.bot.log(`🔎 Searching: "${query}"...`);
+            list.innerHTML = '<div style="text-align:center; color:#00E676; margin-top:20px;">Fetching Data...</div>';
+            app.bot.log(`🔎 Fetching: "${modeOrQuery}"...`);
 
-            // CONFIG
+            // CALCULATE TIMES (Seconds)
             const now = Math.floor(Date.now() / 1000);
-            const hours48 = 48 * 60 * 60;
-            let endpoint = `/trade-api/v2/events?limit=100&status=open&with_nested_markets=true`;
-            
-            // SPECIAL MODES
-            if (query === 'NBA') endpoint += `&series_ticker=NBA`; 
-            // Note: 'Mentions' isn't a series, so we filter it manually below
+            const hours48 = now + (48 * 60 * 60);
 
-            // 1. FETCH DATA
+            // BASE PARAMS
+            let endpoint = `/trade-api/v2/events?limit=100&status=open&with_nested_markets=true`;
+
+            // --- SMART ROUTING: BUILD THE CORRECT URL ---
+            if (modeOrQuery === 'LIVE') {
+                // FORCE THE API to only give us events expiring soon
+                endpoint += `&max_close_ts=${hours48}`;
+            } 
+            else if (modeOrQuery === 'NBA') {
+                // Target the NBA Series specifically
+                endpoint += `&series_ticker=NBA`;
+            }
+            else if (modeOrQuery === 'ECON') {
+                // Target Economics (Fed, CPI, etc.)
+                endpoint += `&series_ticker=FED&series_ticker=CPI`; 
+            }
+            else if (modeOrQuery === 'MENTIONS') {
+                // Search specifically for "mention" type keywords
+                endpoint += `&query=mention`;
+            }
+            else {
+                // Generic Search
+                endpoint += `&query=${encodeURIComponent(modeOrQuery)}`;
+            }
+
+            // 1. EXECUTE REQUEST
             const data = await app.bot.request('GET', endpoint);
 
-            if(!data || !data.events) {
-                list.innerHTML = '<div style="text-align:center; color:#ff5252;">No markets found.</div>';
+            if(!data || !data.events || data.events.length === 0) {
+                list.innerHTML = '<div style="text-align:center; color:#ff5252; padding:20px;">No active markets found for this category.</div>';
                 return;
             }
 
-            // 2. FILTER LOGIC
-            const filtered = data.events.filter(evt => {
-                const firstMarket = evt.markets ? evt.markets[0] : null;
-                if (!firstMarket) return false;
-                
-                const timeLeft = firstMarket.expiration_ts - now;
-
-                // MODE A: "LIVE" (Strict 48h limit)
-                if (query === 'LIVE') {
-                    // Must be closing within 48 hours AND not expired yet
-                    return (timeLeft > 0 && timeLeft < hours48);
-                }
-
-                // MODE B: "Mentions"
-                if (query === 'Mentions') {
-                    // Look for keywords in title
-                    const t = evt.title.toLowerCase();
-                    return t.includes('mention') || t.includes('say') || t.includes('tweet');
-                }
-
-                // MODE C: Standard Search
-                if (query && query !== 'NBA') { // NBA is already filtered by endpoint
-                    const q = query.toLowerCase();
-                    return evt.title.toLowerCase().includes(q) || 
-                           evt.category.toLowerCase().includes(q) ||
-                           evt.series_ticker.toLowerCase().includes(q);
-                }
-
-                return true;
+            // 2. RENDER RESULTS (Sorted by "Ending Soonest")
+            // We sort locally to show you the most urgent stuff first
+            const events = data.events.sort((a, b) => {
+                const aTime = a.markets[0]?.expiration_ts || 0;
+                const bTime = b.markets[0]?.expiration_ts || 0;
+                return aTime - bTime;
             });
 
-            // 3. RENDER RESULTS
-            list.innerHTML = '';
-            if (filtered.length === 0) {
-                list.innerHTML = '<div style="text-align:center; color:#666; padding:20px;">No events match your filter.<br>Try "LIVE" or a different search.</div>';
-                return;
-            }
+            list.innerHTML = ''; // Clear loading message
 
-            // Sort by "Closing Soonest" first
-            filtered.sort((a, b) => a.markets[0].expiration_ts - b.markets[0].expiration_ts);
-
-            filtered.forEach(evt => {
+            events.forEach(evt => {
                 const markets = evt.markets || [];
-                const expiry = new Date(markets[0].expiration_ts * 1000);
+                if (markets.length === 0) return;
+
+                const expiryTs = markets[0].expiration_ts;
+                const expiryDate = new Date(expiryTs * 1000);
                 
-                // Format Date nicely (e.g. "Today 8:00 PM")
-                const dateStr = expiry.toLocaleDateString() === new Date().toLocaleDateString() 
-                    ? `TODAY ${expiry.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`
-                    : `${expiry.toLocaleDateString()} ${expiry.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+                // FORMAT TIME: "Today 8:00 PM" vs "Feb 24"
+                const isToday = expiryDate.toDateString() === new Date().toDateString();
+                const timeStr = isToday 
+                    ? `TODAY ${expiryDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` 
+                    : `${expiryDate.getMonth()+1}/${expiryDate.getDate()} ${expiryDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 
                 // Create Card
                 const card = document.createElement('div');
                 card.className = 'card';
-                card.style.borderLeft = query === 'LIVE' ? '4px solid #D50000' : '4px solid #2962FF';
+                // Color code: RED for Live (expiring < 48h), BLUE for others
+                const isUrgent = (expiryTs < hours48);
+                card.style.borderLeft = isUrgent ? '4px solid #D50000' : '4px solid #2962FF';
                 card.style.marginBottom = '10px';
                 card.style.padding = '8px';
 
                 let html = `
                     <div style="margin-bottom:6px; border-bottom:1px solid #333; padding-bottom:4px;">
                         <div style="font-weight:bold; font-size:0.9rem; color:#fff;">${evt.title}</div>
-                        <div style="font-size:0.65rem; color:#00E676; font-weight:bold;">⏳ Ends: ${dateStr}</div>
+                        <div style="display:flex; justify-content:space-between; margin-top:2px;">
+                            <span style="font-size:0.65rem; color:#aaa;">${evt.category || 'Event'}</span>
+                            <span style="font-size:0.65rem; color:${isUrgent ? '#FF5252' : '#00E676'}; font-weight:bold;">⏳ Ends: ${timeStr}</span>
+                        </div>
                     </div>
                     <div style="max-height:250px; overflow-y:auto;">
                 `;
@@ -289,18 +287,15 @@ const app = {
                     const yesPrice = m.yes_bid || 0;
                     const noPrice = m.no_bid || 0;
                     
-                    // CLEAN NAME LOGIC:
-                    // If subtitle exists (e.g. "Over 50.5"), use it.
-                    // If not, try to clean up the ticker (e.g. "IN-LAL-GSW" -> "LAL vs GSW")
+                    // CLEAN NAMES: Use Subtitle if available, otherwise clean ticker
                     let name = m.subtitle;
-                    if (!name) name = m.ticker.replace('NBA-', '').replace('IN-', ''); 
+                    if (!name) name = m.ticker.replace(evt.series_ticker + '-', '');
 
                     html += `
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; background:#111; padding:8px; border-radius:4px;">
                             <div style="width:45%;">
                                 <div style="font-size:0.8rem; color:#eee; font-weight:bold;">${name}</div>
                             </div>
-                            
                             <div style="display:flex; gap:5px;">
                                 <button class="btn" style="width:auto; padding:4px 10px; font-size:0.75rem; background:rgba(0, 230, 118, 0.15); color:#00E676; border:1px solid #00E676;" 
                                     onclick="app.bot.stageTrade('${m.ticker}', 'yes', ${yesPrice})">
@@ -320,8 +315,9 @@ const app = {
                 list.appendChild(card);
             });
 
-            app.bot.log(`Found ${filtered.length} active events.`);
+            app.bot.log(`Found ${events.length} active events.`);
         },
+
 
 
 

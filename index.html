@@ -1412,7 +1412,7 @@
         <div id="k-log" style="margin-top:10px; font-family:'Courier New'; font-size:0.65rem; color:#00E676; min-height:60px; max-height:150px; overflow-y:auto; background:#000; padding:10px; border-radius:4px; border:1px solid #333;">
             System Ready...
         </div>
-    <div class="card" style="border-top: 4px solid #00E676;">
+        <div class="card" style="border-top: 4px solid #00E676;">
         <h2>MARKET SCANNER</h2>
         
         <div style="display:flex; gap:5px; margin-bottom:10px; overflow-x:auto; padding-bottom:5px;">
@@ -1421,13 +1421,13 @@
             <button class="btn" style="background:#333; font-size:0.7rem; padding:6px 10px; width:auto;" 
                 onclick="app.bot.searchMarkets('NBA')">🏀 NBA</button>
             <button class="btn" style="background:#333; font-size:0.7rem; padding:6px 10px; width:auto;" 
-                onclick="app.bot.searchMarkets('Politics')">⚖️ Politics</button>
+                onclick="app.bot.searchMarkets('MENTIONS')">🗣 Mentions</button>
             <button class="btn" style="background:#333; font-size:0.7rem; padding:6px 10px; width:auto;" 
-                onclick="app.bot.searchMarkets('Mentions')">🗣 Mentions</button>
+                onclick="app.bot.searchMarkets('ECON')">📈 Econ</button>
         </div>
 
         <div style="display:flex; gap:8px; margin-bottom:10px;">
-            <input type="text" id="bot-search" placeholder="Search (e.g. Trump, Chiefs, GDP)" style="margin:0;">
+            <input type="text" id="bot-search" placeholder="Custom Search (e.g. Trump, Rate, GDP)" style="margin:0;">
             <button class="btn btn-sec" style="width:auto;" onclick="app.bot.searchMarkets(document.getElementById('bot-search').value)">
                 <i class="material-icons-round">search</i>
             </button>
@@ -1435,7 +1435,7 @@
 
         <div id="bot-market-list" style="max-height:450px; overflow-y:auto; min-height:100px;">
             <div style="text-align:center; color:#555; padding:20px;">
-                Select <b>⚡ LIVE</b> to see upcoming action.
+                Select a category above to load live markets.
             </div>
         </div>
     </div>
