@@ -54,7 +54,7 @@ const app = {
         document.getElementById('modal-dash-settings').classList.remove('open');
         app.render();
     },
-    // --- KALSHI AUTO-TRADER (BRIDGE SERVER + EVENT SEARCH) ---
+    // --- KALSHI AUTO-TRADER (HYBRID ENGINE) ---
     bot: {
         // 1. CREDENTIALS
         saveKeys: () => {
@@ -91,7 +91,6 @@ const app = {
         // 2. CRYPTO ENGINE (RSA-PSS)
         importPrivateKey: async (pem) => {
             try {
-                // CLEANUP: Remove headers/footers/newlines
                 const cleanPem = pem.replace(/-----BEGIN.*?-----/g, "")
                                     .replace(/-----END.*?-----/g, "")
                                     .replace(/\s/g, "");
@@ -110,7 +109,6 @@ const app = {
                     ["sign"]
                 );
             } catch (e) {
-                console.error(e);
                 throw new Error("Key Format Error. Ensure key is PKCS#8.");
             }
         },
@@ -126,7 +124,7 @@ const app = {
             return btoa(String.fromCharCode(...new Uint8Array(signature)));
         },
 
-        // 3. REQUEST ENGINE (HITS LOCALHOST:3000)
+        // 3. REQUEST ENGINE
         request: async (method, endpoint, body = null) => {
             const keyId = localStorage.getItem('k_key_id');
             const privKeyPem = localStorage.getItem('k_priv_key');
@@ -137,15 +135,13 @@ const app = {
             }
 
             try {
-                // A. Prepare Signature
                 const timestamp = Date.now().toString();
-                // Strip query params for signing (e.g., "/path?foo=bar" -> "/path")
                 const pathForSigning = endpoint.split('?')[0]; 
                 
                 const privateKey = await app.bot.importPrivateKey(privKeyPem);
                 const signature = await app.bot.signRequest(privateKey, timestamp, method, pathForSigning);
 
-                // B. BRIDGE URL (Local Server)
+                // LOCAL BRIDGE URL
                 const bridgeUrl = 'http://localhost:3000/api' + endpoint;
 
                 app.bot.log(`Sending to Bridge...`);
@@ -173,9 +169,6 @@ const app = {
 
             } catch (e) {
                 app.bot.log(`❌ Error: ${e.message}`);
-                if(e.message.includes("Failed to fetch")) {
-                    alert("BRIDGE OFFLINE:\n\nMake sure your Termux app is open and running 'node bridge.js'.");
-                }
                 return null;
             }
         },
@@ -189,95 +182,130 @@ const app = {
                 app.bot.log("✅ BRIDGE CONNECTED!");
                 const bal = (data.balance || 0) / 100;
                 document.getElementById('k-bal').innerText = app.formatMoney(bal);
-                
-                const status = document.getElementById('bot-status');
-                status.innerText = "ONLINE";
-                status.style.color = "#00E676";
-                status.style.background = "rgba(0, 230, 118, 0.15)";
+                document.getElementById('bot-status').innerText = "ONLINE";
+                document.getElementById('bot-status').style.color = "#00E676";
             }
         },
 
-                // 5. TARGETED MARKET SEARCH (API-SIDE FILTERING)
+        // 5. HYBRID SEARCH ENGINE (The Fix)
         searchMarkets: async (modeOrQuery = "") => {
             const list = document.getElementById('bot-market-list');
             list.innerHTML = '<div style="text-align:center; color:#00E676; margin-top:20px;">Fetching Data...</div>';
-            app.bot.log(`🔎 Fetching: "${modeOrQuery}"...`);
+            app.bot.log(`🔎 Mode: "${modeOrQuery}"...`);
 
-            // CALCULATE TIMES (Seconds)
+            let endpoint = "";
+            let isMarketMode = false;
             const now = Math.floor(Date.now() / 1000);
-            const hours48 = now + (48 * 60 * 60);
 
-            // BASE PARAMS
-            let endpoint = `/trade-api/v2/events?limit=100&status=open&with_nested_markets=true`;
-
-            // --- SMART ROUTING: BUILD THE CORRECT URL ---
+            // --- STRATEGY SELECTOR ---
+            
             if (modeOrQuery === 'LIVE') {
-                // FORCE THE API to only give us events expiring soon
-                endpoint += `&max_close_ts=${hours48}`;
+                // STRATEGY A: Use MARKETS API for time filtering (The only way to get "soon" items)
+                const hours48 = now + (48 * 60 * 60);
+                endpoint = `/trade-api/v2/markets?limit=100&status=open&max_close_ts=${hours48}`;
+                isMarketMode = true;
             } 
             else if (modeOrQuery === 'NBA') {
-                // Target the NBA Series specifically
-                endpoint += `&series_ticker=NBA`;
-            }
-            else if (modeOrQuery === 'ECON') {
-                // Target Economics (Fed, CPI, etc.)
-                endpoint += `&series_ticker=FED&series_ticker=CPI`; 
+                // STRATEGY B: Use EVENTS API for Series
+                endpoint = `/trade-api/v2/events?limit=50&status=open&with_nested_markets=true&series_ticker=NBA`;
             }
             else if (modeOrQuery === 'MENTIONS') {
-                // Search specifically for "mention" type keywords
-                endpoint += `&query=mention`;
+                // STRATEGY C: Use EVENTS API for Text Search
+                endpoint = `/trade-api/v2/events?limit=50&status=open&with_nested_markets=true&query=mention`;
+            }
+            else if (modeOrQuery === 'ECON') {
+                 endpoint = `/trade-api/v2/events?limit=50&status=open&with_nested_markets=true&series_ticker=CPI`;
             }
             else {
                 // Generic Search
-                endpoint += `&query=${encodeURIComponent(modeOrQuery)}`;
+                endpoint = `/trade-api/v2/events?limit=50&status=open&with_nested_markets=true&query=${encodeURIComponent(modeOrQuery)}`;
             }
 
-            // 1. EXECUTE REQUEST
+            // EXECUTE
             const data = await app.bot.request('GET', endpoint);
 
-            if(!data || !data.events || data.events.length === 0) {
-                list.innerHTML = '<div style="text-align:center; color:#ff5252; padding:20px;">No active markets found for this category.</div>';
+            if(!data) {
+                list.innerHTML = '<div style="text-align:center; color:#ff5252;">Connection Failed. Check Server.</div>';
                 return;
             }
 
-            // 2. RENDER RESULTS (Sorted by "Ending Soonest")
-            // We sort locally to show you the most urgent stuff first
-            const events = data.events.sort((a, b) => {
-                const aTime = a.markets[0]?.expiration_ts || 0;
-                const bTime = b.markets[0]?.expiration_ts || 0;
-                return aTime - bTime;
+            // --- DATA PROCESSOR ---
+
+            let eventsToRender = [];
+
+            if (isMarketMode) {
+                // CONVERT MARKETS -> EVENTS (Grouping Logic)
+                if (!data.markets || data.markets.length === 0) {
+                     list.innerHTML = '<div style="text-align:center; color:#888;">No events closing in 48h.</div>';
+                     return;
+                }
+                
+                // Group by Event Ticker
+                const groups = {};
+                data.markets.forEach(m => {
+                    if(!groups[m.event_ticker]) {
+                        groups[m.event_ticker] = {
+                            title: m.event_ticker, // Temporary title
+                            markets: []
+                        };
+                    }
+                    groups[m.event_ticker].markets.push(m);
+                });
+                eventsToRender = Object.values(groups);
+                
+            } else {
+                // STANDARD EVENTS API
+                if (!data.events || data.events.length === 0) {
+                     list.innerHTML = '<div style="text-align:center; color:#888;">No matches found.</div>';
+                     return;
+                }
+                eventsToRender = data.events;
+            }
+
+            // RENDER LOOP
+            list.innerHTML = '';
+            
+            // Sort by "Closing Soonest"
+            eventsToRender.sort((a, b) => {
+                const tA = a.markets?.[0]?.expiration_ts || 0;
+                const tB = b.markets?.[0]?.expiration_ts || 0;
+                return tA - tB;
             });
 
-            list.innerHTML = ''; // Clear loading message
-
-            events.forEach(evt => {
+            eventsToRender.forEach(evt => {
                 const markets = evt.markets || [];
                 if (markets.length === 0) return;
 
+                // Time Logic (Safety Check)
                 const expiryTs = markets[0].expiration_ts;
-                const expiryDate = new Date(expiryTs * 1000);
-                
-                // FORMAT TIME: "Today 8:00 PM" vs "Feb 24"
-                const isToday = expiryDate.toDateString() === new Date().toDateString();
-                const timeStr = isToday 
-                    ? `TODAY ${expiryDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` 
-                    : `${expiryDate.getMonth()+1}/${expiryDate.getDate()} ${expiryDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+                if (!expiryTs) return; // Skip broken dates
 
-                // Create Card
+                const expiryDate = new Date(expiryTs * 1000);
+                const isUrgent = (expiryTs - now) < (48 * 60 * 60);
+
+                const dateStr = expiryDate.toLocaleDateString() === new Date().toLocaleDateString() 
+                    ? `TODAY ${expiryDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}` 
+                    : `${expiryDate.getMonth()+1}/${expiryDate.getDate()} ${expiryDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+
+                // Card HTML
                 const card = document.createElement('div');
                 card.className = 'card';
-                // Color code: RED for Live (expiring < 48h), BLUE for others
-                const isUrgent = (expiryTs < hours48);
                 card.style.borderLeft = isUrgent ? '4px solid #D50000' : '4px solid #2962FF';
                 card.style.marginBottom = '10px';
                 card.style.padding = '8px';
 
+                // If in "Market Mode", the title is ugly (e.g. "HIGHNY-25FEB"), so we use the first market's title if possible
+                let displayTitle = evt.title;
+                if (isMarketMode && displayTitle.includes('-')) {
+                    // Try to make it readable, or use the market category
+                    displayTitle = markets[0].category || displayTitle;
+                }
+
                 let html = `
                     <div style="margin-bottom:6px; border-bottom:1px solid #333; padding-bottom:4px;">
-                        <div style="font-weight:bold; font-size:0.9rem; color:#fff;">${evt.title}</div>
-                        <div style="display:flex; justify-content:space-between; margin-top:2px;">
-                            <span style="font-size:0.65rem; color:#aaa;">${evt.category || 'Event'}</span>
-                            <span style="font-size:0.65rem; color:${isUrgent ? '#FF5252' : '#00E676'}; font-weight:bold;">⏳ Ends: ${timeStr}</span>
+                        <div style="font-weight:bold; font-size:0.9rem; color:#fff;">${displayTitle}</div>
+                        <div style="font-size:0.65rem; color:${isUrgent ? '#FF5252' : '#00E676'}; font-weight:bold;">
+                           ⏳ Ends: ${dateStr}
                         </div>
                     </div>
                     <div style="max-height:250px; overflow-y:auto;">
@@ -287,14 +315,15 @@ const app = {
                     const yesPrice = m.yes_bid || 0;
                     const noPrice = m.no_bid || 0;
                     
-                    // CLEAN NAMES: Use Subtitle if available, otherwise clean ticker
-                    let name = m.subtitle;
-                    if (!name) name = m.ticker.replace(evt.series_ticker + '-', '');
+                    // Name Logic
+                    let name = m.subtitle || m.ticker;
+                    // If name is just a number/date, append context
+                    if(name.length < 3) name = m.ticker; 
 
                     html += `
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; background:#111; padding:8px; border-radius:4px;">
-                            <div style="width:45%;">
-                                <div style="font-size:0.8rem; color:#eee; font-weight:bold;">${name}</div>
+                            <div style="width:45%; overflow:hidden;">
+                                <div style="font-size:0.8rem; color:#eee; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${name}</div>
                             </div>
                             <div style="display:flex; gap:5px;">
                                 <button class="btn" style="width:auto; padding:4px 10px; font-size:0.75rem; background:rgba(0, 230, 118, 0.15); color:#00E676; border:1px solid #00E676;" 
@@ -310,13 +339,59 @@ const app = {
                     `;
                 });
 
-                html += `</div>`; 
+                html += `</div>`;
                 card.innerHTML = html;
                 list.appendChild(card);
             });
-
-            app.bot.log(`Found ${events.length} active events.`);
+            
+            app.bot.log(`Found ${eventsToRender.length} Events.`);
         },
+
+        // 6. STAGE TRADE (Standard)
+        stageTrade: (ticker, side, price) => {
+            document.getElementById('trade-ticker').value = ticker;
+            document.getElementById('trade-side').value = side;
+            document.getElementById('trade-price').value = price;
+            document.getElementById('trade-count').value = 1;
+            app.bot.log(`Selected ${ticker}`);
+            document.getElementById('trade-ticker').scrollIntoView({ behavior: 'smooth' });
+        },
+
+        // 7. EXECUTE ORDER (Standard)
+        executeOrder: async () => {
+            const ticker = document.getElementById('trade-ticker').value;
+            const side = document.getElementById('trade-side').value;
+            const count = parseInt(document.getElementById('trade-count').value);
+            const price = parseInt(document.getElementById('trade-price').value);
+
+            if(!ticker || !count || !price) return alert("Invalid Trade Params");
+
+            if(!confirm(`CONFIRM: Buy ${count} contracts of ${ticker} (${side}) @ ${price}¢?`)) return;
+
+            app.bot.log(`🚀 SENDING ORDER...`);
+
+            const body = {
+                action: 'buy',
+                count: count,
+                side: side,
+                ticker: ticker,
+                type: 'limit',
+                yes_price: (side === 'yes' ? price : undefined),
+                no_price: (side === 'no' ? price : undefined),
+                expiration_ts: null
+            };
+
+            const data = await app.bot.request('POST', '/trade-api/v2/portfolio/orders', body);
+
+            if(data && data.order) {
+                app.bot.log(`✅ ORDER PLACED! ID: ${data.order.order_id}`);
+                app.bot.login(); 
+            } else {
+                app.bot.log("❌ Order Failed.");
+            }
+        }
+    },
+
 
 
 
