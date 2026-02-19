@@ -187,7 +187,7 @@ const app = {
             }
         },
 
-        // 5. HYBRID SEARCH ENGINE (The Fix)
+        // 5. BULLETPROOF SEARCH (Force Render)
         searchMarkets: async (modeOrQuery = "") => {
             const list = document.getElementById('bot-market-list');
             list.innerHTML = '<div style="text-align:center; color:#00E676; margin-top:20px;">Fetching Data...</div>';
@@ -198,26 +198,23 @@ const app = {
             const now = Math.floor(Date.now() / 1000);
 
             // --- STRATEGY SELECTOR ---
-            
             if (modeOrQuery === 'LIVE') {
-                // STRATEGY A: Use MARKETS API for time filtering (The only way to get "soon" items)
+                // Live: 48 hour window
                 const hours48 = now + (48 * 60 * 60);
                 endpoint = `/trade-api/v2/markets?limit=100&status=open&max_close_ts=${hours48}`;
                 isMarketMode = true;
             } 
             else if (modeOrQuery === 'NBA') {
-                // STRATEGY B: Use EVENTS API for Series
                 endpoint = `/trade-api/v2/events?limit=50&status=open&with_nested_markets=true&series_ticker=NBA`;
             }
             else if (modeOrQuery === 'MENTIONS') {
-                // STRATEGY C: Use EVENTS API for Text Search
                 endpoint = `/trade-api/v2/events?limit=50&status=open&with_nested_markets=true&query=mention`;
             }
             else if (modeOrQuery === 'ECON') {
                  endpoint = `/trade-api/v2/events?limit=50&status=open&with_nested_markets=true&series_ticker=CPI`;
             }
             else {
-                // Generic Search
+                // General Search
                 endpoint = `/trade-api/v2/events?limit=50&status=open&with_nested_markets=true&query=${encodeURIComponent(modeOrQuery)}`;
             }
 
@@ -230,31 +227,29 @@ const app = {
             }
 
             // --- DATA PROCESSOR ---
-
             let eventsToRender = [];
 
             if (isMarketMode) {
-                // CONVERT MARKETS -> EVENTS (Grouping Logic)
+                // CONVERT MARKETS -> EVENTS
                 if (!data.markets || data.markets.length === 0) {
-                     list.innerHTML = '<div style="text-align:center; color:#888;">No events closing in 48h.</div>';
+                     list.innerHTML = '<div style="text-align:center; color:#888;">No live markets found closing < 48h.</div>';
                      return;
                 }
-                
-                // Group by Event Ticker
                 const groups = {};
                 data.markets.forEach(m => {
-                    if(!groups[m.event_ticker]) {
-                        groups[m.event_ticker] = {
-                            title: m.event_ticker, // Temporary title
+                    const groupKey = m.event_ticker || "UNKNOWN";
+                    if(!groups[groupKey]) {
+                        groups[groupKey] = {
+                            title: m.event_ticker,
                             markets: []
                         };
                     }
-                    groups[m.event_ticker].markets.push(m);
+                    groups[groupKey].markets.push(m);
                 });
                 eventsToRender = Object.values(groups);
                 
             } else {
-                // STANDARD EVENTS API
+                // STANDARD EVENTS
                 if (!data.events || data.events.length === 0) {
                      list.innerHTML = '<div style="text-align:center; color:#888;">No matches found.</div>';
                      return;
@@ -265,87 +260,99 @@ const app = {
             // RENDER LOOP
             list.innerHTML = '';
             
-            // Sort by "Closing Soonest"
-            eventsToRender.sort((a, b) => {
-                const tA = a.markets?.[0]?.expiration_ts || 0;
-                const tB = b.markets?.[0]?.expiration_ts || 0;
-                return tA - tB;
-            });
+            let drawCount = 0;
 
             eventsToRender.forEach(evt => {
-                const markets = evt.markets || [];
-                if (markets.length === 0) return;
-
-                // Time Logic (Safety Check)
-                const expiryTs = markets[0].expiration_ts;
-                if (!expiryTs) return; // Skip broken dates
-
-                const expiryDate = new Date(expiryTs * 1000);
-                const isUrgent = (expiryTs - now) < (48 * 60 * 60);
-
-                const dateStr = expiryDate.toLocaleDateString() === new Date().toLocaleDateString() 
-                    ? `TODAY ${expiryDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}` 
-                    : `${expiryDate.getMonth()+1}/${expiryDate.getDate()} ${expiryDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
-
-                // Card HTML
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.style.borderLeft = isUrgent ? '4px solid #D50000' : '4px solid #2962FF';
-                card.style.marginBottom = '10px';
-                card.style.padding = '8px';
-
-                // If in "Market Mode", the title is ugly (e.g. "HIGHNY-25FEB"), so we use the first market's title if possible
-                let displayTitle = evt.title;
-                if (isMarketMode && displayTitle.includes('-')) {
-                    // Try to make it readable, or use the market category
-                    displayTitle = markets[0].category || displayTitle;
-                }
-
-                let html = `
-                    <div style="margin-bottom:6px; border-bottom:1px solid #333; padding-bottom:4px;">
-                        <div style="font-weight:bold; font-size:0.9rem; color:#fff;">${displayTitle}</div>
-                        <div style="font-size:0.65rem; color:${isUrgent ? '#FF5252' : '#00E676'}; font-weight:bold;">
-                           ⏳ Ends: ${dateStr}
-                        </div>
-                    </div>
-                    <div style="max-height:250px; overflow-y:auto;">
-                `;
-
-                markets.forEach(m => {
-                    const yesPrice = m.yes_bid || 0;
-                    const noPrice = m.no_bid || 0;
+                try {
+                    const markets = evt.markets || [];
                     
-                    // Name Logic
-                    let name = m.subtitle || m.ticker;
-                    // If name is just a number/date, append context
-                    if(name.length < 3) name = m.ticker; 
+                    // DATE LOGIC (Safe)
+                    let dateStr = "No Date";
+                    let isUrgent = false;
 
-                    html += `
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; background:#111; padding:8px; border-radius:4px;">
-                            <div style="width:45%; overflow:hidden;">
-                                <div style="font-size:0.8rem; color:#eee; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${name}</div>
-                            </div>
-                            <div style="display:flex; gap:5px;">
-                                <button class="btn" style="width:auto; padding:4px 10px; font-size:0.75rem; background:rgba(0, 230, 118, 0.15); color:#00E676; border:1px solid #00E676;" 
-                                    onclick="app.bot.stageTrade('${m.ticker}', 'yes', ${yesPrice})">
-                                    YES ${yesPrice}¢
-                                </button>
-                                <button class="btn" style="width:auto; padding:4px 10px; font-size:0.75rem; background:rgba(213, 0, 0, 0.15); color:#FF5252; border:1px solid #FF5252;" 
-                                    onclick="app.bot.stageTrade('${m.ticker}', 'no', ${noPrice})">
-                                    NO ${noPrice}¢
-                                </button>
+                    if (markets.length > 0 && markets[0].expiration_ts) {
+                        const expiryTs = markets[0].expiration_ts;
+                        const expiryDate = new Date(expiryTs * 1000);
+                        isUrgent = (expiryTs - now) < (48 * 60 * 60);
+                        
+                        // Format
+                        if (expiryDate.toDateString() === new Date().toDateString()) {
+                             dateStr = `TODAY ${expiryDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+                        } else {
+                             dateStr = `${expiryDate.getMonth()+1}/${expiryDate.getDate()} ${expiryDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+                        }
+                    }
+
+                    // DISPLAY TITLE (Safe)
+                    let displayTitle = evt.title || "Untitled Event";
+                    if (isMarketMode && markets.length > 0) {
+                        displayTitle = markets[0].category || markets[0].ticker || displayTitle;
+                    }
+
+                    // CREATE CARD
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.style.borderLeft = isUrgent ? '4px solid #D50000' : '4px solid #2962FF';
+                    card.style.marginBottom = '10px';
+                    card.style.padding = '8px';
+                    card.style.display = 'block'; // Force visible
+                    card.style.minHeight = '50px'; // Force height
+
+                    let html = `
+                        <div style="margin-bottom:6px; border-bottom:1px solid #333; padding-bottom:4px;">
+                            <div style="font-weight:bold; font-size:0.9rem; color:#fff;">${displayTitle}</div>
+                            <div style="font-size:0.65rem; color:${isUrgent ? '#FF5252' : '#00E676'}; font-weight:bold;">
+                               Ends: ${dateStr}
                             </div>
                         </div>
+                        <div style="max-height:250px; overflow-y:auto;">
                     `;
-                });
 
-                html += `</div>`;
-                card.innerHTML = html;
-                list.appendChild(card);
+                    if (markets.length === 0) {
+                        html += `<div style="font-size:0.7rem; color:#666; font-style:italic;">No active markets in this event.</div>`;
+                    } else {
+                        markets.forEach(m => {
+                            const yesPrice = m.yes_bid || 0;
+                            const noPrice = m.no_bid || 0;
+                            
+                            // Name Logic
+                            let name = m.subtitle || m.ticker;
+                            if(name.length < 3) name = m.ticker; 
+
+                            html += `
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; background:#111; padding:8px; border-radius:4px;">
+                                    <div style="width:45%; overflow:hidden;">
+                                        <div style="font-size:0.8rem; color:#eee; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${name}</div>
+                                    </div>
+                                    <div style="display:flex; gap:5px;">
+                                        <button class="btn" style="width:auto; padding:4px 10px; font-size:0.75rem; background:rgba(0, 230, 118, 0.15); color:#00E676; border:1px solid #00E676;" 
+                                            onclick="app.bot.stageTrade('${m.ticker}', 'yes', ${yesPrice})">
+                                            YES ${yesPrice}¢
+                                        </button>
+                                        <button class="btn" style="width:auto; padding:4px 10px; font-size:0.75rem; background:rgba(213, 0, 0, 0.15); color:#FF5252; border:1px solid #FF5252;" 
+                                            onclick="app.bot.stageTrade('${m.ticker}', 'no', ${noPrice})">
+                                            NO ${noPrice}¢
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+
+                    html += `</div>`;
+                    card.innerHTML = html;
+                    list.appendChild(card);
+                    drawCount++;
+
+                } catch (err) {
+                    console.error("Render Error:", err);
+                    // Skip bad cards but don't stop the loop
+                }
             });
             
-            app.bot.log(`Found ${eventsToRender.length} Events.`);
+            app.bot.log(`Drawn ${drawCount} cards (Data: ${eventsToRender.length}).`);
         },
+
 
         // 6. STAGE TRADE (Standard)
         stageTrade: (ticker, side, price) => {
