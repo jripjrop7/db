@@ -54,7 +54,7 @@ const app = {
         document.getElementById('modal-dash-settings').classList.remove('open');
         app.render();
     },
-    // --- KALSHI AUTO-TRADER (BRIDGE SERVER VERSION) ---
+    // --- KALSHI AUTO-TRADER (FULL BOT ENGINE) ---
     bot: {
         // 1. CREDENTIALS
         saveKeys: () => {
@@ -89,7 +89,6 @@ const app = {
         // 2. CRYPTO ENGINE (RSA-PSS)
         importPrivateKey: async (pem) => {
             try {
-                // CLEANUP Headers
                 const cleanPem = pem.replace(/-----BEGIN.*?-----/g, "")
                                     .replace(/-----END.*?-----/g, "")
                                     .replace(/\s/g, "");
@@ -124,7 +123,7 @@ const app = {
         },
 
         // 3. REQUEST ENGINE (HITS YOUR LOCAL BRIDGE)
-        request: async (method, endpoint) => {
+        request: async (method, endpoint, body = null) => {
             const keyId = localStorage.getItem('k_key_id');
             const privKeyPem = localStorage.getItem('k_priv_key');
 
@@ -134,30 +133,28 @@ const app = {
             }
 
             try {
-                // A. Prepare Signature
                 const timestamp = Date.now().toString();
-                // Strip query params for signing (e.g., "/path?foo=bar" -> "/path")
                 const pathForSigning = endpoint.split('?')[0]; 
                 
                 const privateKey = await app.bot.importPrivateKey(privKeyPem);
                 const signature = await app.bot.signRequest(privateKey, timestamp, method, pathForSigning);
 
-                // B. HIT LOCAL BRIDGE (http://localhost:3000/api/...)
-                // The bridge forwards it to Kalshi.com for us!
+                // HIT LOCAL BRIDGE
                 const bridgeUrl = 'http://localhost:3000/api' + endpoint;
 
-                app.bot.log(`Sending to Bridge...`);
-
-                const response = await fetch(bridgeUrl, {
+                const options = {
                     method: method,
                     headers: {
                         'Content-Type': 'application/json',
-                        // We send the auth headers to the Bridge, which passes them to Kalshi
                         'KALSHI-ACCESS-KEY': keyId,
                         'KALSHI-ACCESS-SIGNATURE': signature,
                         'KALSHI-ACCESS-TIMESTAMP': timestamp
                     }
-                });
+                };
+
+                if (body) options.body = JSON.stringify(body);
+
+                const response = await fetch(bridgeUrl, options);
 
                 if(!response.ok) {
                     const txt = await response.text();
@@ -168,14 +165,11 @@ const app = {
 
             } catch (e) {
                 app.bot.log(`❌ Error: ${e.message}`);
-                if(e.message.includes("Failed to fetch")) {
-                    alert("BRIDGE OFFLINE:\n\nMake sure your Node.js server is running in Termux!\nCommand: node bridge.js");
-                }
                 return null;
             }
         },
 
-        // 4. TEST
+        // 4. CONNECTION TEST
         login: async () => {
             app.bot.log("Testing Bridge...");
             const data = await app.bot.request('GET', '/trade-api/v2/portfolio/balance');
@@ -190,8 +184,99 @@ const app = {
                 status.style.color = "#00E676";
                 status.style.background = "rgba(0, 230, 118, 0.15)";
             }
+        },
+
+        // 5. FIND MARKETS
+        searchMarkets: async (query) => {
+            app.bot.log(`🔎 Searching: "${query}"...`);
+            
+            // Fetch Markets via Bridge
+            const path = `/trade-api/v2/markets?limit=20&status=open&query=${encodeURIComponent(query)}`;
+            const data = await app.bot.request('GET', path);
+
+            if(!data || !data.markets) {
+                app.bot.log("No markets found.");
+                return;
+            }
+
+            const list = document.getElementById('bot-market-list');
+            list.innerHTML = '';
+
+            data.markets.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'tx-item';
+                div.style.display = 'block';
+                div.style.marginBottom = '8px';
+                
+                // Get Prices (safeguard against nulls)
+                const yesPrice = m.yes_bid || 0;
+                const noPrice = m.no_bid || 0;
+
+                div.innerHTML = `
+                    <div style="font-weight:bold; font-size:0.8rem; color:#fff; margin-bottom:4px;">${m.title}</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.7rem; color:#aaa;">${m.ticker}</span>
+                        <div style="display:flex; gap:5px;">
+                            <button class="btn btn-primary" style="width:auto; padding:4px 10px; font-size:0.7rem;" 
+                                onclick="app.bot.stageTrade('${m.ticker}', 'yes', ${yesPrice})">
+                                YES ${yesPrice}¢
+                            </button>
+                            <button class="btn btn-danger" style="width:auto; padding:4px 10px; font-size:0.7rem;" 
+                                onclick="app.bot.stageTrade('${m.ticker}', 'no', ${noPrice})">
+                                NO ${noPrice}¢
+                            </button>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+            app.bot.log(`Found ${data.markets.length} markets.`);
+        },
+
+        // 6. STAGE TRADE
+        stageTrade: (ticker, side, price) => {
+            document.getElementById('trade-ticker').value = ticker;
+            document.getElementById('trade-side').value = side;
+            document.getElementById('trade-price').value = price;
+            document.getElementById('trade-count').value = 1;
+            app.bot.log(`Selected ${ticker} (${side.toUpperCase()})`);
+        },
+
+        // 7. EXECUTE ORDER
+        executeOrder: async () => {
+            const ticker = document.getElementById('trade-ticker').value;
+            const side = document.getElementById('trade-side').value;
+            const count = parseInt(document.getElementById('trade-count').value);
+            const price = parseInt(document.getElementById('trade-price').value);
+
+            if(!ticker || !count || !price) return alert("Invalid Trade Params");
+
+            if(!confirm(`CONFIRM: Buy ${count} contracts of ${ticker} (${side}) @ ${price}¢?`)) return;
+
+            app.bot.log(`🚀 SENDING ORDER...`);
+
+            const body = {
+                action: 'buy',
+                count: count,
+                side: side,
+                ticker: ticker,
+                type: 'limit',
+                yes_price: (side === 'yes' ? price : undefined),
+                no_price: (side === 'no' ? price : undefined),
+                expiration_ts: null
+            };
+
+            const data = await app.bot.request('POST', '/trade-api/v2/portfolio/orders', body);
+
+            if(data && data.order) {
+                app.bot.log(`✅ ORDER PLACED! ID: ${data.order.order_id}`);
+                app.bot.login(); // Refresh Balance
+            } else {
+                app.bot.log("❌ Order Failed.");
+            }
         }
     },
+
 
 
 
