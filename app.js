@@ -54,14 +54,17 @@ const app = {
         document.getElementById('modal-dash-settings').classList.remove('open');
         app.render();
     },
-    // --- KALSHI AUTO-TRADER (FULL BOT ENGINE) ---
+    // --- KALSHI AUTO-TRADER (FINAL VERSION) ---
     bot: {
         // 1. CREDENTIALS
         saveKeys: () => {
             const keyId = document.getElementById('k-key-id').value.trim();
             const privKey = document.getElementById('k-priv-key').value.trim();
             
-            if(!keyId || !privKey) return alert("Missing Keys");
+            if(!keyId || !privKey) return alert("Please enter Key ID & Private Key");
+            
+            // Basic validation
+            if(!keyId.includes('-')) alert("Warning: Key ID should look like a UUID (e.g. 123e4567-e89b...)");
 
             localStorage.setItem('k_key_id', keyId);
             localStorage.setItem('k_priv_key', privKey); 
@@ -89,6 +92,8 @@ const app = {
         // 2. CRYPTO ENGINE (RSA-PSS)
         importPrivateKey: async (pem) => {
             try {
+                // CLEANUP: Remove headers/footers/newlines
+                // This fixes the "RSA PRIVATE KEY" vs "PRIVATE KEY" issue automatically
                 const cleanPem = pem.replace(/-----BEGIN.*?-----/g, "")
                                     .replace(/-----END.*?-----/g, "")
                                     .replace(/\s/g, "");
@@ -107,7 +112,8 @@ const app = {
                     ["sign"]
                 );
             } catch (e) {
-                throw new Error("Key Format Error. Ensure key is PKCS#8.");
+                console.error(e);
+                throw new Error("Key Format Error. Ensure your key content is correct.");
             }
         },
 
@@ -122,25 +128,30 @@ const app = {
             return btoa(String.fromCharCode(...new Uint8Array(signature)));
         },
 
-        // 3. REQUEST ENGINE (HITS YOUR LOCAL BRIDGE)
+        // 3. REQUEST ENGINE (DIRECT)
         request: async (method, endpoint, body = null) => {
             const keyId = localStorage.getItem('k_key_id');
             const privKeyPem = localStorage.getItem('k_priv_key');
 
             if(!keyId || !privKeyPem) {
-                app.bot.log("❌ Keys missing.");
+                app.bot.log("❌ Keys missing. Check Vault.");
                 return null;
             }
 
             try {
+                // A. Prepare Signature
                 const timestamp = Date.now().toString();
+                // Strip query params for signing (e.g., "/path?foo=bar" -> "/path")
                 const pathForSigning = endpoint.split('?')[0]; 
                 
                 const privateKey = await app.bot.importPrivateKey(privKeyPem);
                 const signature = await app.bot.signRequest(privateKey, timestamp, method, pathForSigning);
 
-                // HIT LOCAL BRIDGE
-                const bridgeUrl = 'http://localhost:3000/api' + endpoint;
+                // B. DIRECT URL (No Proxy - Requires Extension)
+                const baseUrl = 'https://api.elections.kalshi.com';
+                const targetUrl = baseUrl + endpoint;
+
+                app.bot.log(`Sending ${method}...`);
 
                 const options = {
                     method: method,
@@ -154,11 +165,13 @@ const app = {
 
                 if (body) options.body = JSON.stringify(body);
 
-                const response = await fetch(bridgeUrl, options);
+                const response = await fetch(targetUrl, options);
 
                 if(!response.ok) {
                     const txt = await response.text();
-                    throw new Error(`Bridge Error ${response.status}: ${txt}`);
+                    // Detect specific Extension issues
+                    if(response.status === 0) throw new Error("CORS Blocked. Is the Extension ON?");
+                    throw new Error(`API Error ${response.status}: ${txt}`);
                 }
 
                 return await response.json();
@@ -171,12 +184,17 @@ const app = {
 
         // 4. CONNECTION TEST
         login: async () => {
-            app.bot.log("Testing Bridge...");
+            app.bot.log("--- STARTING DIRECT TEST ---");
+            
+            // We verify the connection by fetching your balance
             const data = await app.bot.request('GET', '/trade-api/v2/portfolio/balance');
 
             if (data) {
-                app.bot.log("✅ BRIDGE CONNECTED!");
-                const bal = (data.balance || 0) / 100;
+                app.bot.log("✅ CONNECTED DIRECTLY!");
+                
+                // Kalshi sends balance in cents
+                const bal = (data.balance || 0) / 100; 
+                
                 document.getElementById('k-bal').innerText = app.formatMoney(bal);
                 
                 const status = document.getElementById('bot-status');
@@ -186,51 +204,78 @@ const app = {
             }
         },
 
-        // 5. FIND MARKETS
+        // 5. FIND MARKETS (GROUPED BY EVENT + NESTED MARKETS)
         searchMarkets: async (query) => {
-            app.bot.log(`🔎 Searching: "${query}"...`);
+            app.bot.log(`🔎 Searching Events: "${query}"...`);
             
-            // Fetch Markets via Bridge
-            const path = `/trade-api/v2/markets?limit=20&status=open&query=${encodeURIComponent(query)}`;
+            // KEY FIX: We ask for EVENTS with nested markets included
+            const path = `/trade-api/v2/events?limit=5&status=open&with_nested_markets=true&query=${encodeURIComponent(query)}`;
             const data = await app.bot.request('GET', path);
 
-            if(!data || !data.markets) {
-                app.bot.log("No markets found.");
+            if(!data || !data.events || data.events.length === 0) {
+                app.bot.log("No events found.");
                 return;
             }
 
             const list = document.getElementById('bot-market-list');
             list.innerHTML = '';
 
-            data.markets.forEach(m => {
-                const div = document.createElement('div');
-                div.className = 'tx-item';
-                div.style.display = 'block';
-                div.style.marginBottom = '8px';
-                
-                // Get Prices (safeguard against nulls)
-                const yesPrice = m.yes_bid || 0;
-                const noPrice = m.no_bid || 0;
+            // 1. Loop through each Parent EVENT
+            data.events.forEach(evt => {
+                const markets = evt.markets || [];
+                if(markets.length === 0) return;
 
-                div.innerHTML = `
-                    <div style="font-weight:bold; font-size:0.8rem; color:#fff; margin-bottom:4px;">${m.title}</div>
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size:0.7rem; color:#aaa;">${m.ticker}</span>
-                        <div style="display:flex; gap:5px;">
-                            <button class="btn btn-primary" style="width:auto; padding:4px 10px; font-size:0.7rem;" 
-                                onclick="app.bot.stageTrade('${m.ticker}', 'yes', ${yesPrice})">
-                                YES ${yesPrice}¢
-                            </button>
-                            <button class="btn btn-danger" style="width:auto; padding:4px 10px; font-size:0.7rem;" 
-                                onclick="app.bot.stageTrade('${m.ticker}', 'no', ${noPrice})">
-                                NO ${noPrice}¢
-                            </button>
-                        </div>
+                // Create the Event Card
+                const eventCard = document.createElement('div');
+                eventCard.className = 'card';
+                eventCard.style.borderLeft = '4px solid #FFEA00'; // Yellow for Events
+                eventCard.style.marginBottom = '12px';
+                eventCard.style.padding = '10px';
+
+                // 2. Event Header (The Main Question)
+                let html = `
+                    <div style="margin-bottom:8px; border-bottom:1px solid #333; padding-bottom:5px;">
+                        <div style="font-weight:bold; font-size:0.9rem; color:#fff;">${evt.title}</div>
+                        <div style="font-size:0.65rem; color:#aaa;">${markets.length} Options Available</div>
                     </div>
+                    <div style="max-height:250px; overflow-y:auto; padding-right:4px;">
                 `;
-                list.appendChild(div);
+
+                // 3. Loop through ALL Markets (The Options) inside this Event
+                markets.forEach(m => {
+                    const yesPrice = m.yes_bid || 0;
+                    const noPrice = m.no_bid || 0;
+                    
+                    // Use 'subtitle' if available (e.g. "China"), otherwise 'ticker'
+                    const label = m.subtitle || m.ticker; 
+
+                    html += `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; background:#111; padding:8px; border-radius:4px; border:1px solid #222;">
+                            <div style="width:45%; overflow:hidden;">
+                                <div style="font-size:0.75rem; color:#eee; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${label}</div>
+                                <div style="font-size:0.6rem; color:#555;">${m.ticker}</div>
+                            </div>
+                            
+                            <div style="display:flex; gap:6px;">
+                                <button class="btn" style="width:auto; padding:4px 10px; font-size:0.7rem; background:rgba(0, 230, 118, 0.15); color:#00E676; border:1px solid #00E676;" 
+                                    onclick="app.bot.stageTrade('${m.ticker}', 'yes', ${yesPrice})">
+                                    YES ${yesPrice}¢
+                                </button>
+                                <button class="btn" style="width:auto; padding:4px 10px; font-size:0.7rem; background:rgba(213, 0, 0, 0.15); color:#FF5252; border:1px solid #FF5252;" 
+                                    onclick="app.bot.stageTrade('${m.ticker}', 'no', ${noPrice})">
+                                    NO ${noPrice}¢
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `</div>`; // Close scroll container
+                eventCard.innerHTML = html;
+                list.appendChild(eventCard);
             });
-            app.bot.log(`Found ${data.markets.length} markets.`);
+
+            app.bot.log(`Found ${data.events.length} Events.`);
         },
 
         // 6. STAGE TRADE
@@ -240,6 +285,9 @@ const app = {
             document.getElementById('trade-price').value = price;
             document.getElementById('trade-count').value = 1;
             app.bot.log(`Selected ${ticker} (${side.toUpperCase()})`);
+            
+            // Scroll to execution box for better UX
+            document.getElementById('trade-ticker').scrollIntoView({ behavior: 'smooth' });
         },
 
         // 7. EXECUTE ORDER
@@ -276,6 +324,7 @@ const app = {
             }
         }
     },
+
 
 
 
