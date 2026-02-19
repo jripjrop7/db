@@ -197,62 +197,100 @@ const app = {
             }
         },
 
-        // 5. FIND MARKETS (GROUPED BY EVENT)
-        searchMarkets: async (query) => {
-            app.bot.log(`🔎 Searching Events: "${query}"...`);
-            
-            // USE BRIDGE to fetch Events with Nested Markets
-            const path = `/trade-api/v2/events?limit=5&status=open&with_nested_markets=true&query=${encodeURIComponent(query)}`;
+                // 5. SMART MARKET SEARCH (Local Filter + Better Names)
+        searchMarkets: async (query = "") => {
+            app.bot.log(`🔎 Scanning for: "${query}"...`);
+            const list = document.getElementById('bot-market-list');
+            list.innerHTML = '<div style="text-align:center; color:#888;">Downloading Market Data...</div>';
+
+            // 1. FETCH A LOT (Limit 100) to ensure we get good variety
+            // We fetch the "Top" events first, then filter them ourselves.
+            const path = `/trade-api/v2/events?limit=100&status=open&with_nested_markets=true`;
             const data = await app.bot.request('GET', path);
 
-            if(!data || !data.events || data.events.length === 0) {
-                app.bot.log("No events found.");
+            if(!data || !data.events) {
+                app.bot.log("No data received.");
+                list.innerHTML = 'Error fetching markets.';
                 return;
             }
 
-            const list = document.getElementById('bot-market-list');
-            list.innerHTML = '';
+            // 2. FILTER LOCALLY (Better than API search)
+            const searchLower = query.toLowerCase();
+            const now = Math.floor(Date.now() / 1000);
+            const maxDuration = 90 * 24 * 60 * 60; // 90 Days in seconds (Filter out long-term bets)
 
-            // 1. Loop through Events
-            data.events.forEach(evt => {
+            const filtered = data.events.filter(evt => {
+                // A. Time Filter: Skip if it expires way in the future (e.g. Mars landing 2030)
+                // Note: We check the first market's expiration as a proxy
+                const firstMarket = evt.markets ? evt.markets[0] : null;
+                if (firstMarket && (firstMarket.expiration_ts - now > maxDuration)) return false;
+
+                // B. Text Filter: Does title match query?
+                // If query is empty, show everything (Top 100)
+                if (!query) return true;
+                
+                // Check Event Title
+                if (evt.title.toLowerCase().includes(searchLower)) return true;
+                
+                // Check Category/Series
+                if (evt.category && evt.category.toLowerCase().includes(searchLower)) return true;
+                if (evt.series_ticker && evt.series_ticker.toLowerCase().includes(searchLower)) return true;
+
+                return false;
+            });
+
+            list.innerHTML = '';
+            if (filtered.length === 0) {
+                list.innerHTML = '<div style="padding:10px; text-align:center; color:#666;">No relevant markets found.<br>Try "Politics" or "Sports".</div>';
+                return;
+            }
+
+            // 3. RENDER RESULTS
+            filtered.forEach(evt => {
                 const markets = evt.markets || [];
                 if(markets.length === 0) return;
 
-                // Create Card
-                const eventCard = document.createElement('div');
-                eventCard.className = 'card';
-                eventCard.style.borderLeft = '4px solid #FFEA00'; 
-                eventCard.style.marginBottom = '12px';
-                eventCard.style.padding = '10px';
+                // Create Event Card
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.style.borderLeft = '4px solid #2962FF'; // Blue for Events
+                card.style.marginBottom = '10px';
+                card.style.padding = '8px';
 
                 // Header
                 let html = `
-                    <div style="margin-bottom:8px; border-bottom:1px solid #333; padding-bottom:5px;">
-                        <div style="font-weight:bold; font-size:0.9rem; color:#fff;">${evt.title}</div>
-                        <div style="font-size:0.65rem; color:#aaa;">${markets.length} Options Available</div>
+                    <div style="margin-bottom:6px; border-bottom:1px solid #333; padding-bottom:4px;">
+                        <div style="font-weight:bold; font-size:0.85rem; color:#fff;">${evt.title}</div>
+                        <div style="font-size:0.6rem; color:#888;">${markets.length} Options • Ends: ${new Date(markets[0].expiration_ts * 1000).toLocaleDateString()}</div>
                     </div>
-                    <div style="max-height:250px; overflow-y:auto; padding-right:4px;">
+                    <div style="max-height:200px; overflow-y:auto;">
                 `;
 
-                // Markets List
+                // Markets Loop
                 markets.forEach(m => {
                     const yesPrice = m.yes_bid || 0;
                     const noPrice = m.no_bid || 0;
-                    const label = m.subtitle || m.ticker; 
+                    
+                    // BETTER NAMING LOGIC
+                    // 1. Try subtitle (e.g. "Over 50.5 Points")
+                    // 2. Try title (e.g. "Lakers Score")
+                    // 3. Fallback to Ticker
+                    let label = m.subtitle;
+                    if (!label || label === "") label = m.title;
+                    if (!label || label === "") label = m.ticker;
 
                     html += `
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; background:#111; padding:8px; border-radius:4px; border:1px solid #222;">
-                            <div style="width:45%; overflow:hidden;">
-                                <div style="font-size:0.75rem; color:#eee; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${label}</div>
-                                <div style="font-size:0.6rem; color:#555;">${m.ticker}</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; background:#1a1a1a; padding:6px; border-radius:4px;">
+                            <div style="width:50%; overflow:hidden;">
+                                <div style="font-size:0.75rem; color:#e0e0e0; font-weight:500;">${label}</div>
                             </div>
                             
-                            <div style="display:flex; gap:6px;">
-                                <button class="btn" style="width:auto; padding:4px 10px; font-size:0.7rem; background:rgba(0, 230, 118, 0.15); color:#00E676; border:1px solid #00E676;" 
+                            <div style="display:flex; gap:4px;">
+                                <button class="btn" style="width:auto; padding:2px 8px; font-size:0.7rem; background:rgba(0, 230, 118, 0.2); color:#00E676; border:1px solid #00E676;" 
                                     onclick="app.bot.stageTrade('${m.ticker}', 'yes', ${yesPrice})">
                                     YES ${yesPrice}¢
                                 </button>
-                                <button class="btn" style="width:auto; padding:4px 10px; font-size:0.7rem; background:rgba(213, 0, 0, 0.15); color:#FF5252; border:1px solid #FF5252;" 
+                                <button class="btn" style="width:auto; padding:2px 8px; font-size:0.7rem; background:rgba(213, 0, 0, 0.2); color:#FF5252; border:1px solid #FF5252;" 
                                     onclick="app.bot.stageTrade('${m.ticker}', 'no', ${noPrice})">
                                     NO ${noPrice}¢
                                 </button>
@@ -262,12 +300,13 @@ const app = {
                 });
 
                 html += `</div>`; 
-                eventCard.innerHTML = html;
-                list.appendChild(eventCard);
+                card.innerHTML = html;
+                list.appendChild(card);
             });
 
-            app.bot.log(`Found ${data.events.length} Events.`);
+            app.bot.log(`Showing ${filtered.length} Events.`);
         },
+
 
         // 6. STAGE TRADE
         stageTrade: (ticker, side, price) => {
