@@ -54,17 +54,14 @@ const app = {
         document.getElementById('modal-dash-settings').classList.remove('open');
         app.render();
     },
-    // --- KALSHI AUTO-TRADER (DIRECT / KIWI BROWSER VERSION) ---
+    // --- KALSHI AUTO-TRADER (BRIDGE SERVER VERSION) ---
     bot: {
-        // 1. SAVE CREDENTIALS
+        // 1. CREDENTIALS
         saveKeys: () => {
             const keyId = document.getElementById('k-key-id').value.trim();
             const privKey = document.getElementById('k-priv-key').value.trim();
             
-            if(!keyId || !privKey) return alert("Please enter Key ID & Private Key");
-            
-            // Basic validation
-            if(!keyId.includes('-')) alert("Warning: Key ID should look like a UUID (e.g. 123e4567-e89b...)");
+            if(!keyId || !privKey) return alert("Missing Keys");
 
             localStorage.setItem('k_key_id', keyId);
             localStorage.setItem('k_priv_key', privKey); 
@@ -92,8 +89,7 @@ const app = {
         // 2. CRYPTO ENGINE (RSA-PSS)
         importPrivateKey: async (pem) => {
             try {
-                // CLEANUP: Remove headers/footers/newlines
-                // This fixes the "RSA PRIVATE KEY" vs "PRIVATE KEY" issue automatically
+                // CLEANUP Headers
                 const cleanPem = pem.replace(/-----BEGIN.*?-----/g, "")
                                     .replace(/-----END.*?-----/g, "")
                                     .replace(/\s/g, "");
@@ -112,8 +108,7 @@ const app = {
                     ["sign"]
                 );
             } catch (e) {
-                console.error(e);
-                throw new Error("Key Format Error. Ensure your key content is correct.");
+                throw new Error("Key Format Error. Ensure key is PKCS#8.");
             }
         },
 
@@ -128,13 +123,13 @@ const app = {
             return btoa(String.fromCharCode(...new Uint8Array(signature)));
         },
 
-        // 3. REQUEST ENGINE (DIRECT)
+        // 3. REQUEST ENGINE (HITS YOUR LOCAL BRIDGE)
         request: async (method, endpoint) => {
             const keyId = localStorage.getItem('k_key_id');
             const privKeyPem = localStorage.getItem('k_priv_key');
 
             if(!keyId || !privKeyPem) {
-                app.bot.log("❌ Keys missing. Check Vault.");
+                app.bot.log("❌ Keys missing.");
                 return null;
             }
 
@@ -147,17 +142,17 @@ const app = {
                 const privateKey = await app.bot.importPrivateKey(privKeyPem);
                 const signature = await app.bot.signRequest(privateKey, timestamp, method, pathForSigning);
 
-                // B. DIRECT URL (No Proxy)
-                // Since you have the extension, this will work.
-                const baseUrl = 'https://api.elections.kalshi.com';
-                const targetUrl = baseUrl + endpoint;
+                // B. HIT LOCAL BRIDGE (http://localhost:3000/api/...)
+                // The bridge forwards it to Kalshi.com for us!
+                const bridgeUrl = 'http://localhost:3000/api' + endpoint;
 
-                app.bot.log(`Sending ${method}...`);
+                app.bot.log(`Sending to Bridge...`);
 
-                const response = await fetch(targetUrl, {
+                const response = await fetch(bridgeUrl, {
                     method: method,
                     headers: {
                         'Content-Type': 'application/json',
+                        // We send the auth headers to the Bridge, which passes them to Kalshi
                         'KALSHI-ACCESS-KEY': keyId,
                         'KALSHI-ACCESS-SIGNATURE': signature,
                         'KALSHI-ACCESS-TIMESTAMP': timestamp
@@ -166,32 +161,28 @@ const app = {
 
                 if(!response.ok) {
                     const txt = await response.text();
-                    // Detect specific Extension issues
-                    if(response.status === 0) throw new Error("CORS Blocked. Is the Extension ON?");
-                    throw new Error(`API Error ${response.status}: ${txt}`);
+                    throw new Error(`Bridge Error ${response.status}: ${txt}`);
                 }
 
                 return await response.json();
 
             } catch (e) {
                 app.bot.log(`❌ Error: ${e.message}`);
+                if(e.message.includes("Failed to fetch")) {
+                    alert("BRIDGE OFFLINE:\n\nMake sure your Node.js server is running in Termux!\nCommand: node bridge.js");
+                }
                 return null;
             }
         },
 
-        // 4. CONNECTION TEST
+        // 4. TEST
         login: async () => {
-            app.bot.log("--- STARTING DIRECT TEST ---");
-            
-            // We verify the connection by fetching your balance
+            app.bot.log("Testing Bridge...");
             const data = await app.bot.request('GET', '/trade-api/v2/portfolio/balance');
 
             if (data) {
-                app.bot.log("✅ CONNECTED DIRECTLY!");
-                
-                // Kalshi sends balance in cents
-                const bal = (data.balance || 0) / 100; 
-                
+                app.bot.log("✅ BRIDGE CONNECTED!");
+                const bal = (data.balance || 0) / 100;
                 document.getElementById('k-bal').innerText = app.formatMoney(bal);
                 
                 const status = document.getElementById('bot-status');
