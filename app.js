@@ -54,7 +54,7 @@ const app = {
         document.getElementById('modal-dash-settings').classList.remove('open');
         app.render();
     },
-    // --- KALSHI AUTO-TRADER (FINAL VERSION) ---
+    // --- KALSHI AUTO-TRADER (BRIDGE SERVER + EVENT SEARCH) ---
     bot: {
         // 1. CREDENTIALS
         saveKeys: () => {
@@ -63,7 +63,6 @@ const app = {
             
             if(!keyId || !privKey) return alert("Please enter Key ID & Private Key");
             
-            // Basic validation
             if(!keyId.includes('-')) alert("Warning: Key ID should look like a UUID (e.g. 123e4567-e89b...)");
 
             localStorage.setItem('k_key_id', keyId);
@@ -93,7 +92,6 @@ const app = {
         importPrivateKey: async (pem) => {
             try {
                 // CLEANUP: Remove headers/footers/newlines
-                // This fixes the "RSA PRIVATE KEY" vs "PRIVATE KEY" issue automatically
                 const cleanPem = pem.replace(/-----BEGIN.*?-----/g, "")
                                     .replace(/-----END.*?-----/g, "")
                                     .replace(/\s/g, "");
@@ -113,7 +111,7 @@ const app = {
                 );
             } catch (e) {
                 console.error(e);
-                throw new Error("Key Format Error. Ensure your key content is correct.");
+                throw new Error("Key Format Error. Ensure key is PKCS#8.");
             }
         },
 
@@ -128,7 +126,7 @@ const app = {
             return btoa(String.fromCharCode(...new Uint8Array(signature)));
         },
 
-        // 3. REQUEST ENGINE (DIRECT)
+        // 3. REQUEST ENGINE (HITS LOCALHOST:3000)
         request: async (method, endpoint, body = null) => {
             const keyId = localStorage.getItem('k_key_id');
             const privKeyPem = localStorage.getItem('k_priv_key');
@@ -147,11 +145,10 @@ const app = {
                 const privateKey = await app.bot.importPrivateKey(privKeyPem);
                 const signature = await app.bot.signRequest(privateKey, timestamp, method, pathForSigning);
 
-                // B. DIRECT URL (No Proxy - Requires Extension)
-                const baseUrl = 'https://api.elections.kalshi.com';
-                const targetUrl = baseUrl + endpoint;
+                // B. BRIDGE URL (Local Server)
+                const bridgeUrl = 'http://localhost:3000/api' + endpoint;
 
-                app.bot.log(`Sending ${method}...`);
+                app.bot.log(`Sending to Bridge...`);
 
                 const options = {
                     method: method,
@@ -165,36 +162,32 @@ const app = {
 
                 if (body) options.body = JSON.stringify(body);
 
-                const response = await fetch(targetUrl, options);
+                const response = await fetch(bridgeUrl, options);
 
                 if(!response.ok) {
                     const txt = await response.text();
-                    // Detect specific Extension issues
-                    if(response.status === 0) throw new Error("CORS Blocked. Is the Extension ON?");
-                    throw new Error(`API Error ${response.status}: ${txt}`);
+                    throw new Error(`Bridge Error ${response.status}: ${txt}`);
                 }
 
                 return await response.json();
 
             } catch (e) {
                 app.bot.log(`❌ Error: ${e.message}`);
+                if(e.message.includes("Failed to fetch")) {
+                    alert("BRIDGE OFFLINE:\n\nMake sure your Termux app is open and running 'node bridge.js'.");
+                }
                 return null;
             }
         },
 
         // 4. CONNECTION TEST
         login: async () => {
-            app.bot.log("--- STARTING DIRECT TEST ---");
-            
-            // We verify the connection by fetching your balance
+            app.bot.log("Testing Bridge...");
             const data = await app.bot.request('GET', '/trade-api/v2/portfolio/balance');
 
             if (data) {
-                app.bot.log("✅ CONNECTED DIRECTLY!");
-                
-                // Kalshi sends balance in cents
-                const bal = (data.balance || 0) / 100; 
-                
+                app.bot.log("✅ BRIDGE CONNECTED!");
+                const bal = (data.balance || 0) / 100;
                 document.getElementById('k-bal').innerText = app.formatMoney(bal);
                 
                 const status = document.getElementById('bot-status');
@@ -204,11 +197,11 @@ const app = {
             }
         },
 
-        // 5. FIND MARKETS (GROUPED BY EVENT + NESTED MARKETS)
+        // 5. FIND MARKETS (GROUPED BY EVENT)
         searchMarkets: async (query) => {
             app.bot.log(`🔎 Searching Events: "${query}"...`);
             
-            // KEY FIX: We ask for EVENTS with nested markets included
+            // USE BRIDGE to fetch Events with Nested Markets
             const path = `/trade-api/v2/events?limit=5&status=open&with_nested_markets=true&query=${encodeURIComponent(query)}`;
             const data = await app.bot.request('GET', path);
 
@@ -220,19 +213,19 @@ const app = {
             const list = document.getElementById('bot-market-list');
             list.innerHTML = '';
 
-            // 1. Loop through each Parent EVENT
+            // 1. Loop through Events
             data.events.forEach(evt => {
                 const markets = evt.markets || [];
                 if(markets.length === 0) return;
 
-                // Create the Event Card
+                // Create Card
                 const eventCard = document.createElement('div');
                 eventCard.className = 'card';
-                eventCard.style.borderLeft = '4px solid #FFEA00'; // Yellow for Events
+                eventCard.style.borderLeft = '4px solid #FFEA00'; 
                 eventCard.style.marginBottom = '12px';
                 eventCard.style.padding = '10px';
 
-                // 2. Event Header (The Main Question)
+                // Header
                 let html = `
                     <div style="margin-bottom:8px; border-bottom:1px solid #333; padding-bottom:5px;">
                         <div style="font-weight:bold; font-size:0.9rem; color:#fff;">${evt.title}</div>
@@ -241,12 +234,10 @@ const app = {
                     <div style="max-height:250px; overflow-y:auto; padding-right:4px;">
                 `;
 
-                // 3. Loop through ALL Markets (The Options) inside this Event
+                // Markets List
                 markets.forEach(m => {
                     const yesPrice = m.yes_bid || 0;
                     const noPrice = m.no_bid || 0;
-                    
-                    // Use 'subtitle' if available (e.g. "China"), otherwise 'ticker'
                     const label = m.subtitle || m.ticker; 
 
                     html += `
@@ -270,7 +261,7 @@ const app = {
                     `;
                 });
 
-                html += `</div>`; // Close scroll container
+                html += `</div>`; 
                 eventCard.innerHTML = html;
                 list.appendChild(eventCard);
             });
@@ -285,8 +276,6 @@ const app = {
             document.getElementById('trade-price').value = price;
             document.getElementById('trade-count').value = 1;
             app.bot.log(`Selected ${ticker} (${side.toUpperCase()})`);
-            
-            // Scroll to execution box for better UX
             document.getElementById('trade-ticker').scrollIntoView({ behavior: 'smooth' });
         },
 
@@ -324,6 +313,7 @@ const app = {
             }
         }
     },
+
 
 
 
