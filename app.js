@@ -148,7 +148,7 @@ const app = {
                 // B. ROUTE THROUGH PROXY (Fixes Network Error)
                 const baseUrl = 'https://api.elections.kalshi.com';
                 const targetUrl = baseUrl + endpoint;
-                const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl)
+                const proxyUrl = 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(targetUrl)
 
                 app.bot.log(`Sending ${method} to Proxy...`);
 
