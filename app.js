@@ -393,60 +393,6 @@ const app = {
     },
 
 
-
-
-
-        // 6. STAGE TRADE
-        stageTrade: (ticker, side, price) => {
-            document.getElementById('trade-ticker').value = ticker;
-            document.getElementById('trade-side').value = side;
-            document.getElementById('trade-price').value = price;
-            document.getElementById('trade-count').value = 1;
-            app.bot.log(`Selected ${ticker} (${side.toUpperCase()})`);
-            document.getElementById('trade-ticker').scrollIntoView({ behavior: 'smooth' });
-        },
-
-        // 7. EXECUTE ORDER
-        executeOrder: async () => {
-            const ticker = document.getElementById('trade-ticker').value;
-            const side = document.getElementById('trade-side').value;
-            const count = parseInt(document.getElementById('trade-count').value);
-            const price = parseInt(document.getElementById('trade-price').value);
-
-            if(!ticker || !count || !price) return alert("Invalid Trade Params");
-
-            if(!confirm(`CONFIRM: Buy ${count} contracts of ${ticker} (${side}) @ ${price}¢?`)) return;
-
-            app.bot.log(`🚀 SENDING ORDER...`);
-
-            const body = {
-                action: 'buy',
-                count: count,
-                side: side,
-                ticker: ticker,
-                type: 'limit',
-                yes_price: (side === 'yes' ? price : undefined),
-                no_price: (side === 'no' ? price : undefined),
-                expiration_ts: null
-            };
-
-            const data = await app.bot.request('POST', '/trade-api/v2/portfolio/orders', body);
-
-            if(data && data.order) {
-                app.bot.log(`✅ ORDER PLACED! ID: ${data.order.order_id}`);
-                app.bot.login(); // Refresh Balance
-            } else {
-                app.bot.log("❌ Order Failed.");
-            }
-        }
-    },
-
-
-
-
-
-
-
         // --- PARLAY ENGINE v2 (ADVANCED) ---
     parlay: {
         legs: [],
