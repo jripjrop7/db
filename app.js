@@ -197,100 +197,116 @@ const app = {
             }
         },
 
-                // 5. SMART MARKET SEARCH (Local Filter + Better Names)
+             // 5. SMART SEARCH (LIVE FILTER + 48H LOGIC)
         searchMarkets: async (query = "") => {
-            app.bot.log(`🔎 Scanning for: "${query}"...`);
             const list = document.getElementById('bot-market-list');
-            list.innerHTML = '<div style="text-align:center; color:#888;">Downloading Market Data...</div>';
+            list.innerHTML = '<div style="text-align:center; color:#00E676; margin-top:20px;">Scanning Markets...</div>';
+            app.bot.log(`🔎 Searching: "${query}"...`);
 
-            // 1. FETCH A LOT (Limit 100) to ensure we get good variety
-            // We fetch the "Top" events first, then filter them ourselves.
-            const path = `/trade-api/v2/events?limit=100&status=open&with_nested_markets=true`;
-            const data = await app.bot.request('GET', path);
+            // CONFIG
+            const now = Math.floor(Date.now() / 1000);
+            const hours48 = 48 * 60 * 60;
+            let endpoint = `/trade-api/v2/events?limit=100&status=open&with_nested_markets=true`;
+            
+            // SPECIAL MODES
+            if (query === 'NBA') endpoint += `&series_ticker=NBA`; 
+            // Note: 'Mentions' isn't a series, so we filter it manually below
+
+            // 1. FETCH DATA
+            const data = await app.bot.request('GET', endpoint);
 
             if(!data || !data.events) {
-                app.bot.log("No data received.");
-                list.innerHTML = 'Error fetching markets.';
+                list.innerHTML = '<div style="text-align:center; color:#ff5252;">No markets found.</div>';
                 return;
             }
 
-            // 2. FILTER LOCALLY (Better than API search)
-            const searchLower = query.toLowerCase();
-            const now = Math.floor(Date.now() / 1000);
-            const maxDuration = 90 * 24 * 60 * 60; // 90 Days in seconds (Filter out long-term bets)
-
+            // 2. FILTER LOGIC
             const filtered = data.events.filter(evt => {
-                // A. Time Filter: Skip if it expires way in the future (e.g. Mars landing 2030)
-                // Note: We check the first market's expiration as a proxy
                 const firstMarket = evt.markets ? evt.markets[0] : null;
-                if (firstMarket && (firstMarket.expiration_ts - now > maxDuration)) return false;
-
-                // B. Text Filter: Does title match query?
-                // If query is empty, show everything (Top 100)
-                if (!query) return true;
+                if (!firstMarket) return false;
                 
-                // Check Event Title
-                if (evt.title.toLowerCase().includes(searchLower)) return true;
-                
-                // Check Category/Series
-                if (evt.category && evt.category.toLowerCase().includes(searchLower)) return true;
-                if (evt.series_ticker && evt.series_ticker.toLowerCase().includes(searchLower)) return true;
+                const timeLeft = firstMarket.expiration_ts - now;
 
-                return false;
+                // MODE A: "LIVE" (Strict 48h limit)
+                if (query === 'LIVE') {
+                    // Must be closing within 48 hours AND not expired yet
+                    return (timeLeft > 0 && timeLeft < hours48);
+                }
+
+                // MODE B: "Mentions"
+                if (query === 'Mentions') {
+                    // Look for keywords in title
+                    const t = evt.title.toLowerCase();
+                    return t.includes('mention') || t.includes('say') || t.includes('tweet');
+                }
+
+                // MODE C: Standard Search
+                if (query && query !== 'NBA') { // NBA is already filtered by endpoint
+                    const q = query.toLowerCase();
+                    return evt.title.toLowerCase().includes(q) || 
+                           evt.category.toLowerCase().includes(q) ||
+                           evt.series_ticker.toLowerCase().includes(q);
+                }
+
+                return true;
             });
 
+            // 3. RENDER RESULTS
             list.innerHTML = '';
             if (filtered.length === 0) {
-                list.innerHTML = '<div style="padding:10px; text-align:center; color:#666;">No relevant markets found.<br>Try "Politics" or "Sports".</div>';
+                list.innerHTML = '<div style="text-align:center; color:#666; padding:20px;">No events match your filter.<br>Try "LIVE" or a different search.</div>';
                 return;
             }
 
-            // 3. RENDER RESULTS
+            // Sort by "Closing Soonest" first
+            filtered.sort((a, b) => a.markets[0].expiration_ts - b.markets[0].expiration_ts);
+
             filtered.forEach(evt => {
                 const markets = evt.markets || [];
-                if(markets.length === 0) return;
+                const expiry = new Date(markets[0].expiration_ts * 1000);
+                
+                // Format Date nicely (e.g. "Today 8:00 PM")
+                const dateStr = expiry.toLocaleDateString() === new Date().toLocaleDateString() 
+                    ? `TODAY ${expiry.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`
+                    : `${expiry.toLocaleDateString()} ${expiry.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 
-                // Create Event Card
+                // Create Card
                 const card = document.createElement('div');
                 card.className = 'card';
-                card.style.borderLeft = '4px solid #2962FF'; // Blue for Events
+                card.style.borderLeft = query === 'LIVE' ? '4px solid #D50000' : '4px solid #2962FF';
                 card.style.marginBottom = '10px';
                 card.style.padding = '8px';
 
-                // Header
                 let html = `
                     <div style="margin-bottom:6px; border-bottom:1px solid #333; padding-bottom:4px;">
-                        <div style="font-weight:bold; font-size:0.85rem; color:#fff;">${evt.title}</div>
-                        <div style="font-size:0.6rem; color:#888;">${markets.length} Options • Ends: ${new Date(markets[0].expiration_ts * 1000).toLocaleDateString()}</div>
+                        <div style="font-weight:bold; font-size:0.9rem; color:#fff;">${evt.title}</div>
+                        <div style="font-size:0.65rem; color:#00E676; font-weight:bold;">⏳ Ends: ${dateStr}</div>
                     </div>
-                    <div style="max-height:200px; overflow-y:auto;">
+                    <div style="max-height:250px; overflow-y:auto;">
                 `;
 
-                // Markets Loop
                 markets.forEach(m => {
                     const yesPrice = m.yes_bid || 0;
                     const noPrice = m.no_bid || 0;
                     
-                    // BETTER NAMING LOGIC
-                    // 1. Try subtitle (e.g. "Over 50.5 Points")
-                    // 2. Try title (e.g. "Lakers Score")
-                    // 3. Fallback to Ticker
-                    let label = m.subtitle;
-                    if (!label || label === "") label = m.title;
-                    if (!label || label === "") label = m.ticker;
+                    // CLEAN NAME LOGIC:
+                    // If subtitle exists (e.g. "Over 50.5"), use it.
+                    // If not, try to clean up the ticker (e.g. "IN-LAL-GSW" -> "LAL vs GSW")
+                    let name = m.subtitle;
+                    if (!name) name = m.ticker.replace('NBA-', '').replace('IN-', ''); 
 
                     html += `
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; background:#1a1a1a; padding:6px; border-radius:4px;">
-                            <div style="width:50%; overflow:hidden;">
-                                <div style="font-size:0.75rem; color:#e0e0e0; font-weight:500;">${label}</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; background:#111; padding:8px; border-radius:4px;">
+                            <div style="width:45%;">
+                                <div style="font-size:0.8rem; color:#eee; font-weight:bold;">${name}</div>
                             </div>
                             
-                            <div style="display:flex; gap:4px;">
-                                <button class="btn" style="width:auto; padding:2px 8px; font-size:0.7rem; background:rgba(0, 230, 118, 0.2); color:#00E676; border:1px solid #00E676;" 
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn" style="width:auto; padding:4px 10px; font-size:0.75rem; background:rgba(0, 230, 118, 0.15); color:#00E676; border:1px solid #00E676;" 
                                     onclick="app.bot.stageTrade('${m.ticker}', 'yes', ${yesPrice})">
                                     YES ${yesPrice}¢
                                 </button>
-                                <button class="btn" style="width:auto; padding:2px 8px; font-size:0.7rem; background:rgba(213, 0, 0, 0.2); color:#FF5252; border:1px solid #FF5252;" 
+                                <button class="btn" style="width:auto; padding:4px 10px; font-size:0.75rem; background:rgba(213, 0, 0, 0.15); color:#FF5252; border:1px solid #FF5252;" 
                                     onclick="app.bot.stageTrade('${m.ticker}', 'no', ${noPrice})">
                                     NO ${noPrice}¢
                                 </button>
@@ -304,8 +320,9 @@ const app = {
                 list.appendChild(card);
             });
 
-            app.bot.log(`Showing ${filtered.length} Events.`);
+            app.bot.log(`Found ${filtered.length} active events.`);
         },
+
 
 
         // 6. STAGE TRADE

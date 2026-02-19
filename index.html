@@ -1415,22 +1415,28 @@
     <div class="card" style="border-top: 4px solid #00E676;">
         <h2>MARKET SCANNER</h2>
         
-        <div style="display:flex; gap:5px; margin-bottom:10px; overflow-x:auto;">
-            <button class="btn" style="font-size:0.7rem; padding:4px 8px; width:auto; background:#333;" onclick="app.bot.searchMarkets('Sports')">🏀 Sports</button>
-            <button class="btn" style="font-size:0.7rem; padding:4px 8px; width:auto; background:#333;" onclick="app.bot.searchMarkets('Politics')">⚖️ Politics</button>
-            <button class="btn" style="font-size:0.7rem; padding:4px 8px; width:auto; background:#333;" onclick="app.bot.searchMarkets('Economics')">📈 Econ</button>
-            <button class="btn" style="font-size:0.7rem; padding:4px 8px; width:auto; background:#333;" onclick="app.bot.searchMarkets('')">🔥 Top 100</button>
+        <div style="display:flex; gap:5px; margin-bottom:10px; overflow-x:auto; padding-bottom:5px;">
+            <button class="btn" style="background:#D50000; font-weight:bold; font-size:0.7rem; padding:6px 10px; width:auto;" 
+                onclick="app.bot.searchMarkets('LIVE')">⚡ LIVE (48h)</button>
+            <button class="btn" style="background:#333; font-size:0.7rem; padding:6px 10px; width:auto;" 
+                onclick="app.bot.searchMarkets('NBA')">🏀 NBA</button>
+            <button class="btn" style="background:#333; font-size:0.7rem; padding:6px 10px; width:auto;" 
+                onclick="app.bot.searchMarkets('Politics')">⚖️ Politics</button>
+            <button class="btn" style="background:#333; font-size:0.7rem; padding:6px 10px; width:auto;" 
+                onclick="app.bot.searchMarkets('Mentions')">🗣 Mentions</button>
         </div>
 
         <div style="display:flex; gap:8px; margin-bottom:10px;">
-            <input type="text" id="bot-search" placeholder="Filter (e.g. Lakers, CPI, Trump)" style="margin:0;">
+            <input type="text" id="bot-search" placeholder="Search (e.g. Trump, Chiefs, GDP)" style="margin:0;">
             <button class="btn btn-sec" style="width:auto;" onclick="app.bot.searchMarkets(document.getElementById('bot-search').value)">
                 <i class="material-icons-round">search</i>
             </button>
         </div>
 
-        <div id="bot-market-list" style="max-height:400px; overflow-y:auto;">
-            <div style="text-align:center; color:#555; padding:20px;">Select a category or search...</div>
+        <div id="bot-market-list" style="max-height:450px; overflow-y:auto; min-height:100px;">
+            <div style="text-align:center; color:#555; padding:20px;">
+                Select <b>⚡ LIVE</b> to see upcoming action.
+            </div>
         </div>
     </div>
 
