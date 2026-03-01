@@ -382,10 +382,10 @@ const app = {
     },
 
 
-        // --- PARLAY ENGINE v2 (ADVANCED) ---
+            // --- PARLAY ENGINE v3 (PERSISTENCE + EVEN DISTRO) ---
     parlay: {
-        legs: [],
-        
+        currentEditId: null,
+
         // 1. UTILITIES
         americanToDecimal: (odds) => {
             if (odds >= 100) return (odds / 100) + 1;
@@ -398,82 +398,128 @@ const app = {
             return -100 / (dec - 1);
         },
 
-        // 2. UI MANAGEMENT
-        addLegModal: () => {
-            document.getElementById('leg-name').value = '';
-            document.getElementById('leg-odds').value = '-110';
-            document.getElementById('leg-conf').value = '';
-            document.getElementById('leg-group-a').value = '';
-            document.getElementById('leg-group-b').value = '';
-            document.getElementById('modal-leg').style.display = 'flex';
+        // 2. UI MANAGEMENT & PERSISTENCE
+        openLegModal: (id = null) => {
+            app.data.parlayLegs = app.data.parlayLegs || [];
+            if(id) {
+                app.parlay.currentEditId = id;
+                const l = app.data.parlayLegs.find(x => x.id === id);
+                document.getElementById('leg-name').value = l.name;
+                document.getElementById('leg-odds').value = l.odds;
+                // Convert decimal back to 1-100% for the UI
+                document.getElementById('leg-conf').value = l.customConf ? Math.round(l.conf * 100) : '';
+                document.getElementById('leg-group-a').value = l.groupA || '';
+                document.getElementById('leg-group-b').value = l.groupB || '';
+                document.getElementById('leg-modal-title').innerText = "EDIT LEG";
+            } else {
+                app.parlay.currentEditId = null;
+                document.getElementById('leg-name').value = '';
+                document.getElementById('leg-odds').value = '-110';
+                document.getElementById('leg-conf').value = '';
+                document.getElementById('leg-group-a').value = '';
+                document.getElementById('leg-group-b').value = '';
+                document.getElementById('leg-modal-title').innerText = "ADD LEG";
+            }
+            document.getElementById('modal-leg').classList.add('open');
         },
 
         saveLeg: () => {
+            app.data.parlayLegs = app.data.parlayLegs || [];
             const name = document.getElementById('leg-name').value || 'Untitled';
             const odds = parseFloat(document.getElementById('leg-odds').value) || -110;
             const groupA = document.getElementById('leg-group-a').value.trim();
             const groupB = document.getElementById('leg-group-b').value.trim();
-            const confInput = parseFloat(document.getElementById('leg-conf').value) || 0;
+            const confInput = parseFloat(document.getElementById('leg-conf').value); // 1-100
 
             const dec = app.parlay.americanToDecimal(odds);
             const implied = 1 / dec;
-            const conf = confInput > 0 ? confInput : implied;
+            
+            let conf = implied;
+            let customConf = false;
+            if (!isNaN(confInput) && confInput > 0 && confInput <= 100) {
+                conf = confInput / 100; // Convert to decimal for math
+                customConf = true;
+            }
 
-            app.parlay.legs.push({
-                id: Date.now() + Math.random().toString(),
-                name: name,
-                odds: odds,
-                dec: dec,
-                groupA: groupA,
-                groupB: groupB,
-                conf: conf
-            });
+            const legObj = {
+                id: app.parlay.currentEditId || Date.now().toString(),
+                name, odds, dec, groupA, groupB, conf, customConf,
+                active: true // Default to selected
+            };
 
-            document.getElementById('modal-leg').style.display = 'none';
+            if (app.parlay.currentEditId) {
+                const i = app.data.parlayLegs.findIndex(x => x.id === app.parlay.currentEditId);
+                if (i > -1) {
+                    // Preserve active state when editing
+                    legObj.active = app.data.parlayLegs[i].active; 
+                    app.data.parlayLegs[i] = legObj;
+                }
+            } else {
+                app.data.parlayLegs.push(legObj);
+            }
+
+            app.save();
+            document.getElementById('modal-leg').classList.remove('open');
             app.parlay.renderLegs();
         },
 
+        toggleLeg: (id) => {
+            const l = app.data.parlayLegs.find(x => x.id === id);
+            if(l) { l.active = !l.active; app.save(); app.parlay.renderLegs(); }
+        },
+
+        removeLeg: (id) => {
+            if(confirm("Delete this leg?")) {
+                app.data.parlayLegs = app.data.parlayLegs.filter(x => x.id !== id);
+                app.save();
+                app.parlay.renderLegs();
+            }
+        },
+        
+        clearLegs: () => {
+            if(confirm("Clear ALL legs and saved tickets?")) {
+                app.data.parlayLegs = [];
+                app.data.parlayTickets = [];
+                app.save();
+                app.parlay.renderLegs();
+                app.parlay.renderSavedTickets();
+            }
+        },
+
         renderLegs: () => {
+            app.data.parlayLegs = app.data.parlayLegs || [];
             const div = document.getElementById('pe-legs-list');
-            document.getElementById('pe-leg-count').innerText = `${app.parlay.legs.length} Legs`;
             
-            if(app.parlay.legs.length === 0) {
+            const activeCount = app.data.parlayLegs.filter(l => l.active).length;
+            document.getElementById('pe-leg-count').innerText = `${activeCount}/${app.data.parlayLegs.length} Selected`;
+            
+            if(app.data.parlayLegs.length === 0) {
                 div.innerHTML = '<div style="text-align:center; color:#555; padding:10px;">No legs added.</div>';
                 return;
             }
 
-            div.innerHTML = app.parlay.legs.map((l, i) => `
-                <div style="background:#111; border:1px solid #333; padding:8px; margin-bottom:5px; border-radius:4px; display:flex; justify-content:space-between; align-items:center;">
-                    <div>
+            div.innerHTML = app.data.parlayLegs.map(l => `
+                <div style="background:#111; border:1px solid ${l.active ? '#00FF41' : '#333'}; padding:8px; margin-bottom:5px; border-radius:4px; display:flex; align-items:center; opacity: ${l.active ? '1' : '0.5'}; transition:0.3s;">
+                    <input type="checkbox" class="visible-box" style="margin:0 10px 0 0 !important; width:18px !important; height:18px !important;" ${l.active ? 'checked' : ''} onchange="app.parlay.toggleLeg('${l.id}')">
+                    
+                    <div style="flex-grow:1; cursor:pointer;" onclick="app.parlay.openLegModal('${l.id}')">
                         <div style="font-weight:bold; color:#fff;">${l.name}</div>
                         <div style="font-size:0.65rem; color:#aaa;">
-                            ${l.odds} • ${(l.conf*100).toFixed(0)}% Win
+                            ${l.odds > 0 ? '+'+l.odds : l.odds} • ${(l.conf*100).toFixed(1)}% Win
                             ${l.groupA ? `<span style="color:#FF5252; margin-left:4px;">⛔ ${l.groupA}</span>` : ''}
                             ${l.groupB ? `<span style="color:#FFAB40; margin-left:4px;">🔗 ${l.groupB}</span>` : ''}
                         </div>
                     </div>
-                    <button onclick="app.parlay.removeLeg(${i})" style="color:red; background:none; border:none; cursor:pointer;">✕</button>
+                    <i class="material-icons-round" style="color:#FF5252; font-size:18px; cursor:pointer; padding:5px;" onclick="app.parlay.removeLeg('${l.id}')">delete</i>
                 </div>
             `).join('');
         },
 
-        removeLeg: (i) => {
-            app.parlay.legs.splice(i, 1);
-            app.parlay.renderLegs();
-        },
-        
-        clearLegs: () => {
-            if(confirm("Clear all legs?")) {
-                app.parlay.legs = [];
-                app.parlay.renderLegs();
-                document.getElementById('pe-results').innerHTML = '';
-            }
-        },
-
-        // 3. THE ADVANCED ALGORITHM
+        // 3. THE ADVANCED ALGORITHM (Now with Even Distribution)
         generate: () => {
-            const legs = app.parlay.legs;
-            if(legs.length < 2) return alert("Need at least 2 legs.");
+            app.data.parlayLegs = app.data.parlayLegs || [];
+            const activeLegs = app.data.parlayLegs.filter(l => l.active);
+            if(activeLegs.length < 2) return alert("Select at least 2 active legs.");
 
             // Inputs
             const bankroll = parseFloat(document.getElementById('pe-bankroll').value) || 1000;
@@ -483,20 +529,20 @@ const app = {
             const targetCount = parseInt(document.getElementById('pe-count').value) || 10;
             const maxExposurePct = (parseFloat(document.getElementById('pe-exposure').value) || 50) / 100;
             const strategyMix = (parseInt(document.getElementById('pe-strategy').value) || 30) / 100;
+            const isEvenDist = document.getElementById('pe-even').checked;
 
             const resultsDiv = document.getElementById('pe-results');
-            resultsDiv.innerHTML = '<div style="text-align:center; color:#aaa;">Running Simulations...</div>';
+            resultsDiv.innerHTML = '<div style="text-align:center; color:#aaa; margin-top:20px;">Running Simulations...</div>';
 
-            // A. GENERATE POOL
-            const pool = [];
+            // A. GENERATE MEGA POOL
+            let pool = [];
             const uniqueHashes = new Set();
             let attempts = 0;
 
-            // Try to find up to 2000 valid combos
-            while (pool.length < 2000 && attempts < 10000) {
+            while (pool.length < 3000 && attempts < 15000) {
                 attempts++;
                 const size = Math.floor(Math.random() * (maxLegs - minLegs + 1)) + minLegs;
-                const shuffled = [...legs].sort(() => 0.5 - Math.random());
+                const shuffled = [...activeLegs].sort(() => 0.5 - Math.random());
                 
                 const combo = [];
                 const usedGroupA = new Set();
@@ -504,10 +550,8 @@ const app = {
 
                 for(let leg of shuffled) {
                     if (combo.length >= size) break;
-
-                    // CHECK CONFLICTS
-                    if (leg.groupA && usedGroupA.has(leg.groupA)) continue; // Conflict A
-                    if (leg.groupB && usedGroupB.has(leg.groupB)) continue; // Conflict B
+                    if (leg.groupA && usedGroupA.has(leg.groupA)) continue; 
+                    if (leg.groupB && usedGroupB.has(leg.groupB)) continue; 
 
                     combo.push(leg);
                     if(leg.groupA) usedGroupA.add(leg.groupA);
@@ -516,17 +560,14 @@ const app = {
 
                 if(combo.length < minLegs) continue;
 
-                // Unique ID
                 combo.sort((a,b) => a.id > b.id ? 1 : -1);
                 const hash = combo.map(c => c.id).join('|');
                 if(uniqueHashes.has(hash)) continue;
                 uniqueHashes.add(hash);
 
-                // Math
                 const totalDec = combo.reduce((acc, l) => acc * l.dec, 1);
                 const trueProb = combo.reduce((acc, l) => acc * l.conf, 1);
                 
-                // Kelly
                 const b = totalDec - 1;
                 const p = trueProb;
                 const q = 1 - p;
@@ -534,16 +575,15 @@ const app = {
                 const wager = Math.max(0, bankroll * (f * kellyFrac));
                 const ev = (p * (totalDec * wager - wager)) - (q * wager);
 
+                // Only keep positive EV or non-zero bets
                 if(ev > 0 && wager > 0) {
                     pool.push({ legs: combo, odds: totalDec, prob: trueProb, wager, ev, payout: wager * totalDec });
                 }
             }
 
-            // B. SELECTION (Greedy + Random Mix + Exposure Cap)
-            pool.sort((a, b) => b.ev - a.ev); // Best first
-
+            // B. SELECTION ALGORITHM
             const finalPortfolio = [];
-            const legCounts = {};
+            const legCounts = {}; // For hard max exposure limit
 
             const canAdd = (bet) => {
                 for(let l of bet.legs) {
@@ -555,52 +595,120 @@ const app = {
 
             const commit = (bet) => {
                 finalPortfolio.push(bet);
-                for(let l of bet.legs) legCounts[l.id] = (legCounts[l.id] || 0) + 1;
+                for(let l of bet.legs) {
+                    legCounts[l.id] = (legCounts[l.id] || 0) + 1;
+                }
             };
 
-            // 1. Greedy Pass
-            const greedyTarget = Math.floor(targetCount * (1 - strategyMix));
-            for (let i = 0; i < pool.length; i++) {
-                if (finalPortfolio.length >= greedyTarget) break;
-                if (canAdd(pool[i])) commit(pool[i]);
+            if (isEvenDist) {
+                // --- THE EVEN DISTRIBUTION ENGINE ---
+                let usage = {};
+                activeLegs.forEach(l => usage[l.id] = 0);
+
+                let escapeHatch = 0;
+                while (finalPortfolio.length < targetCount && pool.length > 0 && escapeHatch < 5000) {
+                    escapeHatch++;
+                    
+                    // 1. Find the leg(s) used the absolute least so far
+                    let minUse = Math.min(...Object.values(usage));
+                    let candidateLegIds = Object.keys(usage).filter(id => usage[id] === minUse);
+                    let targetLegId = candidateLegIds[Math.floor(Math.random() * candidateLegIds.length)];
+
+                    // 2. Filter the remaining pool for tickets containing this neglected leg
+                    let validTickets = pool.filter(t => t.legs.some(l => l.id === targetLegId));
+
+                    if (validTickets.length === 0) {
+                        // This leg is impossible to place anymore (due to limits/conflicts). Stop trying to balance it.
+                        delete usage[targetLegId];
+                        if (Object.keys(usage).length === 0) break;
+                        continue;
+                    }
+
+                    // 3. Apply Strategy Mix (Greedy EV vs Random)
+                    let pickedTicket;
+                    if (Math.random() > strategyMix) { 
+                        validTickets.sort((a,b) => b.ev - a.ev); // Top EV
+                        pickedTicket = validTickets[0];
+                    } else {
+                        pickedTicket = validTickets[Math.floor(Math.random() * validTickets.length)]; // Random Diversity
+                    }
+
+                    // 4. Try to commit
+                    if (canAdd(pickedTicket)) {
+                        commit(pickedTicket);
+                        // Update our local balancing tracker
+                        for(let l of pickedTicket.legs) {
+                            if(usage[l.id] !== undefined) usage[l.id]++;
+                        }
+                        // Remove from pool so we don't pick it twice
+                        pool = pool.filter(t => t !== pickedTicket);
+                    } else {
+                        // Max exposure hit. Burn the ticket from the pool and try again next loop
+                        pool = pool.filter(t => t !== pickedTicket);
+                    }
+                }
+
+            } else {
+                // --- STANDARD ENGINE (Top-Heavy / Greedy) ---
+                pool.sort((a, b) => b.ev - a.ev); 
+
+                const greedyTarget = Math.floor(targetCount * (1 - strategyMix));
+                for (let i = 0; i < pool.length; i++) {
+                    if (finalPortfolio.length >= greedyTarget) break;
+                    if (canAdd(pool[i])) commit(pool[i]);
+                }
+
+                const remainingPool = pool.filter(p => !finalPortfolio.includes(p));
+                remainingPool.sort(() => 0.5 - Math.random()); 
+                for (let i = 0; i < remainingPool.length; i++) {
+                    if (finalPortfolio.length >= targetCount) break;
+                    if (canAdd(remainingPool[i])) commit(remainingPool[i]);
+                }
             }
 
-            // 2. Random/Diversity Pass
-            const remainingPool = pool.filter(p => !finalPortfolio.includes(p));
-            remainingPool.sort(() => 0.5 - Math.random()); // Shuffle
-            for (let i = 0; i < remainingPool.length; i++) {
-                if (finalPortfolio.length >= targetCount) break;
-                if (canAdd(remainingPool[i])) commit(remainingPool[i]);
+            // Save to memory so it doesn't wipe on reload
+            app.data.parlayTickets = finalPortfolio;
+            app.save();
+            app.parlay.renderSavedTickets();
+        },
+
+        renderSavedTickets: () => {
+            const resultsDiv = document.getElementById('pe-results');
+            const tickets = app.data.parlayTickets || [];
+            
+            if (tickets.length === 0) {
+                resultsDiv.innerHTML = '';
+                return;
             }
 
-            // C. RENDER
             resultsDiv.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; margin-top:20px;">
-                    <h3>${finalPortfolio.length} TICKETS GENERATED</h3>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; margin-top:20px; border-bottom:1px solid #333; padding-bottom:10px;">
+                    <h3 style="margin:0;">${tickets.length} ACTIVE TICKETS</h3>
                 </div>
-            ` + finalPortfolio.map((t, i) => {
+            ` + tickets.map((t, i) => {
                 const amer = app.parlay.decimalToAmerican(t.odds);
                 const oddsStr = amer > 0 ? `+${amer.toFixed(0)}` : amer.toFixed(0);
                 
                 return `
-                <div class="card" style="border-left: 4px solid #00FF41; margin-bottom:10px;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                <div class="card" style="border-left: 4px solid #00FF41; margin-bottom:10px; padding:12px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
                         <span style="font-weight:bold; color:#00FF41;">TICKET #${i+1}</span>
-                        <span style="font-weight:bold; color:#fff;">${oddsStr}</span>
+                        <span style="font-weight:bold; color:#fff; font-size:1.1rem;">${oddsStr}</span>
                     </div>
-                    <div style="font-size:0.8rem; color:#ccc; margin-bottom:8px;">
-                        ${t.legs.map(l => l.name).join(' + ')}
+                    <div style="font-size:0.8rem; color:#ccc; margin-bottom:12px; line-height:1.4;">
+                        ${t.legs.map(l => `• ${l.name}`).join('<br>')}
                     </div>
-                    <div style="background:#111; padding:5px; border-radius:4px; font-size:0.75rem; display:flex; justify-content:space-between;">
-                        <span>Bet: <b style="color:#fff">$${t.wager.toFixed(2)}</b></span>
-                        <span>Pay: <b style="color:#00E676">$${t.payout.toFixed(2)}</b></span>
-                        <span>EV: <b style="color:#00FF41">$${t.ev.toFixed(2)}</b></span>
+                    <div style="background:#0a0a0a; padding:8px; border-radius:4px; font-size:0.75rem; display:flex; justify-content:space-between; border:1px solid #333;">
+                        <span style="color:#aaa;">Bet: <b style="color:#fff; font-size:0.85rem;">$${t.wager.toFixed(2)}</b></span>
+                        <span style="color:#aaa;">Pay: <b style="color:#00E676; font-size:0.85rem;">$${t.payout.toFixed(2)}</b></span>
+                        <span style="color:#aaa;">EV: <b style="color:#00FF41;">$${t.ev.toFixed(2)}</b></span>
                     </div>
                 </div>
                 `;
             }).join('');
         }
     },
+
 
         // --- UNIVERSAL COLLAPSER ---
     // Automatically turns every Card in 'view-tools' into a collapsible folder
@@ -790,7 +898,11 @@ setTimeout(() => {
             app.filter.start = document.getElementById('date-start').value;
             app.filter.end = document.getElementById('date-end').value;
         }
-        
+                if(app.parlay) {
+            app.parlay.renderLegs();
+            app.parlay.renderSavedTickets();
+        }
+
         // 3. Render Main UI
         app.render(); 
         if(document.getElementById('view-stats').style.display !== 'none') { 
