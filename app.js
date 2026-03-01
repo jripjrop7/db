@@ -696,7 +696,7 @@ const app = {
     filter: { mode: 'all', val: null, start: null, end: null, search: '', excludedCats: [] },
     
     currentId: null, currentTicketId: null, currentInvId: null, currentNoteId: null, isExpense: false, liveTimerInterval: null,
-    noteColors: ['#D50000', '#00C853', '#2962FF', '#FFD600', '#FF6D00', '#C51162'],
+    noteColors: ['#D50000', '#00C853', '#2962FF', '#FFD600', '#FF6D00', '#C51162', '#1DE9B6', '#F50057', '#3D5AFE', '#C6FF00'],
 
     colors: { pokerCash:'#00E5FF', pokerTourney:'#2979FF', bets:'#FF9100', job:'#E91E63', sales:'#D500F9', crypto:'#FFEA00', dice:'#2196F3', casino:'#009688', kalshi:'#651FFF', expenses:'#EF5350', miscIncome:'#9E9E9E' },
     icons: { pokerCash:'🃏', pokerTourney:'🏆', bets:'🏈', job:'💼', sales:'🏷️', crypto:'🪙', dice:'🎲', casino:'🎰', kalshi:'📈', expenses:'🧾', miscIncome:'💰' },
@@ -1281,7 +1281,7 @@ setTimeout(() => {
         }
     },
 
-        renderNotes: () => {
+            renderNotes: () => {
         const list = document.getElementById('notes-list'); 
         list.innerHTML = '';
         
@@ -1292,8 +1292,10 @@ setTimeout(() => {
             groups[n.color].push(n);
         });
 
-        // HELPER: Generates the HTML for a single note (Accordion Style)
-        // This makes sure notes look the same inside OR outside folders
+        // Ensure folder settings object exists
+        if(!app.data.folderSettings) app.data.folderSettings = {};
+
+        // HELPER: Generates the HTML for a single note (Scroll limits removed)
         const createNoteHTML = (n) => `
             <div class="note-card" style="border-left-color:${n.color}; margin-bottom:8px; background:#151515;">
                 <div onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
@@ -1305,7 +1307,7 @@ setTimeout(() => {
                 </div>
                 
                 <div style="display:none; margin-top:8px; border-top:1px solid #333; padding-top:8px;">
-                    <div class="note-body" style="max-height:150px; overflow-y:auto; font-size:0.75rem; color:#ccc; white-space:pre-wrap;">${n.body}</div>
+                    <div class="note-body" style="font-size:0.75rem; color:#ccc; white-space:pre-wrap; line-height:1.4;">${n.body}</div>
                     <button class="btn btn-sec" style="margin-top:8px; padding:6px; font-size:0.7rem; width:100%;" onclick="app.openNoteModal(app.data.notes.find(x=>x.id==${n.id}))">OPEN FULL EDITOR</button>
                 </div>
             </div>
@@ -1318,19 +1320,25 @@ setTimeout(() => {
             // --- FOLDER VIEW (If 2+ notes share a color) ---
             if(notes.length > 1) {
                 const folderId = `folder-${color.replace('#','')}`;
+                // Pull custom settings or use defaults
+                const fSet = app.data.folderSettings[color] || { title: 'NOTES GROUP', icon: 'folder' };
+                
                 const el = document.createElement('div');
                 el.className = 'note-card';
                 el.style.borderLeftColor = color;
                 el.style.marginBottom = '8px';
-                el.style.background = '#0a0a0a'; // Slightly darker for folder container
+                el.style.background = '#0a0a0a'; 
                 
-                // Sort notes by date desc (Newest first)
+                // Sort notes newest first
                 notes.sort((a,b) => new Date(b.date) - new Date(a.date));
 
                 el.innerHTML = `
-                    <div onclick="document.getElementById('${folderId}').style.display = document.getElementById('${folderId}').style.display === 'none' ? 'block' : 'none'" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; padding:4px 0;">
-                        <span style="font-weight:bold; color:${color}; font-size:0.9rem;">📂 GROUP (${notes.length})</span>
-                        <i class="material-icons-round" style="font-size:18px; color:#aaa;">expand_more</i>
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 0;">
+                        <div onclick="document.getElementById('${folderId}').style.display = document.getElementById('${folderId}').style.display === 'none' ? 'block' : 'none'" style="cursor:pointer; display:flex; align-items:center; gap:8px; flex-grow:1;">
+                            <i class="material-icons-round" style="font-size:18px; color:${color};">${fSet.icon}</i>
+                            <span style="font-weight:bold; color:${color}; font-size:0.9rem;">${fSet.title} <span style="color:#555; font-size:0.7rem;">(${notes.length})</span></span>
+                        </div>
+                        <i class="material-icons-round" style="font-size:16px; color:#555; cursor:pointer;" onclick="app.renameFolder('${color}')">edit</i>
                     </div>
                     <div id="${folderId}" style="display:none; margin-top:10px; padding-left:6px; border-left: 1px dashed #333;">
                         ${notes.map(n => createNoteHTML(n)).join('')}
@@ -1342,11 +1350,12 @@ setTimeout(() => {
             else {
                 const n = notes[0];
                 const div = document.createElement('div');
-                div.innerHTML = createNoteHTML(n); // Use same helper
-                list.appendChild(div.firstElementChild); // Append the actual DOM node
+                div.innerHTML = createNoteHTML(n); 
+                list.appendChild(div.firstElementChild); 
             }
         });
     },
+
 
     openNoteModal: (n=null) => {
         document.getElementById('modal-note').classList.add('open');
@@ -1384,6 +1393,22 @@ setTimeout(() => {
     },
     deleteNote: () => {
         if(confirm("Delete note?")) { app.data.notes = app.data.notes.filter(n => n.id !== app.currentNoteId); app.save(); document.getElementById('modal-note').classList.remove('open'); app.renderNotes(); }
+    },
+        renameFolder: (color) => {
+        // Ensure the settings object exists
+        if(!app.data.folderSettings) app.data.folderSettings = {};
+        const current = app.data.folderSettings[color] || { title: 'NOTES GROUP', icon: 'folder' };
+        
+        const newTitle = prompt("Enter Folder Name:", current.title);
+        if(newTitle !== null) {
+            const newIcon = prompt("Enter Material Icon Name\n(e.g. folder, bookmark, lock, build, star, verified):", current.icon);
+            app.data.folderSettings[color] = {
+                title: newTitle.toUpperCase(),
+                icon: newIcon || 'folder'
+            };
+            app.save();
+            app.renderNotes();
+        }
     },
     toggleLive: () => {
         const s = app.data.liveSession;

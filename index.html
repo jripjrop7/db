@@ -38,7 +38,11 @@
             --text: #E0E0E0; --sub: #757575; --intense-orange: #FF3D00;
             --poker: #00E5FF; --pokerT: #2979FF; --bets: #FF9100; --job: #E91E63; 
             --sales: #D500F9; --crypto: #FFEA00; --dice: #2196F3; --casino: #009688; 
-            --kalshi: #651FFF; --expense: #EF5350; --misc: #9E9E9E;
+            --kalshi: #651FFF; --expense: #EF5350; --misc: #9E9E9E; --note-teal: #1DE9B6;
+    --note-pink: #F50057;
+    --note-indigo: #3D5AFE;
+    --note-lime: #C6FF00;
+
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Martian Mono', monospace; -webkit-tap-highlight-color: transparent; }
@@ -134,7 +138,15 @@
         .note-card { background: #1A1A1A; padding: 12px; border-radius: 6px; margin-bottom: 8px; border-left-width: 6px; border-left-style: solid; position: relative; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         .note-date { font-size: 0.6rem; color: var(--sub); margin-bottom: 4px; display: block; }
         .note-header { font-weight: bold; font-size: 0.85rem; margin-bottom: 4px; color: #fff; }
-        .note-body { font-size: 0.75rem; color: #ccc; white-space: pre-wrap; line-height: 1.4; }
+        .note-body { 
+    font-size: 0.6rem; 
+    color: #ccc; 
+    white-space: pre-wrap !important; 
+    word-wrap: break-word !important;
+    line-height: 1.4; 
+    max-height: none !important; /* Forces full expansion */
+    overflow: visible !important; 
+}
         .color-opt { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; display: inline-block; margin-right: 5px; }
         .color-opt.selected { border-color: white; transform: scale(1.1); }
         
@@ -1228,7 +1240,7 @@
             </div>
         </div>
         
-        <div id="view-parlay" class="view-section" style="display:none;">
+        <div id="view-parlay" class="container" style="display:none;">
     
     <div class="card">
         <h2 style="color:#00FF41; border-bottom:1px solid #333; padding-bottom:10px; margin-bottom:15px;">PARLAY GENERATOR v2</h2>
@@ -1362,7 +1374,7 @@
         </div>
     </div>
 </div>
-<div id="view-auto" class="view-section" style="display:none;">
+<div id="view-auto" class="container" style="display:none;">
     
     <div class="card" style="border-left: 4px solid #651FFF;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -1403,7 +1415,7 @@
         </div>
     </div>
 
-    <div class="card">
+        <div class="card">
         <h2>SYSTEM CHECK</h2>
         <button class="btn btn-sec" onclick="app.bot.login()">
             <i class="material-icons-round" style="font-size:16px; vertical-align:middle; margin-right:5px;">wifi</i>
@@ -1412,8 +1424,9 @@
         <div id="k-log" style="margin-top:10px; font-family:'Courier New'; font-size:0.65rem; color:#00E676; min-height:60px; max-height:150px; overflow-y:auto; background:#000; padding:10px; border-radius:4px; border:1px solid #333;">
             System Ready...
         </div>
-        <div class="card" style="border-top: 4px solid #00E676;">
+    </div> <div class="card" style="border-top: 4px solid #00E676;">
         <h2>MARKET SCANNER</h2>
+
         
         <div style="display:flex; gap:5px; margin-bottom:10px; overflow-x:auto; padding-bottom:5px;">
             <button class="btn" style="background:#D50000; font-weight:bold; font-size:0.7rem; padding:6px 10px; width:auto;" 
