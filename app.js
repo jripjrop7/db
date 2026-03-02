@@ -806,7 +806,8 @@ const app = {
     currentId: null, currentTicketId: null, currentInvId: null, currentNoteId: null, isExpense: false, liveTimerInterval: null,
     noteColors: ['#D50000', '#00C853', '#2962FF', '#FFD600', '#FF6D00', '#C51162', '#1DE9B6', '#F50057', '#3D5AFE', '#C6FF00'],
 
-    colors: { pokerCash:'#00E5FF', pokerTourney:'#2979FF', bets:'#FF9100', job:'#E91E63', sales:'#D500F9', crypto:'#FFEA00', dice:'#2196F3', casino:'#009688', kalshi:'#651FFF', expenses:'#EF5350', miscIncome:'#9E9E9E' },
+        colors: { pokerCash:'#1DE9B6', pokerTourney:'#3D5AFE', bets:'#FF6D00', job:'#00C853', sales:'#F50057', crypto:'#FFD600', dice:'#2962FF', casino:'#C51162', kalshi:'#C6FF00', expenses:'#D50000', miscIncome:'#FF9100' },
+
     icons: { pokerCash:'🃏', pokerTourney:'🏆', bets:'🏈', job:'💼', sales:'🏷️', crypto:'🪙', dice:'🎲', casino:'🎰', kalshi:'📈', expenses:'🧾', miscIncome:'💰' },
     
     bookAbbr: { 'FanDuel':'FD', 'DraftKings':'DK', 'BetMGM':'MGM', 'Caesars':'CZR', 'ESPN Bet':'ESPN', 'Bet365':'B365', 'PrizePicks':'PP', 'Underdog':'UD', 'Rebet':'Rebet', 'Fliff':'Fliff', 'HardRock':'HR', 'Bovada':'Bov', 'BetOnline':'BOL', 'Other':'Oth' },
@@ -1420,7 +1421,7 @@ setTimeout(() => {
                 
                 <div style="display:none; margin-top:8px; border-top:1px solid #333; padding-top:8px;">
                     <div class="note-body" style="font-size:0.75rem; color:#ccc; white-space:pre-wrap; line-height:1.4;">${n.body}</div>
-                    <button class="btn btn-sec" style="margin-top:8px; padding:6px; font-size:0.7rem; width:100%;" onclick="app.openNoteModal(app.data.notes.find(x=>x.id==${n.id}))">OPEN FULL EDITOR</button>
+                    <button class="btn btn-sec" style="margin-top:8px; padding:6px; font-size:0.7rem; width:100%;" onclick="app.openNoteModal(app.data.notes.find(x=>x.id==${n.id}))">EDITOR</button>
                 </div>
             </div>
         `;
