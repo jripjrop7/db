@@ -806,7 +806,7 @@ const app = {
     currentId: null, currentTicketId: null, currentInvId: null, currentNoteId: null, isExpense: false, liveTimerInterval: null,
     noteColors: ['#D50000', '#00C853', '#2962FF', '#FFD600', '#FF6D00', '#C51162', '#1DE9B6', '#F50057', '#3D5AFE', '#C6FF00'],
 
-        colors: { pokerCash:'#1DE9B6', pokerTourney:'#3D5AFE', bets:'#FF6D00', job:'#00C853', sales:'#F50057', crypto:'#FFD600', dice:'#2962FF', casino:'#C51162', kalshi:'#C6FF00', expenses:'#D50000', miscIncome:'#FF9100' },
+    colors: { pokerCash:'#1DE9B6', pokerTourney:'#3D5AFE', bets:'#FF6D00', job:'#00C853', sales:'#F50057', crypto:'#FFD600', dice:'#2962FF', casino:'#C51162', kalshi:'#C6FF00', expenses:'#D50000', miscIncome:'#FF9100' },
 
     icons: { pokerCash:'🃏', pokerTourney:'🏆', bets:'🏈', job:'💼', sales:'🏷️', crypto:'🪙', dice:'🎲', casino:'🎰', kalshi:'📈', expenses:'🧾', miscIncome:'💰' },
     
@@ -1057,7 +1057,7 @@ setTimeout(() => {
             app.render(); 
         }
     }, // <--- Add a comma here too if there is code below it
-                    render: () => {
+      render: () => {
         // --- 1. CALCULATE ASSETS ---
         
         // A. Bankroll (Sum of all transactions)
@@ -1132,8 +1132,10 @@ setTimeout(() => {
 
             sorted.forEach(t => {
                 const div = document.createElement('div');
-                div.className = 'tx-item';
+                // THIS APPLIES THE POSITIVE OR NEGATIVE BACKGROUND CLASS
+                div.className = `tx-item ${t.amt < 0 ? 'tx-neg' : 'tx-pos'}`; 
                 div.onclick = () => app.openModal(t);
+
                 const color = app.colors[t.cat] || '#FFF';
                 div.style.borderLeftColor = color;
                 
