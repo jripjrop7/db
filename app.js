@@ -1147,21 +1147,16 @@ setTimeout(() => {
                 else groups[dateStr].debits += Math.abs(t.amt);
             });
 
-                        // B. Render the UI
+            // B. Render the UI
             Object.keys(groups).forEach(dateStr => {
                 const g = groups[dateStr];
                 
-                // Ensure daily notes object exists, create a safe ID for the HTML element
-                if(!app.data.dailyNotes) app.data.dailyNotes = {};
-                const safeId = dateStr.replace(/[^a-zA-Z0-9]/g, ''); 
-                const savedNote = app.data.dailyNotes[dateStr] || '';
-                
-                // Render the Date Separator Card with Hidden Note Panel
+                // Render the Date Separator Card
                 const sep = document.createElement('div');
                 sep.className = 'date-separator';
                 sep.innerHTML = `
-                    <div class="date-sep-header" style="cursor:pointer;" onclick="document.getElementById('note-${safeId}').style.display = document.getElementById('note-${safeId}').style.display === 'none' ? 'block' : 'none'">
-                        <span>🏴‍☠️ ${dateStr.toUpperCase()} 🏴‍☠️ <i class="material-icons-round" style="font-size:16px; vertical-align:middle; color:#FF007F; margin-left:4px;">edit_note</i></span>
+                    <div class="date-sep-header">
+                        <span>🏴‍☠️ ${dateStr.toUpperCase()} 🏴‍☠️</span>
                         <span style="color:${g.net >= 0 ? '#00E676' : '#FF5252'}">${g.net >= 0 ? '+' : '-'}$${Math.abs(g.net).toLocaleString()}</span>
                     </div>
                     <div class="date-sep-stats">
@@ -1169,14 +1164,62 @@ setTimeout(() => {
                         <span style="color:#00C853">IN: +$${g.credits.toLocaleString()}</span>
                         <span style="color:#D50000">OUT: -$${g.debits.toLocaleString()}</span>
                     </div>
-                    
-                    <div id="note-${safeId}" style="display:none; margin-top:12px; padding-top:12px; border-top:1px dashed rgba(255, 0, 127, 0.4);">
-                        <textarea id="text-${safeId}" rows="2" placeholder="Add a daily journal note, reasoning, or mood..." style="background:#050505; border:1px solid #333; color:#ccc; font-size:0.75rem; margin-bottom:8px; padding:8px;">${savedNote}</textarea>
-                        <button class="btn btn-sec" style="padding:8px; font-size:0.75rem; color:#FF007F; border:1px solid #FF007F; background:rgba(255, 0, 127, 0.1);" onclick="app.saveDailyNote('${dateStr}')">SAVE DAILY NOTE</button>
-                    </div>
                 `;
                 list.appendChild(sep);
 
+                // Render the individual records under this date
+                g.txs.forEach(t => {
+                    const div = document.createElement('div');
+                    div.className = `tx-item ${t.amt < 0 ? 'tx-neg' : 'tx-pos'}`; 
+                    div.onclick = () => app.openModal(t);
+                    const color = app.colors[t.cat] || '#FFF';
+                    div.style.borderLeftColor = color;
+                    
+                    let iconCode = 'attach_money';
+                    if (t.cat === 'pokerCash') iconCode = 'spades'; 
+                    else {
+                        const iconMap = { job:'work', bets:'sports_football', sales:'sell', expenses:'receipt', dice:'casino', casino:'local_play', crypto:'currency_bitcoin', miscIncome:'savings', kalshi:'query_stats' };
+                        iconCode = iconMap[t.cat] || 'attach_money';
+                    }
+
+                    const tags = [];
+                    let titleText = (t.desc && t.desc.trim() !== "") ? t.desc : app.catLabel(t.cat);
+
+                    if (t.cat === 'bets' && t.details) {
+                        titleText = t.desc || "Bet";
+                        if(t.details.wager) tags.push(`$${t.details.wager}`);
+                        const w = t.details.won||0;
+                        const l = t.details.lost||0;
+                        const totalTickets = (t.details.tickets) ? t.details.tickets : (w + l);
+                        tags.push(`${w}/${totalTickets}`);
+                        if(t.details.book) tags.push(app.bookAbbr[t.details.book] || t.details.book);
+                        if(t.details.sport) tags.push(t.details.sport);
+                    }
+                    else if (t.cat === 'pokerCash' && t.details && t.details.dur) tags.push(`${t.details.dur}h`);
+                    else if (t.cat === 'expenses' && t.details && t.details.sub) tags.push(t.details.sub.toUpperCase());
+                    else if (t.cat === 'dice') tags.push('Dice');
+                    else if (t.cat === 'casino') tags.push('Casino');
+
+                    const tagHtml = tags.map(tag => `<span class="tx-tag">${tag}</span>`).join('');
+                    const iconHtml = (t.cat === 'pokerCash') 
+                        ? `<div class="tx-icon" style="background:${color}20; color:${color}; font-family:serif;">♠</div>`
+                        : `<div class="tx-icon" style="background:${color}20; color:${color}"><i class="material-icons-round">${iconCode}</i></div>`;
+                    const amtStr = `$${Math.abs(t.amt).toLocaleString()}`;
+
+                    // Hide the date inside the actual card since it's on the separator now
+                    div.innerHTML = `
+                        ${iconHtml}
+                        <div class="tx-info">
+                            <div class="tx-title" style="color:${color}">${titleText}</div>
+                            <div class="tx-meta">${tagHtml}</div>
+                        </div>
+                        <div class="tx-amt ${t.amt < 0 ? 'neg' : 'pos'}">${amtStr}</div>
+                    `;
+                    list.appendChild(div);
+                });
+            });
+        }
+    },
 
     renderTickets: () => { 
         const div = document.getElementById('ticket-list'); 
@@ -1705,27 +1748,6 @@ setTimeout(() => {
         if (app.currentId) { const idx = app.data.txs.findIndex(t => t.id == app.currentId); if(idx > -1) app.data.txs[idx] = tx; } else { app.data.txs.push(tx); }
         app.save(); app.closeModal();
     },
-        saveDailyNote: (dateStr) => {
-        if (!app.data.dailyNotes) app.data.dailyNotes = {};
-        const safeId = dateStr.replace(/[^a-zA-Z0-9]/g, '');
-        const noteText = document.getElementById('text-' + safeId).value;
-        
-        app.data.dailyNotes[dateStr] = noteText;
-        app.save();
-        
-        // Small visual feedback so you know it saved
-        const btn = event.target;
-        const originalText = btn.innerText;
-        btn.innerText = "SAVED!";
-        btn.style.background = "#FF007F";
-        btn.style.color = "#000";
-        setTimeout(() => {
-            btn.innerText = originalText;
-            btn.style.background = "rgba(255, 0, 127, 0.1)";
-            btn.style.color = "#FF007F";
-        }, 1500);
-    },
-
     deleteTx: () => { if(confirm("Delete record?")) { app.data.txs = app.data.txs.filter(t => t.id !== app.currentId); app.save(); app.closeModal(); } },
     
     // Ticket Functions
