@@ -167,7 +167,43 @@
         .hm-date { font-size: 0.55rem; color: var(--sub); margin-bottom: 2px; }
         .hm-val { font-weight: bold; font-size: 0.45rem; letter-spacing: -0.5px; }
 
-        .ticket-card { background: #1a1a1a; padding: 12px; margin-bottom: 8px; border-radius: 6px; position: relative; border: none; border-left-width: 6px; border-left-style: solid; border-right-width: 6px; border-right-style: solid; box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+                /* --- PREMIUM TICKET CARDS (1% Tint) --- */
+        .ticket-card { 
+            padding: 14px 16px; 
+            margin-bottom: 10px; 
+            border-radius: 10px; /* Rounded to match */
+            position: relative; 
+            border-left-width: 6px; border-left-style: solid; 
+            border-right-width: 6px; border-right-style: solid; 
+            border-top: 1px solid; border-bottom: 1px solid;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3); 
+            overflow: hidden;
+        }
+        
+        /* Won: 1% Green */
+        .ticket-card.tick-won {
+            background: linear-gradient(135deg, rgba(0, 200, 83, 0.01) 0%, rgba(0, 200, 83, 0.01) 100%), linear-gradient(135deg, #1a1c24 0%, #0e1117 100%);
+            border-top-color: rgba(0, 200, 83, 0.15); border-bottom-color: rgba(0, 200, 83, 0.15);
+            border-right-color: #00C853 !important; 
+        }
+        /* Lost: 1% Red */
+        .ticket-card.tick-lost {
+            background: linear-gradient(135deg, rgba(213, 0, 0, 0.01) 0%, rgba(213, 0, 0, 0.01) 100%), linear-gradient(135deg, #1a1c24 0%, #0e1117 100%);
+            border-top-color: rgba(213, 0, 0, 0.15); border-bottom-color: rgba(213, 0, 0, 0.15);
+            border-right-color: #D50000 !important;
+        }
+        /* Pending: 1% Orange */
+        .ticket-card.tick-pending {
+            background: linear-gradient(135deg, rgba(255, 145, 0, 0.01) 0%, rgba(255, 145, 0, 0.01) 100%), linear-gradient(135deg, #1a1c24 0%, #0e1117 100%);
+            border-top-color: rgba(255, 145, 0, 0.15); border-bottom-color: rgba(255, 145, 0, 0.15);
+            border-right-color: #FF9100 !important;
+        }
+        /* Early Cash: 1% Yellow */
+        .ticket-card.tick-early {
+            background: linear-gradient(135deg, rgba(255, 234, 0, 0.01) 0%, rgba(255, 234, 0, 0.01) 100%), linear-gradient(135deg, #1a1c24 0%, #0e1117 100%);
+            border-top-color: rgba(255, 234, 0, 0.15); border-bottom-color: rgba(255, 234, 0, 0.15);
+            border-right-color: #FFEA00 !important;
+        }
         .ticket-status { position: absolute; top: 8px; right: 8px; font-size: 0.65rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; background: #333; z-index:10; } 
         .ticket-status.won { background: var(--success); color:black; }
         .ticket-status.lost { background: var(--error); color:white; }
@@ -175,6 +211,34 @@
         .ticket-status.early { background: #FFEA00; color: black; }
         .ticket-note { font-size: 0.7rem; color: #aaa; margin-top: 6px; font-style: italic; border-top: 1px solid #333; padding-top: 4px; }
 
+        /* --- DATE SEPARATOR CARDS --- */
+        .date-separator {
+            background: linear-gradient(135deg, #16181f 0%, #0b0d12 100%);
+            padding: 12px 16px;
+            margin: 20px 0 12px 0;
+            border-radius: 10px;
+            border: 1px solid #333;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+        .date-sep-header {
+            color: #fff;
+            font-size: 0.95rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+            border-bottom: 1px dashed #333;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .date-sep-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: #aaa;
+            font-weight: bold;
+        }
+        
         .inv-card { background: #1a1a1a; border-left: 4px solid var(--sales); padding: 14px; margin-bottom: 8px; border-radius: 6px; position: relative; display: flex; justify-content: space-between; align-items: center; }
         .inv-title { font-weight: bold; font-size: 0.9rem; color: var(--sales); margin-bottom: 4px; }
         .inv-meta { font-size: 0.7rem; color: var(--sub); }

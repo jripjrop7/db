@@ -1124,66 +1124,100 @@ setTimeout(() => {
             el.style.color = periodTotal >= 0 ? '#00E676' : '#FF5252';
         }
 
-        // --- 4. RENDER LIST ---
+                // --- 4. RENDER LIST (Grouped By Date) ---
         const list = document.getElementById('tx-list');
         if (list) {
             list.innerHTML = '';
             const sorted = [...filteredTxs].sort((a, b) => new Date(b.date) - new Date(a.date));
 
+            // A. Group Transactions by Date
+            const groups = {};
             sorted.forEach(t => {
-                const div = document.createElement('div');
-                // THIS APPLIES THE POSITIVE OR NEGATIVE BACKGROUND CLASS
-                div.className = `tx-item ${t.amt < 0 ? 'tx-neg' : 'tx-pos'}`; 
-                div.onclick = () => app.openModal(t);
-
-                const color = app.colors[t.cat] || '#FFF';
-                div.style.borderLeftColor = color;
+                // Formats as "Mon, Oct 12, 2025"
+                const dateStr = new Date(t.date).toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'});
                 
-                let iconCode = 'attach_money';
-                if (t.cat === 'pokerCash') iconCode = 'spades'; 
-                else {
-                    const iconMap = { job:'work', bets:'sports_football', sales:'sell', expenses:'receipt', dice:'casino', casino:'local_play', crypto:'currency_bitcoin', miscIncome:'savings', kalshi:'query_stats' };
-                    iconCode = iconMap[t.cat] || 'attach_money';
-                }
+                if(!groups[dateStr]) groups[dateStr] = { txs: [], credits: 0, debits: 0, count: 0, net: 0 };
+                
+                groups[dateStr].txs.push(t);
+                groups[dateStr].count++;
+                groups[dateStr].net += t.amt;
+                if(t.amt > 0) groups[dateStr].credits += t.amt;
+                else groups[dateStr].debits += Math.abs(t.amt);
+            });
 
-                const tags = [];
-                const dateStr = new Date(t.date).toLocaleString('en-US', {month:'short', day:'numeric'});
-                let titleText = (t.desc && t.desc.trim() !== "") ? t.desc : app.catLabel(t.cat);
-
-                if (t.cat === 'bets' && t.details) {
-                    titleText = t.desc || "Bet";
-                    if(t.details.wager) tags.push(`$${t.details.wager}`);
-                    const w = t.details.won||0;
-                    const l = t.details.lost||0;
-                    const totalTickets = (t.details.tickets) ? t.details.tickets : (w + l);
-                    tags.push(`${w}/${totalTickets}`);
-                    if(t.details.book) tags.push(app.bookAbbr[t.details.book] || t.details.book);
-                    if(t.details.sport) tags.push(t.details.sport);
-                }
-                else if (t.cat === 'pokerCash' && t.details && t.details.dur) tags.push(`${t.details.dur}h`);
-                else if (t.cat === 'expenses' && t.details && t.details.sub) tags.push(t.details.sub.toUpperCase());
-                else if (t.cat === 'dice') tags.push('Dice');
-                else if (t.cat === 'casino') tags.push('Casino');
-
-                const tagHtml = tags.map(tag => `<span class="tx-tag">${tag}</span>`).join('');
-                const iconHtml = (t.cat === 'pokerCash') 
-                    ? `<div class="tx-icon" style="background:${color}20; color:${color}; font-family:serif;">♠</div>`
-                    : `<div class="tx-icon" style="background:${color}20; color:${color}"><i class="material-icons-round">${iconCode}</i></div>`;
-                const amtStr = `$${Math.abs(t.amt).toLocaleString()}`;
-
-                div.innerHTML = `
-                    ${iconHtml}
-                    <div class="tx-info"><div class="tx-title" style="color:${color}">${titleText}</div><div class="tx-meta"><span>${dateStr}</span>${tagHtml}</div></div>
-                    <div class="tx-amt ${t.amt < 0 ? 'neg' : 'pos'}">${amtStr}</div>
+            // B. Render the UI
+            Object.keys(groups).forEach(dateStr => {
+                const g = groups[dateStr];
+                
+                // Render the Date Separator Card
+                const sep = document.createElement('div');
+                sep.className = 'date-separator';
+                sep.innerHTML = `
+                    <div class="date-sep-header">
+                        <span>📅 ${dateStr.toUpperCase()}</span>
+                        <span style="color:${g.net >= 0 ? '#00E676' : '#FF5252'}">${g.net >= 0 ? '+' : '-'}$${Math.abs(g.net).toLocaleString()}</span>
+                    </div>
+                    <div class="date-sep-stats">
+                        <span>TXNS: ${g.count}</span>
+                        <span style="color:#00C853">IN: +$${g.credits.toLocaleString()}</span>
+                        <span style="color:#D50000">OUT: -$${g.debits.toLocaleString()}</span>
+                    </div>
                 `;
-                list.appendChild(div);
+                list.appendChild(sep);
+
+                // Render the individual records under this date
+                g.txs.forEach(t => {
+                    const div = document.createElement('div');
+                    div.className = `tx-item ${t.amt < 0 ? 'tx-neg' : 'tx-pos'}`; 
+                    div.onclick = () => app.openModal(t);
+                    const color = app.colors[t.cat] || '#FFF';
+                    div.style.borderLeftColor = color;
+                    
+                    let iconCode = 'attach_money';
+                    if (t.cat === 'pokerCash') iconCode = 'spades'; 
+                    else {
+                        const iconMap = { job:'work', bets:'sports_football', sales:'sell', expenses:'receipt', dice:'casino', casino:'local_play', crypto:'currency_bitcoin', miscIncome:'savings', kalshi:'query_stats' };
+                        iconCode = iconMap[t.cat] || 'attach_money';
+                    }
+
+                    const tags = [];
+                    let titleText = (t.desc && t.desc.trim() !== "") ? t.desc : app.catLabel(t.cat);
+
+                    if (t.cat === 'bets' && t.details) {
+                        titleText = t.desc || "Bet";
+                        if(t.details.wager) tags.push(`$${t.details.wager}`);
+                        const w = t.details.won||0;
+                        const l = t.details.lost||0;
+                        const totalTickets = (t.details.tickets) ? t.details.tickets : (w + l);
+                        tags.push(`${w}/${totalTickets}`);
+                        if(t.details.book) tags.push(app.bookAbbr[t.details.book] || t.details.book);
+                        if(t.details.sport) tags.push(t.details.sport);
+                    }
+                    else if (t.cat === 'pokerCash' && t.details && t.details.dur) tags.push(`${t.details.dur}h`);
+                    else if (t.cat === 'expenses' && t.details && t.details.sub) tags.push(t.details.sub.toUpperCase());
+                    else if (t.cat === 'dice') tags.push('Dice');
+                    else if (t.cat === 'casino') tags.push('Casino');
+
+                    const tagHtml = tags.map(tag => `<span class="tx-tag">${tag}</span>`).join('');
+                    const iconHtml = (t.cat === 'pokerCash') 
+                        ? `<div class="tx-icon" style="background:${color}20; color:${color}; font-family:serif;">♠</div>`
+                        : `<div class="tx-icon" style="background:${color}20; color:${color}"><i class="material-icons-round">${iconCode}</i></div>`;
+                    const amtStr = `$${Math.abs(t.amt).toLocaleString()}`;
+
+                    // Hide the date inside the actual card since it's on the separator now
+                    div.innerHTML = `
+                        ${iconHtml}
+                        <div class="tx-info">
+                            <div class="tx-title" style="color:${color}">${titleText}</div>
+                            <div class="tx-meta">${tagHtml}</div>
+                        </div>
+                        <div class="tx-amt ${t.amt < 0 ? 'neg' : 'pos'}">${amtStr}</div>
+                    `;
+                    list.appendChild(div);
+                });
             });
         }
     },
-
-
-
-
 
     renderTickets: () => { 
         const div = document.getElementById('ticket-list'); 
@@ -1192,14 +1226,17 @@ setTimeout(() => {
         const sorted = [...filtered].sort((a,b)=>b.id-a.id); 
         sorted.forEach(t => {
             const el = document.createElement('div'); 
-            el.className = 'ticket-card'; 
+            
+            // Map the CSS status class to apply the tint and border
+            const stClass = t.status === 'Won' ? 'won' : (t.status === 'Lost' ? 'lost' : (t.status === 'Early Cash' ? 'early' : 'pending'));
+            el.className = `ticket-card tick-${stClass}`; 
+            
             el.onclick = () => app.openTicketModal(t); 
-            const stMap = { 'Won':'#00C853', 'Lost':'#D50000', 'Pending':'#FF9100', 'Early Cash':'#FFEA00' };
-            const statusColor = stMap[t.status] || '#FF9100';
-            el.style.borderRightColor = statusColor;
+            
+            // Dynamic Left Border (Kalshi vs Sports)
             if (t.sport === 'Kalshi') el.style.borderLeftColor = 'var(--kalshi)';
             else el.style.borderLeftColor = 'var(--bets)';
-            const stClass = t.status === 'Won' ? 'won' : (t.status === 'Lost' ? 'lost' : (t.status === 'Early Cash' ? 'early' : 'pending'));
+            
             let pot = 0;
             if(t.oddsDec) pot = t.wager * t.oddsDec;
             else if(t.oddsAm) {
@@ -1227,6 +1264,7 @@ setTimeout(() => {
             div.appendChild(el); 
         }); 
     },
+
 
     renderCalendar: () => {
         const grid = document.getElementById('calendar-grid');
