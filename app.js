@@ -10,6 +10,31 @@ const app = {
         } catch(e) { alert("Fee Fetch Error"); }
     },
     
+        saveDailyNote: (dateStr) => {
+        if (!app.data.dailyNotes) app.data.dailyNotes = {};
+        const safeId = dateStr.replace(/[^a-zA-Z0-9]/g, '');
+        const noteText = document.getElementById('text-' + safeId).value;
+        
+        app.data.dailyNotes[dateStr] = noteText;
+        app.save();
+        
+        // Small visual feedback
+        const btn = event.target;
+        const originalText = btn.innerText;
+        btn.innerText = "SAVED!";
+        btn.style.background = "#FF007F";
+        btn.style.color = "#000";
+        
+        // Update the arrow color immediately to Green so they know it has data
+        document.getElementById('icon-' + safeId).style.color = noteText.trim().length > 0 ? '#00E676' : '#FF007F';
+
+        setTimeout(() => {
+            btn.innerText = originalText;
+            btn.style.background = "rgba(255, 0, 127, 0.1)";
+            btn.style.color = "#FF007F";
+        }, 1500);
+    },
+
         // --- UNIVERSAL NAVIGATION ---
     nav: (page) => {
         // 1. Hide ALL view sections
@@ -1147,22 +1172,40 @@ setTimeout(() => {
                 else groups[dateStr].debits += Math.abs(t.amt);
             });
 
-            // B. Render the UI
+                        // B. Render the UI
             Object.keys(groups).forEach(dateStr => {
                 const g = groups[dateStr];
+                
+                // 1. Setup Daily Notes ID & Data
+                if(!app.data.dailyNotes) app.data.dailyNotes = {};
+                const safeId = dateStr.replace(/[^a-zA-Z0-9]/g, ''); 
+                const savedNote = app.data.dailyNotes[dateStr] || '';
+                
+                // If a note exists, make the arrow green so you can spot it. Otherwise, pink.
+                const hasNote = savedNote.trim().length > 0;
+                const arrowColor = hasNote ? '#00E676' : '#FF007F';
                 
                 // Render the Date Separator Card
                 const sep = document.createElement('div');
                 sep.className = 'date-separator';
                 sep.innerHTML = `
-                    <div class="date-sep-header">
-                        <span>🏴‍☠️ ${dateStr.toUpperCase()} 🏴‍☠️</span>
-                        <span style="color:${g.net >= 0 ? '#00E676' : '#FF5252'}">${g.net >= 0 ? '+' : '-'}$${Math.abs(g.net).toLocaleString()}</span>
+                    <div style="cursor:pointer;" onclick="const el = document.getElementById('note-${safeId}'); el.style.display = el.style.display === 'none' ? 'block' : 'none'; const icon = document.getElementById('icon-${safeId}'); icon.innerText = el.style.display === 'none' ? 'expand_more' : 'expand_less';">
+                        <div class="date-sep-header">
+                            <span>🏴‍☠️ ${dateStr.toUpperCase()} 🏴‍☠️ <i id="icon-${safeId}" class="material-icons-round" style="font-size:18px; vertical-align:middle; color:${arrowColor}; margin-left:6px; transition:0.3s;">expand_more</i></span>
+                            <span style="color:${g.net >= 0 ? '#00E676' : '#FF5252'}">${g.net >= 0 ? '+' : '-'}$${Math.abs(g.net).toLocaleString()}</span>
+                        </div>
+                        <div class="date-sep-stats">
+                            <span>TXNS: ${g.count}</span>
+                            <span style="color:#00C853">IN: +$${g.credits.toLocaleString()}</span>
+                            <span style="color:#D50000">OUT: -$${g.debits.toLocaleString()}</span>
+                        </div>
                     </div>
-                    <div class="date-sep-stats">
-                        <span>TXNS: ${g.count}</span>
-                        <span style="color:#00C853">IN: +$${g.credits.toLocaleString()}</span>
-                        <span style="color:#D50000">OUT: -$${g.debits.toLocaleString()}</span>
+                    
+                    <div id="note-${safeId}" style="display:none; margin-top:12px; padding-top:12px; border-top:1px dashed rgba(255, 0, 127, 0.4);">
+                        <textarea id="text-${safeId}" rows="3" placeholder="Add a daily journal note, context, or mood..." style="background:#050505; border:1px solid #333; color:#ccc; font-size:0.8rem; margin-bottom:8px; padding:10px; width:100%; border-radius:6px; resize:vertical;">${savedNote}</textarea>
+                        <div style="display:flex; justify-content:flex-end;">
+                            <button class="btn btn-sec" style="padding:6px 12px; font-size:0.75rem; color:#FF007F; border:1px solid #FF007F; background:rgba(255, 0, 127, 0.1); width:auto; cursor:pointer;" onclick="app.saveDailyNote('${dateStr}')">SAVE NOTE</button>
+                        </div>
                     </div>
                 `;
                 list.appendChild(sep);
@@ -1220,6 +1263,7 @@ setTimeout(() => {
             });
         }
     },
+
 
     renderTickets: () => { 
         const div = document.getElementById('ticket-list'); 
