@@ -55,11 +55,11 @@ const app = {
         window.scrollTo(0,0);
     },
     // --- DASHBOARD SETTINGS UI ---
-            editDashSettings: () => {
+                editDashSettings: () => {
         try {
-            // 1. Core Settings
-            if(document.getElementById('set-btc')) document.getElementById('set-btc').value = localStorage.getItem('btc_qty') || 0;
-            if(document.getElementById('set-eth')) document.getElementById('set-eth').value = localStorage.getItem('eth_qty') || 0;
+            // 1. Core Settings (Now properly linked to app.data)
+            if(document.getElementById('set-btc')) document.getElementById('set-btc').value = app.data.btcHoldings || 0;
+            if(document.getElementById('set-eth')) document.getElementById('set-eth').value = app.data.ethHoldings || 0;
             if(document.getElementById('set-goal')) document.getElementById('set-goal').value = localStorage.getItem('goal') || 10000;
             
             // 2. Tracker 1
@@ -84,16 +84,16 @@ const app = {
             document.getElementById('modal-dash-settings').classList.add('open');
         } catch(e) {
             console.error("Error opening settings:", e);
-            // Fallback: Force it open anyway so you aren't locked out
             document.getElementById('modal-dash-settings').classList.add('open');
         }
     },
 
-
     saveDashSettings: () => {
-        localStorage.setItem('btc_qty', parseFloat(document.getElementById('set-btc').value) || 0);
-        localStorage.setItem('eth_qty', parseFloat(document.getElementById('set-eth').value) || 0);
+        // Save to central database
+        app.data.btcHoldings = parseFloat(document.getElementById('set-btc').value) || 0;
+        app.data.ethHoldings = parseFloat(document.getElementById('set-eth').value) || 0;
         localStorage.setItem('goal', parseFloat(document.getElementById('set-goal').value) || 10000);
+        app.save(); // Locks it in
 
         const t1 = {
             name: document.getElementById('set-t1-name').value.trim(),
@@ -114,8 +114,10 @@ const app = {
         localStorage.setItem('tracker2', JSON.stringify(t2));
 
         document.getElementById('modal-dash-settings').classList.remove('open');
+        app.calcCrypto(); // Forces the calculation just in case
         app.render();
     },
+
 
     // --- KALSHI AUTO-TRADER (HYBRID ENGINE) ---
     bot: {
@@ -1133,12 +1135,15 @@ setTimeout(() => {
             return sum;
         }, 0);
 
-        // FIX: Grab live prices from the global window object (fetched from CoinGecko)
+                // FIX: Grab live prices from the global window object (fetched from CoinGecko)
         const btcPrice = window.btcPrice || 0;
         const ethPrice = window.ethPrice || 0;
-        const btcVal = (parseFloat(localStorage.getItem('btc_qty')) || 0) * btcPrice;
-        const ethVal = (parseFloat(localStorage.getItem('eth_qty')) || 0) * ethPrice;
+        
+        // NOW IT PULLS FROM APP.DATA WHERE IT WAS JUST SAVED
+        const btcVal = (app.data.btcHoldings || 0) * btcPrice;
+        const ethVal = (app.data.ethHoldings || 0) * ethPrice;
         const cryptoTotal = btcVal + ethVal;
+
 
         const netWorth = bankroll + retire + cryptoTotal;
         
@@ -1163,17 +1168,33 @@ setTimeout(() => {
             return '#00FF41';
         };
 
-        // --- 2. UPDATE DASHBOARD CARD ---
+                // --- 2. UPDATE DASHBOARD CARD ---
         const fmt = (n) => `$${Math.round(n).toLocaleString()}`;
 
+        // TOTAL BANKROLL (Main Hero)
         if(document.getElementById('dash-hero')) {
             document.getElementById('dash-hero').innerText = fmt(bankroll);
             document.getElementById('dash-hero').style.color = bankroll < 0 ? '#D50000' : '#00FF41';
         }
 
-        if(document.getElementById('dash-networth')) document.getElementById('dash-networth').innerText = fmt(netWorth);
-        if(document.getElementById('dash-crypto')) document.getElementById('dash-crypto').innerText = fmt(cryptoTotal);
-        if(document.getElementById('dash-401k')) document.getElementById('dash-401k').innerText = fmt(retire);
+        // NET WORTH (Dynamic Red/Green)
+        if(document.getElementById('dash-networth')) {
+            document.getElementById('dash-networth').innerText = fmt(netWorth);
+            document.getElementById('dash-networth').style.color = netWorth < 0 ? '#D50000' : '#00FF41';
+        }
+        
+        // CRYPTO (Locked to Yellow)
+        if(document.getElementById('dash-crypto')) {
+            document.getElementById('dash-crypto').innerText = fmt(cryptoTotal);
+            document.getElementById('dash-crypto').style.color = '#FFD600';
+        }
+        
+        // 401K (Locked to Dark Purple)
+        if(document.getElementById('dash-401k')) {
+            document.getElementById('dash-401k').innerText = fmt(retire);
+            document.getElementById('dash-401k').style.color = '#7C4DFF'; 
+        }
+
 
         // MAIN GOAL BAR (Total Bankroll)
         if(document.getElementById('dash-bar')) {
@@ -2231,8 +2252,49 @@ setTimeout(() => {
         const leakData={}; filtered.filter(t=>t.amt<0&&t.cat!=='expenses').forEach(t=>{const l=`${app.icons[t.cat]} ${app.catLabel(t.cat)}`; leakData[l]=(leakData[l]||0)+Math.round(Math.abs(t.amt));}); createPie('pieLeaks', leakData, Object.keys(leakData).map(k=>app.colors[Object.keys(app.colors).find(c=>k.includes(app.catLabel(c)))]||'#555'));
         const expData={}; filtered.filter(t=>t.cat==='expenses').forEach(t=>{const s=t.details&&t.details.sub?t.details.sub:'Misc'; expData[s]=(expData[s]||0)+Math.round(Math.abs(t.amt));}); createPie('pieExpenses', expData, Object.keys(expData).map(k=>app.expColors[k]||'#FFFFFF'));
     },
-    fetchCrypto: async () => { try { const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd'); const d=await r.json(); window.btcPrice=d.bitcoin.usd; window.ethPrice=d.ethereum.usd; document.getElementById('btc-price').innerText=`$${window.btcPrice.toLocaleString()}`; document.getElementById('eth-price').innerText=`$${window.ethPrice.toLocaleString()}`; document.getElementById('btc-holdings').value=app.data.btcHoldings||''; document.getElementById('eth-holdings').value=app.data.ethHoldings||''; app.calcCrypto(); } catch(e){ console.log(e); } },
-    calcCrypto: () => { const b=parseFloat(document.getElementById('btc-holdings').value)||0; const e=parseFloat(document.getElementById('eth-holdings').value)||0; app.data.btcHoldings=b; app.data.ethHoldings=e; const t=(b*(window.btcPrice||0))+(e*(window.ethPrice||0)); document.getElementById('crypto-total-display').innerText=`$${Math.round(t).toLocaleString()}`; document.getElementById('crypto-mini').innerText=`$${Math.round(t).toLocaleString()}`; localStorage.setItem('bankroll_os_v19_1', JSON.stringify(app.data)); },
+        fetchCrypto: async () => { 
+        try { 
+            const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd'); 
+            const d = await r.json(); 
+            window.btcPrice = d.bitcoin.usd; 
+            window.ethPrice = d.ethereum.usd; 
+            
+            if(document.getElementById('btc-price')) document.getElementById('btc-price').innerText = `$${window.btcPrice.toLocaleString()}`; 
+            if(document.getElementById('eth-price')) document.getElementById('eth-price').innerText = `$${window.ethPrice.toLocaleString()}`; 
+            
+            // Sync inputs on Crypto tab if they exist
+            if(document.getElementById('btc-holdings')) document.getElementById('btc-holdings').value = app.data.btcHoldings || 0; 
+            if(document.getElementById('eth-holdings')) document.getElementById('eth-holdings').value = app.data.ethHoldings || 0; 
+            
+            app.calcCrypto(); 
+            app.render(); // <--- THIS FORCES THE DASHBOARD TO UPDATE ONCE PRICES ARRIVE
+        } catch(e) { 
+            console.log("Crypto Fetch Error:", e); 
+        } 
+    },
+
+    calcCrypto: () => { 
+        // Read from inputs if we are on the Crypto tab, otherwise use saved data
+        const bInput = document.getElementById('btc-holdings');
+        const eInput = document.getElementById('eth-holdings');
+        
+        const b = bInput ? (parseFloat(bInput.value) || 0) : (app.data.btcHoldings || 0); 
+        const e = eInput ? (parseFloat(eInput.value) || 0) : (app.data.ethHoldings || 0); 
+        
+        // Save to central database
+        app.data.btcHoldings = b; 
+        app.data.ethHoldings = e; 
+        
+        const t = (b * (window.btcPrice || 0)) + (e * (window.ethPrice || 0)); 
+        
+        // Update UI without crashing
+        if(document.getElementById('crypto-total-display')) {
+            document.getElementById('crypto-total-display').innerText = `$${Math.round(t).toLocaleString()}`; 
+        }
+        
+        app.save(); 
+    },
+
     catLabel: (c) => { 
         if (c === 'expenses') return 'Expense';
         const map = { pokerCash:'Poker Cash', pokerTourney:'Tourney', bets:'Sports', job:'Income', sales:'Resell', crypto:'Crypto', dice:'Dice', casino:'Casino', miscIncome:'Misc', kalshi:'Kalshi' }; 
