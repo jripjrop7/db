@@ -63,18 +63,18 @@
         .neg { color: var(--error) !important; text-shadow: 0 0 20px rgba(213,0,0,0.15); }
         .pos { color: var(--success) !important; }
 
-        .filter-bar { display: flex; flex-direction: column; gap: 6px; padding: 4px 4px; background: #0a0a0a; border-bottom: 1px solid #222; }
-        .filter-row-top { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; align-items: center; }
-        .filter-chip { white-space: nowrap; padding: 4px 10px; border-radius: 20px; background: #222; color: #777; font-size: 0.65rem; border: 1px solid #333; cursor: pointer; transition: 0.2s; }
+        .filter-bar { display: flex; flex-direction: column; gap: 6px; padding: 2px 2px 2px 2px; background: #0a0a0a; border-bottom: 1px solid #222; }
+        .filter-row-top { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; align-items: center; }
+        .filter-chip { white-space: nowrap; padding: 3px 7px; border-radius: 13px; background: #222; color: #777; font-size: 0.47rem; border: 2px solid #333; cursor: pointer; transition: 0.2s; }
         .filter-chip.active { background: rgba(255, 61, 0, 0.15); color: var(--intense-orange); border-color: var(--intense-orange); }
         
-        .search-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 2px; }
-        .search-input { background: #1a1a1a; border: 1px solid #333; color: white; padding: 0 10px; height: 32px; border-radius: 6px; font-family: inherit; font-size: 0.75rem; width: 100%; display: flex; align-items: center; }
-        .filter-btn { background: #222; border: 1px solid #333; color: var(--sub); padding: 0 12px; height: 32px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .search-row { display: grid; grid-template-columns: 1fr auto; gap: 2px; margin-top: 2px; }
+        .search-input { background: #1a1a1a; border: 1px solid #333; color: white; padding: 0 4px; height: 30px; border-radius: 6px; font-family: inherit; font-size: 0.75rem; width: 100%; display: flex; align-items: center; }
+        .filter-btn { background: #222; border: 1px solid #333; color: var(--sub); padding: 0 10px; height: 30px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         
-        .date-range-container { display: none; align-items: center; gap: 5px; background: #222; padding: 4px; border-radius: 6px; border: 1px solid #333; }
+        .date-range-container { display: none; align-items: center; gap: 3px; background: #222; padding: 2px; border-radius: 6px; border: 1px solid #333; }
         .date-range-container.show { display: flex; }
-        .date-input-sm { background: transparent; border: none; color: white; font-family: inherit; font-size: 0.7rem; width: 85px; }
+        .date-input-sm { background: transparent; border: none; color: white; font-family: inherit; font-size: 0.5rem; width: 70px; }
 
         .nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #000; border-top: 1px solid #222; display: flex; justify-content: space-around; padding: 8px 0 20px 0; z-index: 100; }
         .nav-item { color: var(--sub); text-align: center; font-size: 0.65rem; background: none; border: none; transition: 0.3s; }
@@ -428,8 +428,8 @@
 </head>
 <body>
     <div id="app">
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; background: var(--surface); border-bottom: 1px solid #222; height: 48px;">
-            <button onclick="app.toggleLive()" style="background:none; border:none; color:var(--intense-orange);"><i class="material-icons-round" style="font-size:24px;">play_circle_filled</i></button>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 7px 3px; background: var(--surface); border-bottom: 1px solid #222; height: 33px;">
+            <button onclick="app.toggleLive()" style="background:none; border:none; color:var(--intense-orange);"><i class="material-icons-round" style="font-size:30px;">play_circle_filled</i></button>
             <h1>🏴‍☠️BANKROLL🏴‍☠️</h1>
             <button onclick="app.openSettings()" style="background:none; border:none; color:var(--sub);"><i class="material-icons-round" style="font-size:20px;">settings</i></button>
         </div>
