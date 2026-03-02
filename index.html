@@ -110,21 +110,24 @@
             overflow: hidden;
         }
 
-                /* Positive/Income Card (Solid Slate with Subtle Green Tint) */
+                        /* Positive/Income Card (Slate + Transparent Green Tint) */
         .tx-item.tx-pos {
-            background: linear-gradient(135deg, #1a261a 0%, #0e140e 100%);
-            border-top-color: #223322;
-            border-right-color: #223322;
-            border-bottom-color: #223322;
+            /* The 0.04 and 0.01 are the opacity. 0.04 = 4% green. Change to 0.02 for less, 0.08 for more */
+            background: linear-gradient(135deg, rgba(0, 230, 118, 0.04) 0%, rgba(0, 230, 118, 0.01) 100%), linear-gradient(135deg, #1a1c24 0%, #0e1117 100%);
+            border-top-color: rgba(0, 230, 118, 0.15);
+            border-right-color: rgba(0, 230, 118, 0.15);
+            border-bottom-color: rgba(0, 230, 118, 0.15);
         }
 
-        /* Negative/Expense Card (Solid Slate with Subtle Red Tint) */
+        /* Negative/Expense Card (Slate + Transparent Red Tint) */
         .tx-item.tx-neg {
-            background: linear-gradient(135deg, #261a1a 0%, #140e0e 100%);
-            border-top-color: #332222;
-            border-right-color: #332222;
-            border-bottom-color: #332222;
+            /* The 0.04 and 0.01 are the opacity. 0.04 = 4% red. Change to 0.02 for less, 0.08 for more */
+            background: linear-gradient(135deg, rgba(213, 0, 0, 0.04) 0%, rgba(213, 0, 0, 0.01) 100%), linear-gradient(135deg, #1a1c24 0%, #0e1117 100%);
+            border-top-color: rgba(213, 0, 0, 0.15);
+            border-right-color: rgba(213, 0, 0, 0.15);
+            border-bottom-color: rgba(213, 0, 0, 0.15);
         }
+
 
         
         /* Make the icon pop against the new gradients */
