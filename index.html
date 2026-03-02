@@ -57,7 +57,7 @@
         .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
         
         h1 { color: var(--intense-orange); font-size: 1.33rem; margin: 0; letter-spacing: -1px; text-shadow: 0 0 10px rgba(255, 61, 0, 0.2); }
-        h2 { font-size: 0.75rem; color: var(--intense-orange); margin-bottom: 3px; letter-spacing: 1px; text-transform: uppercase; font-weight: bold; }
+        h2 { font-size: 0.75rem; color: var(--intense-orange); margin-bottom: 3px; letter-spacing: 1px; text-transform: none; font-weight: bold; }
         .big-val { font-size: 2.2rem; font-weight: bold; color: var(--success); text-shadow: 0 0 20px rgba(0,200,83,0.15); }
         .sub-val { font-size: 1.1rem; font-weight: bold; color: #fff; }
         .neg { color: var(--error) !important; text-shadow: 0 0 20px rgba(213,0,0,0.15); }
@@ -437,9 +437,9 @@
 </head>
 <body>
     <div id="app">
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 7px 3px; background: var(--surface); border-bottom: 1px solid #222; height: 33px;">
-            <button onclick="app.toggleLive()" style="background:none; border:none; color:var(--intense-orange);"><i class="material-icons-round" style="font-size:30px;">play_circle_filled</i></button>
-            <h1>🏴‍☠️BANKROLL🏴‍☠️</h1>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 3px 3px 3px 3px; background: var(--surface); border-bottom: 1px solid #222; height: 33px;">
+            <button onclick="app.toggleLive()" style="background:none; border:none; color:var(--intense-orange);"><i class="material-icons-round" style="font-size:27px;">play_circle_filled</i></button>
+            <h1>🏴‍☠️Bankroll Tracker V13🏴‍☠️</h1>
             <button onclick="app.openSettings()" style="background:none; border:none; color:var(--sub);"><i class="material-icons-round" style="font-size:20px;">settings</i></button>
         </div>
 
@@ -460,7 +460,7 @@
             </div>
             
             <div class="search-row">
-                <input type="text" id="search-term" class="search-input" placeholder="Search titles, notes, desc..." oninput="app.render()">
+                <input type="text" id="search-term" class="search-input" placeholder="Search titles, notes, keyword..." oninput="app.render()">
                 <button class="filter-btn" onclick="app.openFilterModal()"><i class="material-icons-round" style="font-size:18px;">filter_list</i></button>
             </div>
         </div>
