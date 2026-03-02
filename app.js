@@ -1154,7 +1154,7 @@ setTimeout(() => {
                 sep.className = 'date-separator';
                 sep.innerHTML = `
                     <div class="date-sep-header">
-                        <span>📅 ${dateStr.toUpperCase()}</span>
+                        <span>🏴‍☠️ ${dateStr.toUpperCase()}🏴‍☠️</span>
                         <span style="color:${g.net >= 0 ? '#00E676' : '#FF5252'}">${g.net >= 0 ? '+' : '-'}$${Math.abs(g.net).toLocaleString()}</span>
                     </div>
                     <div class="date-sep-stats">
