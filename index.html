@@ -462,10 +462,9 @@
     
     <div class="card" style="background:linear-gradient(135deg, #1a1c24 0%, #0e1117 100%); border:1px solid #333; padding:12px 16px; margin-bottom:12px; position:relative; overflow:hidden;">
     
-        <button onclick="app.editDashSettings()" style="position:absolute; top:12px; right:12px; background:rgba(255,255,255,0.05); border:none; width:30px !important; height:30px !important; min-width:30px !important; min-height:30px !important; padding:0 !important; border-radius:50% !important; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10;">
+    <button onclick="app.editDashSettings()" style="position:absolute; top:12px; right:12px; background:rgba(255,255,255,0.05); border:none; width:30px !important; height:30px !important; min-width:30px !important; min-height:30px !important; padding:0 !important; border-radius:50% !important; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10;">
         <i class="material-icons-round" style="font-size:16px; color:#aaa; margin:0; padding:0; line-height:1;">settings</i>
     </button>
-
 
     <div style="margin-bottom:10px;">
         <div style="font-size:0.7rem; color:#777; letter-spacing:1px; margin-bottom:2px;">TOTAL BANKROLL</div>
@@ -492,42 +491,46 @@
         </div>
     </div>
 
-    <div id="sub1-container" style="display:none; margin-bottom:8px;">
+    <div id="sub1-container" style="margin-bottom:8px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <span id="sub1-title" style="font-size:0.65rem; color:#1DE9B6; font-weight:bold;">SUB 1</span>
+            <span id="sub1-title" style="font-size:0.7rem; color:#FF007F; font-weight:bold;">TRACKER 1</span>
             <div style="display:flex; align-items:center; gap:6px;">
-                <span id="sub1-val" style="font-size:0.75rem; color:#fff; font-weight:bold;">$0</span>
-                <span id="sub1-pct" style="font-size:0.6rem; color:#777;">0%</span>
+                <span id="sub1-pct" style="font-size:0.65rem; color:#00FF41; font-weight:bold;">0%</span>
+                <span id="sub1-val" style="font-size:0.65rem; color:#ccc;">$0 / $0</span>
             </div>
         </div>
         <div style="height:4px; background:#222; border-radius:10px; overflow:hidden;">
-            <div id="sub1-bar" style="height:100%; width:0%; background:#1DE9B6; transition: width 1s ease;"></div>
+            <div id="sub1-bar" style="height:100%; width:0%; transition: width 1s ease;"></div>
         </div>
     </div>
 
-    <div id="sub2-container" style="display:none; margin-bottom:12px;">
+    <div id="sub2-container" style="margin-bottom:12px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <span id="sub2-title" style="font-size:0.65rem; color:#3D5AFE; font-weight:bold;">SUB 2</span>
+            <span id="sub2-title" style="font-size:0.7rem; color:#AA00FF; font-weight:bold;">TRACKER 2</span>
             <div style="display:flex; align-items:center; gap:6px;">
-                <span id="sub2-val" style="font-size:0.75rem; color:#fff; font-weight:bold;">$0</span>
-                <span id="sub2-pct" style="font-size:0.6rem; color:#777;">0%</span>
+                <span id="sub2-pct" style="font-size:0.65rem; color:#00FF41; font-weight:bold;">0%</span>
+                <span id="sub2-val" style="font-size:0.65rem; color:#ccc;">$0 / $0</span>
             </div>
         </div>
         <div style="height:4px; background:#222; border-radius:10px; overflow:hidden;">
-            <div id="sub2-bar" style="height:100%; width:0%; background:#3D5AFE; transition: width 1s ease;"></div>
+            <div id="sub2-bar" style="height:100%; width:0%; transition: width 1s ease;"></div>
         </div>
     </div>
 
     <div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <span id="dash-pct" style="font-size:0.65rem; color:#00FF41; font-weight:bold;">0%</span>
-            <span id="dash-target" style="font-size:0.65rem; color:#555;">Goal: $100k</span>
+            <span style="font-size:0.7rem; color:#777; font-weight:bold;">MAIN GOAL</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <span id="dash-pct" style="font-size:0.65rem; color:#00FF41; font-weight:bold;">0%</span>
+                <span id="dash-target" style="font-size:0.65rem; color:#ccc;">$0 / $0</span>
+            </div>
         </div>
         <div style="height:6px; background:#222; border-radius:10px; overflow:hidden;">
-            <div id="dash-bar" style="height:100%; width:0%; background:linear-gradient(90deg, #00FF41, #00E676); box-shadow: 0 0 10px rgba(0,255,65,0.3); transition: width 1s ease;"></div>
+            <div id="dash-bar" style="height:100%; width:0%; transition: width 1s ease;"></div>
         </div>
     </div>
 </div>
+
 
 
 

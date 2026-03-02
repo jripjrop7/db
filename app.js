@@ -1123,13 +1123,9 @@ setTimeout(() => {
         }
     }, // <--- Add a comma here too if there is code below it
       render: () => {
-        // --- 1. CALCULATE ASSETS ---
-        
-        // A. Bankroll (Sum of all transactions)
+                // --- 1. CALCULATE ASSETS ---
         const bankroll = app.data.txs.reduce((sum, t) => sum + t.amt, 0);
 
-        // B. 401k (Sum of paycheck contributions)
-        // We look for category 'job' and add the 'k401' detail if it exists
         const retire = app.data.txs.reduce((sum, t) => {
             if (t.cat === 'job' && t.details && t.details.k401) {
                 return sum + (parseFloat(t.details.k401) || 0);
@@ -1137,25 +1133,39 @@ setTimeout(() => {
             return sum;
         }, 0);
 
-        // C. Crypto (Live Value)
-        const btcPrice = (app.prices && app.prices.btc) ? app.prices.btc : 0;
-        const ethPrice = (app.prices && app.prices.eth) ? app.prices.eth : 0;
+        // FIX: Grab live prices from the global window object (fetched from CoinGecko)
+        const btcPrice = window.btcPrice || 0;
+        const ethPrice = window.ethPrice || 0;
         const btcVal = (parseFloat(localStorage.getItem('btc_qty')) || 0) * btcPrice;
         const ethVal = (parseFloat(localStorage.getItem('eth_qty')) || 0) * ethPrice;
         const cryptoTotal = btcVal + ethVal;
 
-        // D. Net Worth (Total of all 3)
         const netWorth = bankroll + retire + cryptoTotal;
         
-        // E. Goal Progress (Bankroll vs Goal)
         const goal = parseFloat(localStorage.getItem('goal')) || 10000;
-        const pctRaw = (bankroll / goal) * 100; // Changed from netWorth to bankroll
+        const pctRaw = goal > 0 ? (bankroll / goal) * 100 : 0;
         const pct = Math.min(100, Math.max(0, pctRaw));
 
-                // --- 2. UPDATE DASHBOARD CARD ---
+                // --- VARIABLE MULTI-COLOR ENGINE ---
+        // Dynamically adds color stops as the bar grows!
+        const getBarColor = (p) => {
+            if (p < 25) return 'linear-gradient(90deg, #D50000, #FF1744)'; // Red
+            if (p < 50) return 'linear-gradient(90deg, #D50000, #FF6D00)'; // Red -> Orange
+            if (p < 75) return 'linear-gradient(90deg, #D50000, #FF6D00, #FFD600)'; // Red -> Orange -> Yellow
+            return 'linear-gradient(90deg, #D50000, #FF6D00, #FFD600, #00FF41)'; // Red -> Orange -> Yellow -> Green
+        };
+        
+        // Updates the percentage text color to match the tip of the bar
+        const getTextColor = (p) => {
+            if (p < 25) return '#FF1744';
+            if (p < 50) return '#FF6D00';
+            if (p < 75) return '#FFD600';
+            return '#00FF41';
+        };
+
+        // --- 2. UPDATE DASHBOARD CARD ---
         const fmt = (n) => `$${Math.round(n).toLocaleString()}`;
 
-        // HERO: Bankroll (Crimson Red / Green Logic)
         if(document.getElementById('dash-hero')) {
             document.getElementById('dash-hero').innerText = fmt(bankroll);
             document.getElementById('dash-hero').style.color = bankroll < 0 ? '#D50000' : '#00FF41';
@@ -1165,16 +1175,16 @@ setTimeout(() => {
         if(document.getElementById('dash-crypto')) document.getElementById('dash-crypto').innerText = fmt(cryptoTotal);
         if(document.getElementById('dash-401k')) document.getElementById('dash-401k').innerText = fmt(retire);
 
-        // MAIN PROGRESS BAR
+        // MAIN GOAL BAR (Total Bankroll)
         if(document.getElementById('dash-bar')) {
-            const bar = document.getElementById('dash-bar');
-            bar.style.width = `${pct}%`;
             document.getElementById('dash-pct').innerText = `${pct.toFixed(1)}%`;
-            document.getElementById('dash-target').innerText = `Goal: ${fmt(goal)}`;
+            document.getElementById('dash-pct').style.color = getTextColor(pct);
             
-            if (pct < 25) bar.style.background = 'linear-gradient(90deg, #D50000, #FF1744)'; 
-            else if (pct < 75) bar.style.background = 'linear-gradient(90deg, #FF6D00, #FFAB40)';
-            else bar.style.background = 'linear-gradient(90deg, #00C853, #00E676)';
+            // Shows $Current / $Aim
+            document.getElementById('dash-target').innerText = `${fmt(bankroll)} / ${fmt(goal)}`;
+            
+            document.getElementById('dash-bar').style.width = `${pct}%`;
+            document.getElementById('dash-bar').style.background = getBarColor(pct);
         }
 
         // --- NEW: SUB-TRACKERS LOGIC ---
@@ -1192,36 +1202,42 @@ setTimeout(() => {
                 }
             });
             const tPct = tData.goal > 0 ? (running / tData.goal) * 100 : 0;
-            return { val: running, pct: Math.min(100, Math.max(0, tPct)) };
+            return { val: running, goal: tData.goal, pct: Math.min(100, Math.max(0, tPct)) };
         };
 
+        // Render Tracker 1
         const t1 = JSON.parse(localStorage.getItem('tracker1') || 'null');
         const t1Stats = calcTracker(t1);
         if(document.getElementById('sub1-container')) {
-            if(t1Stats) {
-                document.getElementById('sub1-container').style.display = 'block';
-                document.getElementById('sub1-title').innerText = t1.name.toUpperCase();
-                document.getElementById('sub1-val').innerText = fmt(t1Stats.val);
-                document.getElementById('sub1-pct').innerText = `${t1Stats.pct.toFixed(1)}%`;
-                document.getElementById('sub1-bar').style.width = `${t1Stats.pct}%`;
-            } else {
-                document.getElementById('sub1-container').style.display = 'none';
-            }
+            document.getElementById('sub1-title').innerText = (t1 && t1.name) ? t1.name.toUpperCase() : 'TRACKER 1 (UNSET)';
+            
+            // Shows $Current / $Aim
+            document.getElementById('sub1-val').innerText = t1Stats ? `${fmt(t1Stats.val)} / ${fmt(t1Stats.goal)}` : '$0 / $0';
+            
+            const p1 = t1Stats ? t1Stats.pct : 0;
+            document.getElementById('sub1-pct').innerText = `${p1.toFixed(1)}%`;
+            document.getElementById('sub1-pct').style.color = getTextColor(p1);
+            document.getElementById('sub1-bar').style.width = `${p1}%`;
+            document.getElementById('sub1-bar').style.background = getBarColor(p1);
         }
 
+        // Render Tracker 2
         const t2 = JSON.parse(localStorage.getItem('tracker2') || 'null');
         const t2Stats = calcTracker(t2);
         if(document.getElementById('sub2-container')) {
-            if(t2Stats) {
-                document.getElementById('sub2-container').style.display = 'block';
-                document.getElementById('sub2-title').innerText = t2.name.toUpperCase();
-                document.getElementById('sub2-val').innerText = fmt(t2Stats.val);
-                document.getElementById('sub2-pct').innerText = `${t2Stats.pct.toFixed(1)}%`;
-                document.getElementById('sub2-bar').style.width = `${t2Stats.pct}%`;
-            } else {
-                document.getElementById('sub2-container').style.display = 'none';
-            }
+            document.getElementById('sub2-title').innerText = (t2 && t2.name) ? t2.name.toUpperCase() : 'TRACKER 2 (UNSET)';
+            
+            // Shows $Current / $Aim
+            document.getElementById('sub2-val').innerText = t2Stats ? `${fmt(t2Stats.val)} / ${fmt(t2Stats.goal)}` : '$0 / $0';
+            
+            const p2 = t2Stats ? t2Stats.pct : 0;
+            document.getElementById('sub2-pct').innerText = `${p2.toFixed(1)}%`;
+            document.getElementById('sub2-pct').style.color = getTextColor(p2);
+            document.getElementById('sub2-bar').style.width = `${p2}%`;
+            document.getElementById('sub2-bar').style.background = getBarColor(p2);
         }
+
+
 
         // --- 3. FILTERED PERIOD PROFIT ---
         const filteredTxs = app.data.txs.filter(t => app.checkFilter(t));
