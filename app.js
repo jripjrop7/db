@@ -55,30 +55,57 @@ const app = {
         window.scrollTo(0,0);
     },
     // --- DASHBOARD SETTINGS UI ---
-    editDashSettings: () => {
-        // 1. Get current values
+        editDashSettings: () => {
         document.getElementById('set-btc').value = localStorage.getItem('btc_qty') || 0;
         document.getElementById('set-eth').value = localStorage.getItem('eth_qty') || 0;
         document.getElementById('set-goal').value = localStorage.getItem('goal') || 10000;
         
-        // 2. Open Modal
+        // Load Tracker 1
+        const t1 = JSON.parse(localStorage.getItem('tracker1') || '{"name":"","cat":"","start":0,"goal":1000,"date":""}');
+        document.getElementById('set-t1-name').value = t1.name;
+        document.getElementById('set-t1-cat').value = t1.cat;
+        document.getElementById('set-t1-start').value = t1.start;
+        document.getElementById('set-t1-goal').value = t1.goal;
+        document.getElementById('set-t1-date').value = t1.date;
+
+        // Load Tracker 2
+        const t2 = JSON.parse(localStorage.getItem('tracker2') || '{"name":"","cat":"","start":0,"goal":1000,"date":""}');
+        document.getElementById('set-t2-name').value = t2.name;
+        document.getElementById('set-t2-cat').value = t2.cat;
+        document.getElementById('set-t2-start').value = t2.start;
+        document.getElementById('set-t2-goal').value = t2.goal;
+        document.getElementById('set-t2-date').value = t2.date;
+
         document.getElementById('modal-dash-settings').classList.add('open');
     },
 
     saveDashSettings: () => {
-        // 1. Save inputs
-        const btc = parseFloat(document.getElementById('set-btc').value) || 0;
-        const eth = parseFloat(document.getElementById('set-eth').value) || 0;
-        const goal = parseFloat(document.getElementById('set-goal').value) || 10000;
+        localStorage.setItem('btc_qty', parseFloat(document.getElementById('set-btc').value) || 0);
+        localStorage.setItem('eth_qty', parseFloat(document.getElementById('set-eth').value) || 0);
+        localStorage.setItem('goal', parseFloat(document.getElementById('set-goal').value) || 10000);
 
-        localStorage.setItem('btc_qty', btc);
-        localStorage.setItem('eth_qty', eth);
-        localStorage.setItem('goal', goal);
+        const t1 = {
+            name: document.getElementById('set-t1-name').value.trim(),
+            cat: document.getElementById('set-t1-cat').value,
+            start: parseFloat(document.getElementById('set-t1-start').value) || 0,
+            goal: parseFloat(document.getElementById('set-t1-goal').value) || 1000,
+            date: document.getElementById('set-t1-date').value
+        };
+        localStorage.setItem('tracker1', JSON.stringify(t1));
 
-        // 2. Close & Render
+        const t2 = {
+            name: document.getElementById('set-t2-name').value.trim(),
+            cat: document.getElementById('set-t2-cat').value,
+            start: parseFloat(document.getElementById('set-t2-start').value) || 0,
+            goal: parseFloat(document.getElementById('set-t2-goal').value) || 1000,
+            date: document.getElementById('set-t2-date').value
+        };
+        localStorage.setItem('tracker2', JSON.stringify(t2));
+
         document.getElementById('modal-dash-settings').classList.remove('open');
         app.render();
     },
+
     // --- KALSHI AUTO-TRADER (HYBRID ENGINE) ---
     bot: {
         // 1. CREDENTIALS
@@ -1114,31 +1141,75 @@ setTimeout(() => {
         const pctRaw = (bankroll / goal) * 100; // Changed from netWorth to bankroll
         const pct = Math.min(100, Math.max(0, pctRaw));
 
-        // --- 2. UPDATE DASHBOARD CARD ---
+                // --- 2. UPDATE DASHBOARD CARD ---
         const fmt = (n) => `$${Math.round(n).toLocaleString()}`;
 
-        // HERO: Bankroll (Green/Red Logic)
+        // HERO: Bankroll (Crimson Red / Green Logic)
         if(document.getElementById('dash-hero')) {
             document.getElementById('dash-hero').innerText = fmt(bankroll);
-            document.getElementById('dash-hero').style.color = bankroll < 0 ? '#FF5252' : '#00FF41';
+            document.getElementById('dash-hero').style.color = bankroll < 0 ? '#D50000' : '#00FF41';
         }
 
-        // GRID: Net Worth (Orange), Crypto (Purple), 401k (Pink)
         if(document.getElementById('dash-networth')) document.getElementById('dash-networth').innerText = fmt(netWorth);
         if(document.getElementById('dash-crypto')) document.getElementById('dash-crypto').innerText = fmt(cryptoTotal);
         if(document.getElementById('dash-401k')) document.getElementById('dash-401k').innerText = fmt(retire);
 
-        // PROGRESS BAR
+        // MAIN PROGRESS BAR
         if(document.getElementById('dash-bar')) {
             const bar = document.getElementById('dash-bar');
             bar.style.width = `${pct}%`;
             document.getElementById('dash-pct').innerText = `${pct.toFixed(1)}%`;
             document.getElementById('dash-target').innerText = `Goal: ${fmt(goal)}`;
             
-            // Color Logic for Bar
-            if (pct < 25) bar.style.background = 'linear-gradient(90deg, #D50000, #FF5252)'; 
+            if (pct < 25) bar.style.background = 'linear-gradient(90deg, #D50000, #FF1744)'; 
             else if (pct < 75) bar.style.background = 'linear-gradient(90deg, #FF6D00, #FFAB40)';
             else bar.style.background = 'linear-gradient(90deg, #00C853, #00E676)';
+        }
+
+        // --- NEW: SUB-TRACKERS LOGIC ---
+        const calcTracker = (tData) => {
+            if(!tData || !tData.name || !tData.cat) return null;
+            let running = tData.start;
+            const startDateStr = tData.date ? tData.date : "1970-01-01";
+            
+            app.data.txs.forEach(tx => {
+                if(tx.cat === tData.cat) {
+                    const txDate = tx.date.split('T')[0];
+                    if(txDate >= startDateStr) {
+                        running += tx.amt;
+                    }
+                }
+            });
+            const tPct = tData.goal > 0 ? (running / tData.goal) * 100 : 0;
+            return { val: running, pct: Math.min(100, Math.max(0, tPct)) };
+        };
+
+        const t1 = JSON.parse(localStorage.getItem('tracker1') || 'null');
+        const t1Stats = calcTracker(t1);
+        if(document.getElementById('sub1-container')) {
+            if(t1Stats) {
+                document.getElementById('sub1-container').style.display = 'block';
+                document.getElementById('sub1-title').innerText = t1.name.toUpperCase();
+                document.getElementById('sub1-val').innerText = fmt(t1Stats.val);
+                document.getElementById('sub1-pct').innerText = `${t1Stats.pct.toFixed(1)}%`;
+                document.getElementById('sub1-bar').style.width = `${t1Stats.pct}%`;
+            } else {
+                document.getElementById('sub1-container').style.display = 'none';
+            }
+        }
+
+        const t2 = JSON.parse(localStorage.getItem('tracker2') || 'null');
+        const t2Stats = calcTracker(t2);
+        if(document.getElementById('sub2-container')) {
+            if(t2Stats) {
+                document.getElementById('sub2-container').style.display = 'block';
+                document.getElementById('sub2-title').innerText = t2.name.toUpperCase();
+                document.getElementById('sub2-val').innerText = fmt(t2Stats.val);
+                document.getElementById('sub2-pct').innerText = `${t2Stats.pct.toFixed(1)}%`;
+                document.getElementById('sub2-bar').style.width = `${t2Stats.pct}%`;
+            } else {
+                document.getElementById('sub2-container').style.display = 'none';
+            }
         }
 
         // --- 3. FILTERED PERIOD PROFIT ---
@@ -1148,8 +1219,9 @@ setTimeout(() => {
         if(document.getElementById('dash-period')) {
             const el = document.getElementById('dash-period');
             el.innerText = (periodTotal >= 0 ? '+' : '-') + `$${Math.abs(Math.round(periodTotal)).toLocaleString()}`;
-            el.style.color = periodTotal >= 0 ? '#00E676' : '#FF5252';
+            el.style.color = periodTotal >= 0 ? '#00E676' : '#D50000'; // Changed to Crimson
         }
+
 
                 // --- 4. RENDER LIST (Grouped By Date) ---
         const list = document.getElementById('tx-list');
@@ -1192,7 +1264,7 @@ setTimeout(() => {
                     <div style="cursor:pointer;" onclick="const el = document.getElementById('note-${safeId}'); el.style.display = el.style.display === 'none' ? 'block' : 'none'; const icon = document.getElementById('icon-${safeId}'); icon.innerText = el.style.display === 'none' ? 'expand_more' : 'expand_less';">
                         <div class="date-sep-header">
                             <span>🏴‍☠️ ${dateStr.toUpperCase()} 🏴‍☠️ <i id="icon-${safeId}" class="material-icons-round" style="font-size:18px; vertical-align:middle; color:${arrowColor}; margin-left:6px; transition:0.3s;">expand_more</i></span>
-                            <span style="color:${g.net >= 0 ? '#00E676' : '#FF5252'}">${g.net >= 0 ? '+' : '-'}$${Math.abs(g.net).toLocaleString()}</span>
+                            <span style="color:${g.net >= 0 ? '#00E676' : '#D50000'}">${g.net >= 0 ? '+' : '-'}$${Math.abs(g.net).toLocaleString()}</span>
                         </div>
                         <div class="date-sep-stats">
                             <span>TXNS: ${g.count}</span>
