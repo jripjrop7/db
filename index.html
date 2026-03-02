@@ -263,11 +263,23 @@
     color: #ccc; 
     white-space: pre-wrap !important; 
     word-wrap: break-word !important;
-    line-height: 1.3; 
+    line-height: 1.0; 
     max-height: none !important; /* Forces full expansion */
     overflow: visible !important; 
 }
-        .color-opt { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; display: inline-block; margin-right: 5px; }
+                .color-opt { 
+            width: 30px !important; 
+            height: 30px !important; 
+            min-width: 30px !important; 
+            min-height: 30px !important; 
+            padding: 0 !important;
+            border-radius: 50% !important; 
+            border: 2px solid transparent; 
+            cursor: pointer; 
+            display: flex; 
+            flex-shrink: 0; 
+        }
+
         .color-opt.selected { border-color: white; transform: scale(1.1); }
         
         .filter-opt-row { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid #222; }
@@ -448,49 +460,75 @@
 
         <div id="view-dash" class="container">
     
-    <div class="card" style="background:linear-gradient(135deg, #1a1c24 0%, #0e1117 100%); border:1px solid #333; padding:20px; margin-bottom:3px; position:relative; overflow:hidden;">
+    <div class="card" style="background:linear-gradient(135deg, #1a1c24 0%, #0e1117 100%); border:1px solid #333; padding:12px 16px; margin-bottom:12px; position:relative; overflow:hidden;">
     
-    <button onclick="app.editDashSettings()" style="position:absolute; top:15px; right:15px; background:rgba(255,255,255,0.05); border:none; padding:8px; border-radius:50%; cursor:pointer; z-index:10;">
-        <i class="material-icons-round" style="font-size:1.2rem; color:#aaa;">settings</i>
+        <button onclick="app.editDashSettings()" style="position:absolute; top:12px; right:12px; background:rgba(255,255,255,0.05); border:none; width:30px !important; height:30px !important; min-width:30px !important; min-height:30px !important; padding:0 !important; border-radius:50% !important; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10;">
+        <i class="material-icons-round" style="font-size:16px; color:#aaa; margin:0; padding:0; line-height:1;">settings</i>
     </button>
 
-    <div style="margin-bottom:15px;">
-        <div style="font-size:0.75rem; color:#777; letter-spacing:1.5px; margin-bottom:5px;">AVAILABLE BANKROLL</div>
-        <div id="dash-hero" style="font-size:2.2rem; font-weight:bold; color:#00FF41; letter-spacing:-1px; line-height:1;">$0.00</div>
+
+    <div style="margin-bottom:10px;">
+        <div style="font-size:0.7rem; color:#777; letter-spacing:1px; margin-bottom:2px;">TOTAL BANKROLL</div>
+        <div id="dash-hero" style="font-size:2rem; font-weight:bold; color:#00FF41; line-height:1;">$0.00</div>
     </div>
 
-    <div style="margin-bottom:20px; padding:8px 0; border-top:1px dashed #333;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:0.7rem; color:#aaa; text-transform:uppercase;">Period P/L (Filtered)</span>
-            <span id="dash-period" style="font-size:1.1rem; font-weight:bold; color:#fff;">$0.00</span>
-        </div>
+    <div style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:0.65rem; color:#aaa; text-transform:uppercase;">Period P/L</span>
+        <span id="dash-period" style="font-size:0.9rem; font-weight:bold; color:#fff;">$0.00</span>
     </div>
 
-    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:20px; border-top:1px solid #333; border-bottom:1px solid #333; padding:15px 0;">
+    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-bottom:12px; border-top:1px solid #333; border-bottom:1px solid #333; padding:8px 0;">
         <div style="text-align:center;">
-            <div style="font-size:0.65rem; color:#aaa; margin-bottom:2px;">NET WORTH</div>
-            <div id="dash-networth" style="font-size:0.9rem; color:#FF9100; font-weight:bold;">$0</div>
+            <div style="font-size:0.6rem; color:#aaa; margin-bottom:2px;">NET WORTH</div>
+            <div id="dash-networth" style="font-size:0.85rem; color:#FF9100; font-weight:bold;">$0</div>
         </div>
         <div style="text-align:center; border-left:1px solid #333; border-right:1px solid #333;">
-            <div style="font-size:0.65rem; color:#aaa; margin-bottom:2px;">CRYPTO</div>
-            <div id="dash-crypto" style="font-size:0.9rem; color:#D500F9; font-weight:bold;">$0</div>
+            <div style="font-size:0.6rem; color:#aaa; margin-bottom:2px;">CRYPTO</div>
+            <div id="dash-crypto" style="font-size:0.85rem; color:#FFD600; font-weight:bold;">$0</div>
         </div>
         <div style="text-align:center;">
-            <div style="font-size:0.65rem; color:#aaa; margin-bottom:2px;">401K</div>
-            <div id="dash-401k" style="font-size:0.9rem; color:#F50057; font-weight:bold;">$0</div>
+            <div style="font-size:0.6rem; color:#aaa; margin-bottom:2px;">401K</div>
+            <div id="dash-401k" style="font-size:0.85rem; color:#00C853; font-weight:bold;">$0</div>
+        </div>
+    </div>
+
+    <div id="sub1-container" style="display:none; margin-bottom:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span id="sub1-title" style="font-size:0.65rem; color:#1DE9B6; font-weight:bold;">SUB 1</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <span id="sub1-val" style="font-size:0.75rem; color:#fff; font-weight:bold;">$0</span>
+                <span id="sub1-pct" style="font-size:0.6rem; color:#777;">0%</span>
+            </div>
+        </div>
+        <div style="height:4px; background:#222; border-radius:10px; overflow:hidden;">
+            <div id="sub1-bar" style="height:100%; width:0%; background:#1DE9B6; transition: width 1s ease;"></div>
+        </div>
+    </div>
+
+    <div id="sub2-container" style="display:none; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span id="sub2-title" style="font-size:0.65rem; color:#3D5AFE; font-weight:bold;">SUB 2</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <span id="sub2-val" style="font-size:0.75rem; color:#fff; font-weight:bold;">$0</span>
+                <span id="sub2-pct" style="font-size:0.6rem; color:#777;">0%</span>
+            </div>
+        </div>
+        <div style="height:4px; background:#222; border-radius:10px; overflow:hidden;">
+            <div id="sub2-bar" style="height:100%; width:0%; background:#3D5AFE; transition: width 1s ease;"></div>
         </div>
     </div>
 
     <div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-            <span id="dash-pct" style="font-size:0.7rem; color:#00FF41; font-weight:bold;">0%</span>
-            <span id="dash-target" style="font-size:0.7rem; color:#555;">Goal: $100k</span>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span id="dash-pct" style="font-size:0.65rem; color:#00FF41; font-weight:bold;">0%</span>
+            <span id="dash-target" style="font-size:0.65rem; color:#555;">Goal: $100k</span>
         </div>
         <div style="height:6px; background:#222; border-radius:10px; overflow:hidden;">
             <div id="dash-bar" style="height:100%; width:0%; background:linear-gradient(90deg, #00FF41, #00E676); box-shadow: 0 0 10px rgba(0,255,65,0.3); transition: width 1s ease;"></div>
         </div>
     </div>
 </div>
+
 
 
 
@@ -1471,32 +1509,70 @@
             <i class="material-icons-round" style="color:white; cursor:pointer;" onclick="document.getElementById('modal-dash-settings').classList.remove('open')">close</i>
         </div>
         
-        <div class="card">
-            <h2 style="color:#D500F9;">CRYPTO HOLDINGS</h2>
+        <div class="card" style="padding:12px;">
+            <h2 style="color:#FFD600; margin-bottom:8px;">CRYPTO & MAIN GOAL</h2>
             <div class="grid">
-                <div>
-                    <label>BITCOIN (BTC)</label>
-                    <input type="number" id="set-btc" placeholder="0.00">
-                </div>
-                <div>
-                    <label>ETHEREUM (ETH)</label>
-                    <input type="number" id="set-eth" placeholder="0.00">
-                </div>
+                <div><label>BITCOIN (BTC)</label><input type="number" id="set-btc" placeholder="0.00"></div>
+                <div><label>ETHEREUM (ETH)</label><input type="number" id="set-eth" placeholder="0.00"></div>
             </div>
+            <label>MAIN BANKROLL GOAL ($)</label>
+            <input type="number" id="set-goal" placeholder="e.g. 25000" style="margin-bottom:0;">
         </div>
 
-        <div class="card">
-            <h2 style="color:#00FF41;">BANKROLL TARGET</h2>
-            <label>BANKROLL GOAL ($)</label>
-            <input type="number" id="set-goal" placeholder="e.g. 25000">
-            <div style="font-size:0.65rem; color:#777; margin-top:5px;">
-                *Progress bar tracks Liquid Bankroll vs This Goal.
+        <div class="card" style="padding:12px; border-left:4px solid #1DE9B6;">
+            <h2 style="color:#1DE9B6; margin-bottom:8px;">TRACKER 1</h2>
+            <div class="grid">
+                <div><label>NAME</label><input type="text" id="set-t1-name" placeholder="e.g. Poker Bankroll"></div>
+                <div>
+                    <label>CATEGORY</label>
+                    <select id="set-t1-cat">
+                        <option value="">Disabled</option>
+                        <option value="pokerCash">Poker Cash</option>
+                        <option value="pokerTourney">Poker Tourney</option>
+                        <option value="bets">Sports Bets</option>
+                        <option value="kalshi">Kalshi</option>
+                        <option value="sales">Reselling</option>
+                        <option value="casino">Casino</option>
+                    </select>
+                </div>
             </div>
+            <div class="grid">
+                <div><label>START VAL ($)</label><input type="number" id="set-t1-start" placeholder="0"></div>
+                <div><label>GOAL VAL ($)</label><input type="number" id="set-t1-goal" placeholder="1000"></div>
+            </div>
+            <label>START DATE</label>
+            <input type="date" id="set-t1-date" style="margin-bottom:0;">
+        </div>
+
+        <div class="card" style="padding:12px; border-left:4px solid #3D5AFE;">
+            <h2 style="color:#3D5AFE; margin-bottom:8px;">TRACKER 2</h2>
+            <div class="grid">
+                <div><label>NAME</label><input type="text" id="set-t2-name" placeholder="e.g. Sportsbook"></div>
+                <div>
+                    <label>CATEGORY</label>
+                    <select id="set-t2-cat">
+                        <option value="">Disabled</option>
+                        <option value="pokerCash">Poker Cash</option>
+                        <option value="pokerTourney">Poker Tourney</option>
+                        <option value="bets">Sports Bets</option>
+                        <option value="kalshi">Kalshi</option>
+                        <option value="sales">Reselling</option>
+                        <option value="casino">Casino</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid">
+                <div><label>START VAL ($)</label><input type="number" id="set-t2-start" placeholder="0"></div>
+                <div><label>GOAL VAL ($)</label><input type="number" id="set-t2-goal" placeholder="1000"></div>
+            </div>
+            <label>START DATE</label>
+            <input type="date" id="set-t2-date" style="margin-bottom:0;">
         </div>
 
         <button class="btn btn-primary" onclick="app.saveDashSettings()">SAVE SETTINGS</button>
     </div>
 </div>
+
 
 
 <div id="view-auto" class="container" style="display:none;">

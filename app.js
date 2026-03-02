@@ -55,29 +55,40 @@ const app = {
         window.scrollTo(0,0);
     },
     // --- DASHBOARD SETTINGS UI ---
-        editDashSettings: () => {
-        document.getElementById('set-btc').value = localStorage.getItem('btc_qty') || 0;
-        document.getElementById('set-eth').value = localStorage.getItem('eth_qty') || 0;
-        document.getElementById('set-goal').value = localStorage.getItem('goal') || 10000;
-        
-        // Load Tracker 1
-        const t1 = JSON.parse(localStorage.getItem('tracker1') || '{"name":"","cat":"","start":0,"goal":1000,"date":""}');
-        document.getElementById('set-t1-name').value = t1.name;
-        document.getElementById('set-t1-cat').value = t1.cat;
-        document.getElementById('set-t1-start').value = t1.start;
-        document.getElementById('set-t1-goal').value = t1.goal;
-        document.getElementById('set-t1-date').value = t1.date;
+            editDashSettings: () => {
+        try {
+            // 1. Core Settings
+            if(document.getElementById('set-btc')) document.getElementById('set-btc').value = localStorage.getItem('btc_qty') || 0;
+            if(document.getElementById('set-eth')) document.getElementById('set-eth').value = localStorage.getItem('eth_qty') || 0;
+            if(document.getElementById('set-goal')) document.getElementById('set-goal').value = localStorage.getItem('goal') || 10000;
+            
+            // 2. Tracker 1
+            const t1Str = localStorage.getItem('tracker1');
+            const t1 = t1Str ? JSON.parse(t1Str) : {name:"", cat:"", start:0, goal:1000, date:""};
+            if(document.getElementById('set-t1-name')) document.getElementById('set-t1-name').value = t1.name || '';
+            if(document.getElementById('set-t1-cat')) document.getElementById('set-t1-cat').value = t1.cat || '';
+            if(document.getElementById('set-t1-start')) document.getElementById('set-t1-start').value = t1.start || 0;
+            if(document.getElementById('set-t1-goal')) document.getElementById('set-t1-goal').value = t1.goal || 1000;
+            if(document.getElementById('set-t1-date')) document.getElementById('set-t1-date').value = t1.date || '';
 
-        // Load Tracker 2
-        const t2 = JSON.parse(localStorage.getItem('tracker2') || '{"name":"","cat":"","start":0,"goal":1000,"date":""}');
-        document.getElementById('set-t2-name').value = t2.name;
-        document.getElementById('set-t2-cat').value = t2.cat;
-        document.getElementById('set-t2-start').value = t2.start;
-        document.getElementById('set-t2-goal').value = t2.goal;
-        document.getElementById('set-t2-date').value = t2.date;
+            // 3. Tracker 2
+            const t2Str = localStorage.getItem('tracker2');
+            const t2 = t2Str ? JSON.parse(t2Str) : {name:"", cat:"", start:0, goal:1000, date:""};
+            if(document.getElementById('set-t2-name')) document.getElementById('set-t2-name').value = t2.name || '';
+            if(document.getElementById('set-t2-cat')) document.getElementById('set-t2-cat').value = t2.cat || '';
+            if(document.getElementById('set-t2-start')) document.getElementById('set-t2-start').value = t2.start || 0;
+            if(document.getElementById('set-t2-goal')) document.getElementById('set-t2-goal').value = t2.goal || 1000;
+            if(document.getElementById('set-t2-date')) document.getElementById('set-t2-date').value = t2.date || '';
 
-        document.getElementById('modal-dash-settings').classList.add('open');
+            // 4. Open Modal
+            document.getElementById('modal-dash-settings').classList.add('open');
+        } catch(e) {
+            console.error("Error opening settings:", e);
+            // Fallback: Force it open anyway so you aren't locked out
+            document.getElementById('modal-dash-settings').classList.add('open');
+        }
     },
+
 
     saveDashSettings: () => {
         localStorage.setItem('btc_qty', parseFloat(document.getElementById('set-btc').value) || 0);
