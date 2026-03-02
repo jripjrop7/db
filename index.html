@@ -180,30 +180,31 @@
             overflow: hidden;
         }
         
-        /* Won: 1% Green */
+                /* Won: 5% Green */
         .ticket-card.tick-won {
-            background: linear-gradient(135deg, rgba(0, 200, 83, 0.01) 0%, rgba(0, 200, 83, 0.01) 100%), linear-gradient(135deg, #1a1c24 0%, #0e1117 100%);
+            background: linear-gradient(135deg, rgba(0, 200, 83, 0.05) 0%, rgba(0, 200, 83, 0.05) 100%), linear-gradient(135deg, #1a1c24 0%, #0e1117 100%);
             border-top-color: rgba(0, 200, 83, 0.15); border-bottom-color: rgba(0, 200, 83, 0.15);
             border-right-color: #00C853 !important; 
         }
-        /* Lost: 1% Red */
+        /* Lost: 5% Red */
         .ticket-card.tick-lost {
-            background: linear-gradient(135deg, rgba(213, 0, 0, 0.01) 0%, rgba(213, 0, 0, 0.01) 100%), linear-gradient(135deg, #1a1c24 0%, #0e1117 100%);
+            background: linear-gradient(135deg, rgba(213, 0, 0, 0.05) 0%, rgba(213, 0, 0, 0.05) 100%), linear-gradient(135deg, #1a1c24 0%, #0e1117 100%);
             border-top-color: rgba(213, 0, 0, 0.15); border-bottom-color: rgba(213, 0, 0, 0.15);
             border-right-color: #D50000 !important;
         }
-        /* Pending: 1% Orange */
+        /* Pending: 5% Orange */
         .ticket-card.tick-pending {
-            background: linear-gradient(135deg, rgba(255, 145, 0, 0.01) 0%, rgba(255, 145, 0, 0.01) 100%), linear-gradient(135deg, #1a1c24 0%, #0e1117 100%);
+            background: linear-gradient(135deg, rgba(255, 145, 0, 0.05) 0%, rgba(255, 145, 0, 0.05) 100%), linear-gradient(135deg, #1a1c24 0%, #0e1117 100%);
             border-top-color: rgba(255, 145, 0, 0.15); border-bottom-color: rgba(255, 145, 0, 0.15);
             border-right-color: #FF9100 !important;
         }
-        /* Early Cash: 1% Yellow */
+        /* Early Cash: 5% Yellow */
         .ticket-card.tick-early {
-            background: linear-gradient(135deg, rgba(255, 234, 0, 0.01) 0%, rgba(255, 234, 0, 0.01) 100%), linear-gradient(135deg, #1a1c24 0%, #0e1117 100%);
+            background: linear-gradient(135deg, rgba(255, 234, 0, 0.05) 0%, rgba(255, 234, 0, 0.05) 100%), linear-gradient(135deg, #1a1c24 0%, #0e1117 100%);
             border-top-color: rgba(255, 234, 0, 0.15); border-bottom-color: rgba(255, 234, 0, 0.15);
             border-right-color: #FFEA00 !important;
         }
+
         .ticket-status { position: absolute; top: 8px; right: 8px; font-size: 0.65rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; background: #333; z-index:10; } 
         .ticket-status.won { background: var(--success); color:black; }
         .ticket-status.lost { background: var(--error); color:white; }
