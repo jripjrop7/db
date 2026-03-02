@@ -74,7 +74,16 @@
         
         .date-range-container { display: none; align-items: center; gap: 3px; background: #222; padding: 2px; border-radius: 6px; border: 1px solid #333; }
         .date-range-container.show { display: flex; }
-        .date-input-sm { background: transparent; border: none; color: white; font-family: inherit; font-size: 0.5rem; width: 33px; }
+        .date-input-sm { 
+    background: transparent; 
+    border: none; 
+    color: white; 
+    font-family: inherit; 
+    font-size: 0.33rem; 
+    width: 33px;      /* Change this to make the box wider or narrower */
+    height: 24px;      /* Change this to make the box taller or shorter */
+    padding: 0 4px;    /* Adds a little breathing room inside the box */
+}
 
         .nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #000; border-top: 1px solid #222; display: flex; justify-content: space-around; padding: 8px 0 20px 0; z-index: 100; }
         .nav-item { color: var(--sub); text-align: center; font-size: 0.65rem; background: none; border: none; transition: 0.3s; }
