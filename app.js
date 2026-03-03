@@ -1325,16 +1325,19 @@ setTimeout(() => {
                 else groups[dateStr].debits += Math.abs(t.amt);
             });
 
-                        // B. Render the UI
+                                    // B. Render the UI
             Object.keys(groups).forEach(dateStr => {
                 const g = groups[dateStr];
                 
-                // 1. Setup Daily Notes ID & Data
+                // 1. Setup Daily Notes Data & Persistence State
                 if(!app.data.dailyNotes) app.data.dailyNotes = {};
+                if(!app.data.dailyNotesState) app.data.dailyNotesState = {}; // Remembers open/closed
+                
                 const safeId = dateStr.replace(/[^a-zA-Z0-9]/g, ''); 
                 const savedNote = app.data.dailyNotes[dateStr] || '';
+                const isExpanded = app.data.dailyNotesState[dateStr] || false;
                 
-                // If a note exists, make the arrow green so you can spot it. Otherwise, pink.
+                // If a note exists, make the arrow green. Otherwise, pink.
                 const hasNote = savedNote.trim().length > 0;
                 const arrowColor = hasNote ? '#00E676' : '#FF007F';
                 
@@ -1342,9 +1345,9 @@ setTimeout(() => {
                 const sep = document.createElement('div');
                 sep.className = 'date-separator';
                 sep.innerHTML = `
-                    <div style="cursor:pointer;" onclick="const el = document.getElementById('note-${safeId}'); el.style.display = el.style.display === 'none' ? 'block' : 'none'; const icon = document.getElementById('icon-${safeId}'); icon.innerText = el.style.display === 'none' ? 'expand_more' : 'expand_less';">
+                    <div id="date-head-${safeId}" style="cursor:pointer;">
                         <div class="date-sep-header">
-                            <span>🏴‍☠️ ${dateStr.toUpperCase()} 🏴‍☠️ <i id="icon-${safeId}" class="material-icons-round" style="font-size:18px; vertical-align:middle; color:${arrowColor}; margin-left:6px; transition:0.3s;">expand_more</i></span>
+                            <span>🏴‍☠️ ${dateStr.toUpperCase()} 🏴‍☠️ <i id="date-icon-${safeId}" class="material-icons-round" style="font-size:18px; vertical-align:middle; color:${arrowColor}; margin-left:6px; transition:0.3s;">${isExpanded ? 'expand_less' : 'expand_more'}</i></span>
                             <span style="color:${g.net >= 0 ? '#00E676' : '#D50000'}">${g.net >= 0 ? '+' : '-'}$${Math.abs(g.net).toLocaleString()}</span>
                         </div>
                         <div class="date-sep-stats">
@@ -1354,23 +1357,66 @@ setTimeout(() => {
                         </div>
                     </div>
                     
-                    <div id="note-${safeId}" style="display:none; margin-top:12px; padding-top:12px; border-top:1px dashed rgba(255, 0, 127, 0.4);">
-                        <textarea id="text-${safeId}" rows="3" placeholder="Add a daily journal note, context, or mood..." style="background:#050505; border:1px solid #333; color:#ccc; font-size:0.8rem; margin-bottom:8px; padding:10px; width:100%; border-radius:6px; resize:vertical;">${savedNote}</textarea>
-                        <div style="display:flex; justify-content:flex-end;">
-                            <button class="btn btn-sec" style="padding:6px 12px; font-size:0.75rem; color:#FF007F; border:1px solid #FF007F; background:rgba(255, 0, 127, 0.1); width:auto; cursor:pointer;" onclick="app.saveDailyNote('${dateStr}')">SAVE NOTE</button>
-                        </div>
+                    <div id="date-note-${safeId}" style="display:${isExpanded ? 'block' : 'none'}; margin-top:12px; padding-top:12px; border-top:1px dashed rgba(255, 0, 127, 0.4);">
+                        <textarea id="date-text-${safeId}" rows="3" placeholder="Add a daily journal note... (Auto-saves when you close keyboard)" style="background:#050505; border:1px solid #333; color:#ccc; font-size:0.8rem; margin-bottom:4px; padding:10px; width:100%; border-radius:6px; resize:vertical; font-family:inherit; outline:none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);"></textarea>
                     </div>
                 `;
                 list.appendChild(sep);
 
-                // Render the individual records under this date
+                // --- BIND THE AUTO-SAVE & PERSISTENCE LOGIC ---
+                const headEl = sep.querySelector(`#date-head-${safeId}`);
+                const noteEl = sep.querySelector(`#date-note-${safeId}`);
+                const textEl = sep.querySelector(`#date-text-${safeId}`);
+                const iconEl = sep.querySelector(`#date-icon-${safeId}`);
+
+                // Fill the box with any saved text
+                textEl.value = savedNote;
+
+                // 1. Toggle Drawer & Save Open/Closed State
+                headEl.onclick = () => {
+                    app.data.dailyNotesState[dateStr] = !app.data.dailyNotesState[dateStr];
+                    app.save(); // Locks the open/closed state into memory
+                    
+                    const nowOpen = app.data.dailyNotesState[dateStr];
+                    noteEl.style.display = nowOpen ? 'block' : 'none';
+                    iconEl.innerText = nowOpen ? 'expand_less' : 'expand_more';
+                };
+
+                // 2. Prevent clicks inside the text box from closing the drawer
+                textEl.onclick = (e) => e.stopPropagation();
+
+                // 3. Auto-Save exactly like the transaction cards
+                textEl.onchange = (e) => {
+                    const newText = e.target.value;
+                    app.data.dailyNotes[dateStr] = newText;
+                    app.save(); // Locks the text into memory
+                    
+                    // Visual confirmation flash & arrow color update
+                    const oldBorder = textEl.style.border;
+                    textEl.style.border = `1px solid #00E676`; // Neon Green
+                    iconEl.style.color = newText.trim().length > 0 ? '#00E676' : '#FF007F';
+                    
+                    setTimeout(() => { 
+                        textEl.style.border = oldBorder; 
+                    }, 800);
+                };
+
+
+                                // Render the individual records under this date
                 g.txs.forEach(t => {
                     const div = document.createElement('div');
                     div.className = `tx-item ${t.amt < 0 ? 'tx-neg' : 'tx-pos'}`; 
+                    
+                    // Trigger Edit Modal ONLY when clicking the main row background
                     div.onclick = () => app.openModal(t);
+                    
                     const color = app.colors[t.cat] || '#FFF';
                     div.style.borderLeftColor = color;
+                    div.style.flexWrap = 'wrap'; // <-- MAGIC TRICK: Allows the drawer to sit below the main row
                     
+                    // Generate unique ID to track open/closed state
+                    if(!t.id) t.id = 'tx_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+
                     let iconCode = 'attach_money';
                     if (t.cat === 'pokerCash') iconCode = 'spades'; 
                     else {
@@ -1397,25 +1443,64 @@ setTimeout(() => {
                     else if (t.cat === 'casino') tags.push('Casino');
 
                     const tagHtml = tags.map(tag => `<span class="tx-tag">${tag}</span>`).join('');
+                    
+                    // ICON: Now has an ID and a hover/cursor style
                     const iconHtml = (t.cat === 'pokerCash') 
-                        ? `<div class="tx-icon" style="background:${color}20; color:${color}; font-family:serif;">♠</div>`
-                        : `<div class="tx-icon" style="background:${color}20; color:${color}"><i class="material-icons-round">${iconCode}</i></div>`;
+                        ? `<div class="tx-icon" id="icon-${t.id}" style="cursor:pointer; background:${color}20; color:${color}; font-family:serif; flex-shrink:0; transition:0.2s;">♠</div>`
+                        : `<div class="tx-icon" id="icon-${t.id}" style="cursor:pointer; background:${color}20; color:${color}; flex-shrink:0; transition:0.2s;"><i class="material-icons-round">${iconCode}</i></div>`;
+                    
                     const amtStr = `$${Math.abs(t.amt).toLocaleString()}`;
+                    const savedNote = t.journal || '';
 
-                    // Hide the date inside the actual card since it's on the separator now
+                    // STRUCTURE
                     div.innerHTML = `
-                        ${iconHtml}
-                        <div class="tx-info">
-                            <div class="tx-title" style="color:${color}">${titleText}</div>
-                            <div class="tx-meta">${tagHtml}</div>
+                        <div style="display:flex; width:100%; align-items:center;">
+                            ${iconHtml}
+                            <div class="tx-info" style="flex-grow:1;">
+                                <div class="tx-title" style="color:${color}">${titleText}</div>
+                                <div class="tx-meta">${tagHtml}</div>
+                            </div>
+                            <div class="tx-amt ${t.amt < 0 ? 'neg' : 'pos'}">${amtStr}</div>
                         </div>
-                        <div class="tx-amt ${t.amt < 0 ? 'neg' : 'pos'}">${amtStr}</div>
+                        
+                        <div id="drawer-${t.id}" style="display:${t._noteOpen ? 'block' : 'none'}; width:100%; margin-top:10px; padding-top:10px; border-top:1px dashed ${color}50;">
+                            <textarea id="text-${t.id}" rows="2" placeholder="Tap to add a note... (Auto-saves when you close keyboard)" style="background:rgba(0,0,0,0.3); border:1px solid ${color}40; color:${color}; font-size:0.75rem; padding:8px; width:100%; border-radius:6px; resize:vertical; font-family:inherit; outline:none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);"></textarea>
+                        </div>
                     `;
+
+                    // POPULATE & BIND EVENTS
+                    const textArea = div.querySelector(`#text-${t.id}`);
+                    textArea.value = savedNote;
+                    
+                    const iconEl = div.querySelector(`#icon-${t.id}`);
+                    const drawerEl = div.querySelector(`#drawer-${t.id}`);
+                    
+                    // 1. Toggle Drawer on Icon Click
+                    iconEl.onclick = (e) => {
+                        e.stopPropagation(); // Stops the main Edit Modal from opening!
+                        t._noteOpen = !t._noteOpen;
+                        app.save(); // Saves the open/closed state permanently to memory
+                        drawerEl.style.display = t._noteOpen ? 'block' : 'none';
+                        iconEl.style.transform = t._noteOpen ? 'scale(1.1)' : 'scale(1)'; // Little pop effect
+                    };
+                    
+                    // 2. Prevent Modal when clicking the text box
+                    textArea.onclick = (e) => e.stopPropagation(); 
+                    
+                    // 3. Auto-Save when tapping away / closing keyboard
+                    textArea.onchange = (e) => {
+                        t.journal = e.target.value;
+                        app.save();
+                        
+                        // Subtle flash to confirm save visually
+                        const oldBorder = textArea.style.border;
+                        textArea.style.border = `1px solid #00FF41`; // Neon Green
+                        setTimeout(() => { textArea.style.border = oldBorder; }, 800);
+                    };
+
                     list.appendChild(div);
                 });
-            });
-        }
-    },
+
 
 
     renderTickets: () => { 
@@ -2349,55 +2434,172 @@ setTimeout(() => {
         document.getElementById('hedge-guaranteed').innerText = `$${guaranteed.toFixed(2)}`;
     },
     openSettings: () => { document.getElementById('modal-settings').classList.add('open'); document.getElementById('export-area').value = JSON.stringify(app.data); },
-    copyExport: () => { document.getElementById("export-area").select(); document.execCommand("copy"); alert("Copied!"); },
-        downloadBackup: () => {
-        const dataStr = JSON.stringify(app.data, null, 2); // Pretty print
+        
+    copyExport: () => { 
+        // Bundles everything into the clipboard
+        const exportPayload = {
+            appData: app.data,
+            settings: {
+                goal: localStorage.getItem('goal'),
+                tracker1: localStorage.getItem('tracker1'),
+                tracker2: localStorage.getItem('tracker2'),
+                tracker3: localStorage.getItem('tracker3')
+            }
+        };
+        document.getElementById("export-area").value = JSON.stringify(exportPayload, null, 2);
+        document.getElementById("export-area").select(); 
+        document.execCommand("copy"); 
+        alert("Copied Master Backup!"); 
+    },
+
+    downloadBackup: () => {
+        // Bundles everything for the file download
+        const exportPayload = {
+            appData: app.data,
+            settings: {
+                goal: localStorage.getItem('goal'),
+                tracker1: localStorage.getItem('tracker1'),
+                tracker2: localStorage.getItem('tracker2'),
+                tracker3: localStorage.getItem('tracker3')
+            }
+        };
+        const dataStr = JSON.stringify(exportPayload, null, 2); 
         const blob = new Blob([dataStr], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         
         const a = document.createElement('a');
         const date = new Date().toISOString().split('T')[0];
         a.href = url;
-        a.download = `bankroll_backup_${date}.json`;
+        a.download = `bankroll_master_backup_${date}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         
+        // Using your original SweetAlert style!
         Swal.fire({
-            title: 'Backup Saved!',
-            text: 'File downloaded to your device.',
+            title: 'Master Backup Saved!',
+            text: 'All transactions, notes, and tracker settings downloaded.',
             icon: 'success',
             background: '#111', color: '#fff'
         });
     },
 
     downloadCSV: () => {
+        // LEAVE THIS EXACTLY AS IS!
         let csv = "Date,Category,Amount,Description,Details\n";
         app.data.txs.forEach(t => { const desc = t.desc ? `"${t.desc.replace(/"/g, '""')}"` : ""; const details = t.details ? `"${JSON.stringify(t.details).replace(/"/g, '""')}"` : ""; csv += `${t.date},${t.cat},${t.amt.toFixed(2)},${desc},${details}\n`; });
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         if (link.download !== undefined) { const url = URL.createObjectURL(blob); link.setAttribute("href", url); const date = new Date().toISOString().split('T')[0]; link.setAttribute("download", `bankroll_export_${date}.csv`); link.style.visibility = 'hidden'; document.body.appendChild(link); link.click(); document.body.removeChild(link); }
     },
+
     importData: () => { 
         try { 
+            // Reads from your textarea box
             const p = JSON.parse(document.getElementById('import-area').value); 
-            if(p.txs || (Object.keys(p).length === 0 && confirm("Import empty data?"))){ 
+            
+            if (p.appData) {
+                // IT IS A NEW MASTER BACKUP
+                app.data = {
+                    txs: [], tickets: [], inventory: [], notes: [],
+                    liveSession: { active: false },
+                    ...p.appData
+                };
+                if(p.settings) {
+                    if(p.settings.goal) localStorage.setItem('goal', p.settings.goal);
+                    if(p.settings.tracker1) localStorage.setItem('tracker1', p.settings.tracker1);
+                    if(p.settings.tracker2) localStorage.setItem('tracker2', p.settings.tracker2);
+                    if(p.settings.tracker3) localStorage.setItem('tracker3', p.settings.tracker3);
+                }
+            } else if (p.txs || (Object.keys(p).length === 0 && confirm("Import empty data?"))) {
+                // IT IS AN OLD V1 BACKUP (Backwards compatible)
                 app.data = {
                     txs: [], tickets: [], inventory: [], notes: [],
                     liveSession: { active: false },
                     ...p
                 };
-                app.save(); 
-                alert("Imported Successfully!"); 
-                document.getElementById('modal-settings').classList.remove('open'); 
             } else {
                 alert("Invalid Data Format");
+                return;
             }
+            
+            app.save(); 
+            app.calcCrypto(); // Sync crypto logic
+            app.render(); 
+            
+            // Clear textarea and close modal
+            document.getElementById('import-area').value = '';
+            document.getElementById('modal-settings').classList.remove('open'); 
+            
+            alert("System Restored Successfully! 🏴‍☠️"); 
+            
         } catch(e){ 
             console.error(e);
             alert("Error parsing JSON data. Check format."); 
         } 
     },
+        importFile: (event) => {
+        const file = event.target.files[0];
+        if (!file) return; // User canceled the file browser
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const p = JSON.parse(e.target.result);
+                
+                if (p.appData) {
+                    // IT IS A NEW MASTER BACKUP
+                    app.data = {
+                        txs: [], tickets: [], inventory: [], notes: [],
+                        liveSession: { active: false },
+                        ...p.appData
+                    };
+                    if(p.settings) {
+                        if(p.settings.goal) localStorage.setItem('goal', p.settings.goal);
+                        if(p.settings.tracker1) localStorage.setItem('tracker1', p.settings.tracker1);
+                        if(p.settings.tracker2) localStorage.setItem('tracker2', p.settings.tracker2);
+                        if(p.settings.tracker3) localStorage.setItem('tracker3', p.settings.tracker3);
+                    }
+                } else if (p.txs || (Object.keys(p).length === 0 && confirm("Import empty data?"))) {
+                    // IT IS AN OLD V1 BACKUP
+                    app.data = {
+                        txs: [], tickets: [], inventory: [], notes: [],
+                        liveSession: { active: false },
+                        ...p
+                    };
+                } else {
+                    alert("Invalid Data Format");
+                    event.target.value = ''; // Reset the hidden input
+                    return;
+                }
+                
+                app.save(); 
+                app.calcCrypto(); 
+                app.render(); 
+                
+                document.getElementById('modal-settings').classList.remove('open'); 
+                event.target.value = ''; // Reset so you can upload the same file again if needed
+                
+                // Using SweetAlert for that premium feel
+                Swal.fire({
+                    title: 'System Restored!',
+                    text: 'Backup file loaded successfully.',
+                    icon: 'success',
+                    background: '#111', color: '#fff'
+                });
+                
+            } catch(err) {
+                console.error("File Import Error:", err);
+                alert("Error reading file. Make sure it's a valid Bankroll OS JSON backup.");
+                event.target.value = '';
+            }
+        };
+        
+        // This physically reads the file from your device
+        reader.readAsText(file);
+    },
+
+
     
                                     // --- KALSHI EXPLORER (V8: REAL TEAM NAMES) ---
     kalshi: {
