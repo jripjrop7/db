@@ -1346,10 +1346,18 @@ setTimeout(() => {
                 sep.className = 'date-separator';
                 sep.innerHTML = `
                     <div id="date-head-${safeId}" style="cursor:pointer;">
-                        <div class="date-sep-header">
-                            <span>🏴‍☠️ ${dateStr.toUpperCase()} 🏴‍☠️ <i id="date-icon-${safeId}" class="material-icons-round" style="font-size:18px; vertical-align:middle; color:${arrowColor}; margin-left:6px; transition:0.3s;">${isExpanded ? 'expand_less' : 'expand_more'}</i></span>
-                            <span style="color:${g.net >= 0 ? '#00E676' : '#D50000'}">${g.net >= 0 ? '+' : '-'}$${Math.abs(g.net).toLocaleString()}</span>
+                                                <div style="display:flex; justify-content:flex-end; align-items:center; position:relative; min-height:24px; margin-bottom:8px;">
+                            
+                            <span style="position:absolute; left:50%; transform:translateX(-50%); font-weight:bold; letter-spacing:1px; white-space:nowrap;">
+                                🏴‍☠️ ${dateStr.toUpperCase()} 🏴‍☠️ 
+                                <i id="date-icon-${safeId}" class="material-icons-round" style="font-size:18px; vertical-align:middle; color:${arrowColor}; margin-left:4px; transition:0.3s;">${isExpanded ? 'expand_less' : 'expand_more'}</i>
+                            </span>
+                            
+                            <span style="font-weight:bold; z-index:1; color:${g.net >= 0 ? '#00E676' : '#D50000'}">
+                                ${g.net >= 0 ? '+' : '-'}$${Math.abs(g.net).toLocaleString()}
+                            </span>                            
                         </div>
+                       
                         <div class="date-sep-stats">
                             <span>TXNS: ${g.count}</span>
                             <span style="color:#00C853">IN: +$${g.credits.toLocaleString()}</span>
