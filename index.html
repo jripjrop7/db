@@ -1287,6 +1287,14 @@
                     <button class="btn btn-primary" onclick="app.downloadBackup()">DOWNLOAD JSON BACKUP</button>
                     <button class="btn btn-sec" style="margin-top:10px;" onclick="app.downloadCSV()">DOWNLOAD CSV (EXCEL)</button>
                 </div>
+                
+                        <div style="margin-top: 15px; margin-bottom: 15px; text-align: center;">
+            <label class="btn btn-primary" style="cursor: pointer; display: block; padding: 10px; background: #3D5AFE; border: none; color: white; font-weight: bold; border-radius: 6px;">
+                <i class="material-icons-round" style="vertical-align: middle; margin-right: 5px;">upload_file</i> UPLOAD BACKUP FILE
+                <input type="file" id="import-file" accept=".json" style="display: none;" onchange="app.importFile(event)">
+            </label>
+        </div>
+
                 <div class="card"><h2>MANUAL EXPORT (COPY)</h2><textarea id="export-area" rows="5" readonly onclick="this.select()"></textarea><button class="btn btn-sec" onclick="app.copyExport()">COPY TO CLIPBOARD</button></div>
                 <div class="card"><h2>IMPORT DATA</h2><textarea id="import-area" rows="5" placeholder='Paste JSON here'></textarea><button class="btn btn-primary" onclick="app.importData()">IMPORT & OVERWRITE</button></div>
             </div>

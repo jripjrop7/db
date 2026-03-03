@@ -1358,7 +1358,7 @@ setTimeout(() => {
                     </div>
                     
                     <div id="date-note-${safeId}" style="display:${isExpanded ? 'block' : 'none'}; margin-top:12px; padding-top:12px; border-top:1px dashed rgba(255, 0, 127, 0.4);">
-                        <textarea id="date-text-${safeId}" rows="3" placeholder="Add a daily journal note... (Auto-saves when you close keyboard)" style="background:#050505; border:1px solid #333; color:#ccc; font-size:0.8rem; margin-bottom:4px; padding:10px; width:100%; border-radius:6px; resize:vertical; font-family:inherit; outline:none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);"></textarea>
+                        <textarea id="date-text-${safeId}" rows="3" placeholder="Bring your girl to the crib, maybe we can solve 'em..." style="background:#050505; border:1px solid #333; color:#ccc; font-size:0.8rem; margin-bottom:4px; padding:10px; width:100%; border-radius:6px; resize:vertical; font-family:inherit; outline:none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);"></textarea>
                     </div>
                 `;
                 list.appendChild(sep);
@@ -1464,7 +1464,7 @@ setTimeout(() => {
                         </div>
                         
                         <div id="drawer-${t.id}" style="display:${t._noteOpen ? 'block' : 'none'}; width:100%; margin-top:10px; padding-top:10px; border-top:1px dashed ${color}50;">
-                            <textarea id="text-${t.id}" rows="2" placeholder="Tap to add a note... (Auto-saves when you close keyboard)" style="background:rgba(0,0,0,0.3); border:1px solid ${color}40; color:${color}; font-size:0.75rem; padding:8px; width:100%; border-radius:6px; resize:vertical; font-family:inherit; outline:none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);"></textarea>
+                            <textarea id="text-${t.id}" rows="2" placeholder="Yeah, I like to fuck, I got a fuckin' problem..." style="background:rgba(0,0,0,0.3); border:1px solid ${color}40; color:${color}; font-size:0.75rem; padding:8px; width:100%; border-radius:6px; resize:vertical; font-family:inherit; outline:none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);"></textarea>
                         </div>
                     `;
 
