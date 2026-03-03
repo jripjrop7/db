@@ -53,8 +53,8 @@
         
         .card { background: var(--surface); border: 1px solid #222; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
         .row { display: flex; justify-content: space-between; align-items: center; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
         
         h1 { color: var(--intense-orange); font-size: 1.33rem; margin: 0; letter-spacing: -1px; text-shadow: 0 0 10px rgba(255, 61, 0, 0.2); }
         h2 { font-size: 0.75rem; color: var(--intense-orange); margin-bottom: 3px; letter-spacing: 1px; text-transform: none; font-weight: bold; }
@@ -65,12 +65,12 @@
 
         .filter-bar { display: flex; flex-direction: column; gap: 4px; padding: 2px 3px 2px 3px; background: #0a0a0a; border-bottom: 1px solid #222; }
         .filter-row-top { display: flex; gap: 3px; overflow-x: auto; scrollbar-width: none; align-items: center; }
-        .filter-chip { white-space: nowrap; padding: 2px 5px; border-radius: 13px; background: #222; color: #777; font-size: 0.7rem; border: 2px solid #333; cursor: pointer; transition: 0.2s; }
+        .filter-chip { white-space: nowrap; padding: 3px 3px; border-radius: 13px; background: #222; color: #777; font-size: 0.7rem; border: 2px solid #333; cursor: pointer; transition: 0.2s; }
         .filter-chip.active { background: rgba(255, 61, 0, 0.15); color: var(--intense-orange); border-color: var(--intense-orange); }
         
         .search-row { display: grid; grid-template-columns: 1fr auto; gap: 2px; margin-top: 2px; }
-        .search-input { background: #1a1a1a; border: 1px solid #333; color: white; padding: 0 4px; height: 30px; border-radius: 6px; font-family: inherit; font-size: 0.75rem; width: 100%; display: flex; align-items: center; }
-        .filter-btn { background: #222; border: 1px solid #333; color: var(--sub); padding: 0 10px; height: 30px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .search-input { background: #1a1a1a; border: 1px solid #333; color: white; padding: 0 3px; height: 30px; border-radius: 6px; font-family: inherit; font-size: 0.75rem; width: 100%; display: flex; align-items: center; }
+        .filter-btn { background: #222; border: 1px solid #333; color: var(--sub); padding: 0 3px; height: 30px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         
         .date-range-container { display: flex; align-items: center; gap: 3px; background: #222; padding: 2px; border-radius: 6px; border: 1px solid #333; }
         .date-range-container.show { display: flex; }
@@ -79,17 +79,17 @@
     border: none; 
     color: white; 
     font-family: inherit; 
-    font-size: 0.60rem; 
+    font-size: 0.55rem; 
     width: 83px;      /* Change this to make the box wider or narrower */
-    height: 9px;      /* Change this to make the box taller or shorter */
-    padding: 0 1px;    /* Adds a little breathing room inside the box */
+    height: 8px;      /* Change this to make the box taller or shorter */
+    padding: 0 2px;    /* Adds a little breathing room inside the box */
 }
 
-        .nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #000; border-top: 1px solid #222; display: flex; justify-content: space-around; padding: 8px 0 20px 0; z-index: 100; }
-        .nav-item { color: var(--sub); text-align: center; font-size: 0.65rem; background: none; border: none; transition: 0.3s; }
-        .nav-item i { display: block; font-size: 22px; margin-bottom: 4px; }
+        .nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #000; border-top: 1px solid #222; display: flex; justify-content: space-around; padding: 7px 0 13px 0; z-index: 100; }
+        .nav-item { color: var(--sub); text-align: center; font-size: 0.77rem; background: none; border: none; transition: 0.3s; }
+        .nav-item i { display: block; font-size: 27px; margin-bottom: 3px; }
         .nav-item.active { color: var(--intense-orange); text-shadow: 0 0 10px rgba(255, 61, 0, 0.4); }
-        .fab { position: fixed; bottom: 85px; right: 15px; background: var(--intense-orange); color: #000; border: none; width: 55px; height: 55px; border-radius: 50%; box-shadow: 0 4px 12px rgba(255, 61, 0, 0.4); display: flex; align-items: center; justify-content: center; font-size: 28px; z-index: 99; }
+        .fab { position: fixed; bottom: 77px; right: 13px; background: var(--intense-orange); color: #000; border: none; width: 55px; height: 55px; border-radius: 50%; box-shadow: 0 4px 12px rgba(255, 61, 0, 0.4); display: flex; align-items: center; justify-content: center; font-size: 28px; z-index: 99; }
         
         input, select, textarea { width: 100%; background: #1A1A1A; border: 1px solid #333; color: white; padding: 12px; border-radius: 8px; margin-bottom: 10px; font-family: inherit; font-size: 15px; appearance: none; }
         input:focus, select:focus, textarea:focus { border-color: var(--intense-orange); outline: none; }
