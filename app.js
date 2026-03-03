@@ -80,6 +80,15 @@ const app = {
             if(document.getElementById('set-t2-goal')) document.getElementById('set-t2-goal').value = t2.goal || 1000;
             if(document.getElementById('set-t2-date')) document.getElementById('set-t2-date').value = t2.date || '';
 
+            // 4. Tracker 3
+            const t3Str = localStorage.getItem('tracker3');
+            const t3 = t3Str ? JSON.parse(t3Str) : {name:"", cat:"", start:0, goal:1000, date:""};
+            if(document.getElementById('set-t3-name')) document.getElementById('set-t3-name').value = t3.name || '';
+            if(document.getElementById('set-t3-cat')) document.getElementById('set-t3-cat').value = t3.cat || '';
+            if(document.getElementById('set-t3-start')) document.getElementById('set-t3-start').value = t3.start || 0;
+            if(document.getElementById('set-t3-goal')) document.getElementById('set-t3-goal').value = t3.goal || 1000;
+            if(document.getElementById('set-t3-date')) document.getElementById('set-t3-date').value = t3.date || '';
+
             // 4. Open Modal
             document.getElementById('modal-dash-settings').classList.add('open');
         } catch(e) {
@@ -112,6 +121,15 @@ const app = {
             date: document.getElementById('set-t2-date').value
         };
         localStorage.setItem('tracker2', JSON.stringify(t2));
+
+        const t3 = {
+            name: document.getElementById('set-t3-name').value.trim(),
+            cat: document.getElementById('set-t3-cat').value,
+            start: parseFloat(document.getElementById('set-t3-start').value) || 0,
+            goal: parseFloat(document.getElementById('set-t3-goal').value) || 1000,
+            date: document.getElementById('set-t3-date').value
+        };
+        localStorage.setItem('tracker3', JSON.stringify(t3));
 
         document.getElementById('modal-dash-settings').classList.remove('open');
         app.calcCrypto(); // Forces the calculation just in case
@@ -1258,6 +1276,21 @@ setTimeout(() => {
             document.getElementById('sub2-bar').style.background = getBarColor(p2);
         }
 
+        // Render Tracker 3
+        const t3 = JSON.parse(localStorage.getItem('tracker3') || 'null');
+        const t3Stats = calcTracker(t3);
+        if(document.getElementById('sub3-container')) {
+            document.getElementById('sub3-title').innerText = (t3 && t3.name) ? t3.name.toUpperCase() : 'TRACKER 3 (UNSET)';
+            
+            // Shows $Current / $Aim
+            document.getElementById('sub3-val').innerText = t3Stats ? `${fmt(t3Stats.val)} / ${fmt(t3Stats.goal)}` : '$0 / $0';
+            
+            const p3 = t3Stats ? t3Stats.pct : 0;
+            document.getElementById('sub3-pct').innerText = `${p3.toFixed(1)}%`;
+            document.getElementById('sub3-pct').style.color = getTextColor(p3);
+            document.getElementById('sub3-bar').style.width = `${p3}%`;
+            document.getElementById('sub3-bar').style.background = getBarColor(p3);
+        }
 
 
         // --- 3. FILTERED PERIOD PROFIT ---
