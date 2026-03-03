@@ -921,6 +921,18 @@ setTimeout(() => {
     app.crypto.fetchTicker();
     app.crypto.renderHistory('month'); // Default view
 }, 1000);
+        // Global Chart.js UI Overrides (Bloomberg Terminal Style)
+        Chart.defaults.color = '#888'; 
+        Chart.defaults.font.family = "'Chakra Petch', sans-serif"; 
+        Chart.defaults.scale.grid.color = 'rgba(255, 255, 255, 0.03)'; // Barely visible ghost grid
+        Chart.defaults.scale.grid.borderColor = 'rgba(255, 255, 255, 0.1)'; 
+        Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(5, 5, 5, 0.95)'; // Pitch black tooltips
+        Chart.defaults.plugins.tooltip.titleColor = '#FF007F'; // Neon Pink Titles
+        Chart.defaults.plugins.tooltip.padding = 12;
+        Chart.defaults.plugins.tooltip.cornerRadius = 8;
+        Chart.defaults.plugins.tooltip.borderColor = '#333';
+        Chart.defaults.plugins.tooltip.borderWidth = 1;
+        Chart.defaults.plugins.tooltip.titleFont = { size: 13, family: "'Chakra Petch', sans-serif", weight: 'bold' };
 
                     // Initialize Flatpickr for all date inputs
         flatpickr("input[type=datetime-local]", {
