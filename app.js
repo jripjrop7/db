@@ -1487,7 +1487,7 @@ setTimeout(() => {
                     // 2. Prevent Modal when clicking the text box
                     textArea.onclick = (e) => e.stopPropagation(); 
                     
-                    // 3. Auto-Save when tapping away / closing keyboard
+                                        // 3. Auto-Save when tapping away / closing keyboard
                     textArea.onchange = (e) => {
                         t.journal = e.target.value;
                         app.save();
@@ -1499,8 +1499,11 @@ setTimeout(() => {
                     };
 
                     list.appendChild(div);
-                });
-},
+                }); // <--- 1. Closes the g.txs.forEach loop
+            }); // <--- 2. Closes the Object.keys(groups).forEach loop
+        } // <--- 3. Closes the "if/else" block for the UI render
+    }, // <--- 4. Closes the entire render: () => { function
+
 
 
     renderTickets: () => { 
