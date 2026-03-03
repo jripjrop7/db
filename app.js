@@ -1500,7 +1500,7 @@ setTimeout(() => {
 
                     list.appendChild(div);
                 });
-
+},
 
 
     renderTickets: () => { 
