@@ -582,22 +582,7 @@
         </div>
 
         <div id="view-tools" class="container" style="display:none;">
-                                    
-            <div class="row" style="margin-bottom:10px; padding:0 4px;">
-                <h2 style="margin:0;">INVENTORY</h2>
-                <button onclick="app.openInvAddModal()" style="background:none; border:none; color:var(--sales); font-size:24px;">+</button>
-            </div>
-            <div id="inventory-list"></div>
-       
-            <div class="card">
-                <h2>RECURRING BILLS & EXPENSES</h2>
-                <div style="display:grid; grid-template-columns: 2fr 1fr 1fr auto; gap:8px; margin-bottom:5px; padding:0 8px;">
-                    <label>NAME</label><label>COST ($)</label><label>DUE (1-31)</label><label></label>
-                </div>
-                <div id="recurring-tools-list"></div>
-                <button class="btn btn-sec" onclick="app.addRecurring()">+ ADD BILL</button>
-            </div>
-                
+                                                                
             <div class="card" style="border-color: #00E676;">
                 <h2>PROP INTELLIGENCE HUB</h2>
                 <div class="grid">
@@ -949,14 +934,24 @@
             <div class="card">
                 <h2>INCOME SOURCES</h2>
                 <canvas id="pieIncome" height="200"></canvas>
-            </div>
-            <div class="card">
-                <h2>LEAKS</h2>
-                <canvas id="pieLeaks" height="200"></canvas>
-            </div>
+            </div>            
             <div class="card">
                 <h2>EXPENSES</h2>
                 <canvas id="pieExpenses" height="200"></canvas>
+            </div>
+            <div class="row" style="margin-bottom:10px; padding:0 4px;">
+                <h2 style="margin:0;">INVENTORY</h2>
+                <button onclick="app.openInvAddModal()" style="background:none; border:none; color:var(--sales); font-size:24px;">+</button>
+            </div>
+            <div id="inventory-list"></div>
+       
+            <div class="card">
+                <h2>RECURRING BILLS & EXPENSES</h2>
+                <div style="display:grid; grid-template-columns: 2fr 1fr 1fr auto; gap:8px; margin-bottom:5px; padding:0 8px;">
+                    <label>NAME</label><label>COST ($)</label><label>DUE (1-31)</label><label></label>
+                </div>
+                <div id="recurring-tools-list"></div>
+                <button class="btn btn-sec" onclick="app.addRecurring()">+ ADD BILL</button>
             </div>
             <button class="btn btn-primary" onclick="app.copyReport()">COPY REPORT</button>
         </div>
@@ -1625,7 +1620,7 @@
 
 
 
-<div id="view-auto" class="container" style="display:none;">
+<div id="view-notes" class="container" style="display:none;">
     
 <div class="row" style="margin-bottom:10px; padding:0 4px;">
                 <h2 style="margin:0;">QUICK NOTES</h2>
@@ -1633,6 +1628,11 @@
             </div>
             <div id="notes-list" style="margin-bottom: 13px;"></div>
 </div>
+
+<div id="view-auto" class="container" style="display:none;">
+
+</div>
+
 
 
         <nav class="nav">
