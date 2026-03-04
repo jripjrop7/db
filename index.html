@@ -506,18 +506,19 @@
         }
 
         /* INLINE CARDS (Inside Folders) */
-                .note-card-inline {
-            background: rgba(0, 0, 0, 0.3); /* Mostly transparent */
+                      .note-card-inline {
+            background: #0b0c10; /* Slightly lighter than the folder */
             margin: 6px 8px 8px 8px; 
             border-left-width: 3px; 
             border-left-style: solid; 
-            border-radius: 4px; /* Very sharp */
-            border-top: 1px dashed #333; /* Dashed schematic lines */
-            border-right: 1px dashed #333;
-            border-bottom: 1px dashed #333;
-            box-shadow: none; /* Completely flat */
+            border-radius: 6px; /* Slightly sharper corners */
+            border-top: 1px solid #262930; /* Fake top light reflection */
+            border-right: 1px solid #1a1c23;
+            border-bottom: 1px solid #111216;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.9); /* Hard drop shadow */
             overflow: hidden;
         }
+
 
 
         .note-card-title { 
