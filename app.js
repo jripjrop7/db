@@ -1908,7 +1908,7 @@ setTimeout(() => {
         const sortedColors = [...folderKeys, ...standaloneKeys];
 
         // Helper to bind interaction events
-        const bindNoteEvents = (n, container) => {
+        const bindNoteEvents = (n, container) => {        	
             const nHead = container.querySelector(`#note-head-${n.id}`);
             const nDate = container.querySelector(`#note-date-${n.id}`);
             const nBodyContainer = container.querySelector(`#note-body-${n.id}`);
@@ -1943,8 +1943,7 @@ setTimeout(() => {
                 setTimeout(() => textArea.style.background = oldBg, 600);
             };
         };
-
-                        // Render UI
+                // Render UI
         sortedColors.forEach(color => {
             const groupNotes = groups[color];
 
@@ -2037,7 +2036,7 @@ setTimeout(() => {
                 groupNotes.forEach(n => bindNoteEvents(n, folderDiv));
             }
         });
-
+},
         
     toggleLive: () => {
         const s = app.data.liveSession;
