@@ -1890,12 +1890,22 @@ setTimeout(() => {
         if(!app.data.folderState) app.data.folderState = {};
         if(!app.data.folderSettings) app.data.folderSettings = {};
 
-        // Group by Color
+                // Group by Color
         const groups = {};
         app.data.notes.forEach(n => {
             if (!groups[n.color]) groups[n.color] = [];
             groups[n.color].push(n);
         });
+
+        // --- NEW: AUTO-SORTING ENGINE ---
+        // Pushes all Folders (>1 note) to the top, and Standalone (1 note) to the bottom
+        const folderKeys = [];
+        const standaloneKeys = [];
+        Object.keys(groups).forEach(color => {
+            if (groups[color].length > 1) folderKeys.push(color);
+            else standaloneKeys.push(color);
+        });
+        const sortedColors = [...folderKeys, ...standaloneKeys];
 
         // Helper to bind interaction events
         const bindNoteEvents = (n, container) => {
@@ -1934,25 +1944,26 @@ setTimeout(() => {
             };
         };
 
-        // Render UI
-        Object.keys(groups).forEach(color => {
+                        // Render UI
+        sortedColors.forEach(color => {
             const groupNotes = groups[color];
+
             
             if (groupNotes.length === 1) {
-                // --- 1. RENDER STANDALONE NOTE ---
+                // --- 1. RENDER STANDALONE NOTE (5px Narrower) ---
                 const n = groupNotes[0];
                 const dateObj = new Date(n.date);
                 const dateStr = !isNaN(dateObj) ? `${dateObj.getMonth()+1}/${dateObj.getDate()}/${dateObj.getFullYear()}` : n.date.split('T')[0];
 
                 const div = document.createElement('div');
-                div.className = 'note-folder'; // Gives it the nice outer border wrapper
+                div.className = 'note-standalone'; // <--- NEW NARROW CLASS
                 div.style.borderLeftColor = color;
                 div.innerHTML = `
-                    <div class="note-card-header" id="note-head-${n.id}">
+                    <div class="note-card-header" id="note-head-${n.id}" style="background: linear-gradient(90deg, ${color}15 0%, rgba(0,0,0,0) 100%); border-bottom: 1px solid ${color}30;">
                         <div class="note-card-title" style="color:${color};">${n.title.toUpperCase()}</div>
                         <div class="note-card-date" id="note-date-${n.id}" style="color:${color};">${dateStr}</div>
                     </div>
-                    <div id="note-body-${n.id}" style="display:${n._expanded ? 'block' : 'none'}; border-top:1px dashed ${color}40;">
+                    <div id="note-body-${n.id}" style="display:${n._expanded ? 'block' : 'none'};">
                         <textarea class="note-textarea" id="text-${n.id}" placeholder="Tap to write... (Auto-saves)">${n.body || ''}</textarea>
                     </div>
                 `;
@@ -1960,16 +1971,16 @@ setTimeout(() => {
                 bindNoteEvents(n, div);
 
             } else {
-                // --- 2. RENDER FOLDER ---
+                // --- 2. RENDER FOLDER (Wider) ---
                 const isFolderOpen = app.data.folderState[color] !== false;
                 const fSettings = app.data.folderSettings[color] || { title: 'NOTES FOLDER', icon: 'cyclone' };
 
                 const folderDiv = document.createElement('div');
-                folderDiv.className = 'note-folder';
+                folderDiv.className = 'note-folder'; // <--- STANDARD WIDE CLASS
                 folderDiv.style.borderLeftColor = color;
                 
                 let html = `
-                    <div class="note-folder-header" id="folder-head-${color.replace('#','')}">
+                    <div class="note-folder-header" id="folder-head-${color.replace('#','')}" style="background: linear-gradient(90deg, ${color}20 0%, rgba(0,0,0,0) 100%); border-bottom: 1px solid ${color}40;">
                         <i class="material-icons-round note-folder-icon" id="folder-icon-${color.replace('#','')}" style="color:${color};">${fSettings.icon}</i>
                         <div class="note-folder-title" style="color:${color};">${fSettings.title.toUpperCase()}</div>
                         <div style="display:flex; align-items:center; color:${color};">
@@ -1987,11 +1998,11 @@ setTimeout(() => {
                     
                     html += `
                         <div class="note-card-inline" style="border-left-color:${color};">
-                            <div class="note-card-header" id="note-head-${n.id}">
+                            <div class="note-card-header" id="note-head-${n.id}" style="background: linear-gradient(90deg, ${color}10 0%, rgba(0,0,0,0) 100%); border-bottom: 1px solid #1a1a1a;">
                                 <div class="note-card-title" style="color:${color};">${n.title.toUpperCase()}</div>
                                 <div class="note-card-date" id="note-date-${n.id}" style="color:${color};">${dateStr}</div>
                             </div>
-                            <div id="note-body-${n.id}" style="display:${n._expanded ? 'block' : 'none'}; border-top:1px dashed ${color}40;">
+                            <div id="note-body-${n.id}" style="display:${n._expanded ? 'block' : 'none'};">
                                 <textarea class="note-textarea" id="text-${n.id}" placeholder="Tap to write... (Auto-saves)">${n.body || ''}</textarea>
                             </div>
                         </div>
@@ -2026,7 +2037,7 @@ setTimeout(() => {
                 groupNotes.forEach(n => bindNoteEvents(n, folderDiv));
             }
         });
-    },
+
         
     toggleLive: () => {
         const s = app.data.liveSession;
