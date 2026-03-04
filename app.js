@@ -1,4 +1,14 @@
 const app = {
+	
+	    noteColors: [
+        '#FFFFFF', '#CCCCCC', '#999999', '#666666', '#333333', '#111111', '#000000', // Grays/Blacks
+        '#FF8A80', '#FF5252', '#FF1744', '#D50000', '#FF007F', '#F50057', '#C51162', // Reds/Pinks
+        '#FFD180', '#FFAB40', '#FF9100', '#FF6D00', '#FF3D00', '#FFEA00', '#FFD600', // Oranges/Yellows
+        '#C6FF00', '#76FF03', '#00E676', '#00C853', '#1DE9B6', '#00E5FF', '#00B8D4', // Neon Greens/Teals
+        '#82B1FF', '#2979FF', '#3D5AFE', '#651FFF', '#AA00FF', '#D500F9', '#E040FB'  // Blues/Purples
+    ],
+    selectedNoteColor: '#00E676', // Default
+
 	    getFees: async () => {
         try {
             const res = await fetch('https://mempool.space/api/v1/fees/recommended');
@@ -1525,6 +1535,10 @@ setTimeout(() => {
         } // <--- 3. Closes the "if/else" block for the UI render
     }, // <--- 4. Closes the entire render: () => { function
 
+        // Force the notes tab to instantly sync its UI
+        app.renderNotes();
+    }, // <-- This is the end of the render function
+
 
 
     renderTickets: () => { 
@@ -1742,116 +1756,194 @@ setTimeout(() => {
         }
     },
 
-            renderNotes: () => {
-        const list = document.getElementById('notes-list'); 
-        list.innerHTML = '';
+        openNoteModal: () => {
+        document.getElementById('note-title').value = '';
         
-        // 1. Group notes by Color
+        // Build the 35-color grid dynamically
+        const grid = document.getElementById('note-color-selector');
+        grid.innerHTML = '';
+        app.noteColors.forEach(hex => {
+            const div = document.createElement('div');
+            div.className = 'color-grid-item';
+            div.style.background = hex;
+            if (hex === app.selectedNoteColor) div.classList.add('selected');
+            
+            div.onclick = () => {
+                document.querySelectorAll('.color-grid-item').forEach(el => el.classList.remove('selected'));
+                div.classList.add('selected');
+                app.selectedNoteColor = hex;
+            };
+            grid.appendChild(div);
+        });
+
+        document.getElementById('modal-note').classList.add('open');
+    },
+
+    createNoteQuick: () => {
+        const title = document.getElementById('note-title').value.trim() || 'Untitled Note';
+        const newNote = {
+            id: 'note_' + Date.now(),
+            title: title,
+            color: app.selectedNoteColor,
+            body: '',
+            date: new Date().toISOString().split('T')[0],
+            _expanded: true // Starts open so you can type immediately
+        };
+
+        if(!app.data.notes) app.data.notes = [];
+        app.data.notes.unshift(newNote); // Pushes to the top
+
+        // Ensure the folder opens automatically
+        if(!app.data.folderState) app.data.folderState = {};
+        app.data.folderState[app.selectedNoteColor] = true;
+
+        app.save();
+        document.getElementById('modal-note').classList.remove('open');
+        app.renderNotes(); // Instantly paints it to the screen
+    },
+
+    renderNotes: () => {
+        const list = document.getElementById('notes-list');
+        if (!list) return;
+        list.innerHTML = '';
+
+        if (!app.data.notes || app.data.notes.length === 0) {
+            list.innerHTML = `<div style="text-align:center; color:#555; padding:20px; font-size:0.8rem;">No notes yet. Tap + ADD NOTE to start.</div>`;
+            return;
+        }
+
+        // Initialize state memory objects if they don't exist
+        if(!app.data.folderState) app.data.folderState = {};
+        if(!app.data.folderTitles) app.data.folderTitles = {};
+        // --- ADD THIS TO AUTO-UPGRADE OLD NOTES ---
+        app.data.notes.forEach(n => {
+            if (!n.id) n.id = 'note_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+            if (typeof n._expanded === 'undefined') n._expanded = false; // Keep old notes closed by default
+        });
+        // ------------------------------------------
+
+        // Group by Color (This was already in the code)
+
+        // Group by Color
         const groups = {};
         app.data.notes.forEach(n => {
-            if(!groups[n.color]) groups[n.color] = [];
+            if (!groups[n.color]) groups[n.color] = [];
             groups[n.color].push(n);
         });
 
-        // Ensure folder settings object exists
-        if(!app.data.folderSettings) app.data.folderSettings = {};
-
-        // HELPER: Generates the HTML for a single note (Scroll limits removed)
-        const createNoteHTML = (n) => `
-            <div class="note-card" style="border-left-color:${n.color}; margin-bottom:8px; background:#151515;">
-                <div onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
-                    <div style="overflow:hidden;">
-                        <span class="note-date" style="color:${n.color}">${new Date(n.date).toLocaleDateString()}</span>
-                        <div class="note-header" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${n.title || 'Untitled'}</div>
-                    </div>
-                    <i class="material-icons-round" style="color:#555; font-size:18px;">expand_more</i>
-                </div>
-                
-                <div style="display:none; margin-top:8px; border-top:1px solid #333; padding-top:8px;">
-                    <div class="note-body" style="font-size:0.75rem; color:#ccc; white-space:pre-wrap; line-height:1.4;">${n.body}</div>
-                    <button class="btn btn-sec" style="margin-top:8px; padding:6px; font-size:0.7rem; width:100%;" onclick="app.openNoteModal(app.data.notes.find(x=>x.id==${n.id}))">EDITOR</button>
-                </div>
-            </div>
-        `;
-
-        // 2. Render Groups
         Object.keys(groups).forEach(color => {
-            const notes = groups[color];
-            
-            // --- FOLDER VIEW (If 2+ notes share a color) ---
-            if(notes.length > 1) {
-                const folderId = `folder-${color.replace('#','')}`;
-                // Pull custom settings or use defaults
-                const fSet = app.data.folderSettings[color] || { title: 'NOTES GROUP', icon: 'folder' };
-                
-                const el = document.createElement('div');
-                el.className = 'note-card';
-                el.style.borderLeftColor = color;
-                el.style.marginBottom = '8px';
-                el.style.background = '#0a0a0a'; 
-                
-                // Sort notes newest first
-                notes.sort((a,b) => new Date(b.date) - new Date(a.date));
+            const groupNotes = groups[color];
+            const isFolderOpen = app.data.folderState[color] !== false; // Defaults to true
+            const folderTitle = app.data.folderTitles[color] || 'FOLDER';
 
-                el.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 0;">
-                        <div onclick="document.getElementById('${folderId}').style.display = document.getElementById('${folderId}').style.display === 'none' ? 'block' : 'none'" style="cursor:pointer; display:flex; align-items:center; gap:8px; flex-grow:1;">
-                            <i class="material-icons-round" style="font-size:18px; color:${color};">${fSet.icon}</i>
-                            <span style="font-weight:bold; color:${color}; font-size:0.9rem;">${fSet.title} <span style="color:#555; font-size:0.7rem;">(${notes.length})</span></span>
-                        </div>
-                        <i class="material-icons-round" style="font-size:16px; color:#555; cursor:pointer;" onclick="app.renameFolder('${color}')">edit</i>
+            const folderDiv = document.createElement('div');
+            folderDiv.className = 'note-folder';
+            folderDiv.style.borderLeftColor = color;
+            
+            // Build Folder Header (With In-Place Renaming!)
+            let html = `
+                <div class="note-folder-header">
+                    <input type="text" class="note-folder-input" style="color:${color};" value="${folderTitle}" id="folder-title-${color.replace('#','')}">
+                    <div id="folder-toggle-${color.replace('#','')}" style="display:flex; align-items:center; color:${color};">
+                        <span style="font-size:0.65rem; margin-right:4px;">${groupNotes.length}</span>
+                        <i class="material-icons-round" style="font-size:18px;">${isFolderOpen ? 'expand_less' : 'expand_more'}</i>
                     </div>
-                    <div id="${folderId}" style="display:none; margin-top:10px; padding-left:6px; border-left: 1px dashed #333;">
-                        ${notes.map(n => createNoteHTML(n)).join('')}
+                </div>
+                <div id="folder-content-${color.replace('#','')}" style="display:${isFolderOpen ? 'block' : 'none'}; padding-bottom:6px;">
+            `;
+
+            // Build Individual Notes inside Folder
+            groupNotes.forEach(n => {
+                const isNoteOpen = n._expanded;
+                html += `
+                    <div class="note-card-inline" style="border-left-color:${color};">
+                        <div class="note-card-header" id="note-head-${n.id}">
+                            <div class="note-card-title" style="color:${color};">${n.title.toUpperCase()}</div>
+                            <div class="note-card-date">${n.date}</div>
+                        </div>
+                        <div id="note-body-${n.id}" style="display:${isNoteOpen ? 'block' : 'none'}; border-top:1px dashed ${color}40;">
+                            <textarea class="note-textarea" id="text-${n.id}" placeholder="Tap to write... (Auto-saves)">${n.body || ''}</textarea>
+                            <div style="text-align:right; padding:4px;">
+                                <button onclick="app.deleteNoteById('${n.id}')" style="background:none; border:none; color:#D50000; font-size:0.6rem; cursor:pointer; font-weight:bold;">🗑 DELETE</button>
+                            </div>
+                        </div>
                     </div>
                 `;
-                list.appendChild(el);
-            } 
-            // --- SINGLE VIEW (Standard Card) ---
-            else {
-                const n = notes[0];
-                const div = document.createElement('div');
-                div.innerHTML = createNoteHTML(n); 
-                list.appendChild(div.firstElementChild); 
-            }
+            });
+
+            html += `</div>`; // Close folder content
+            folderDiv.innerHTML = html;
+            list.appendChild(folderDiv);
+
+            // BIND EVENTS
+            
+            // 1. Folder Title Auto-Save (Type directly in the folder header to rename it)
+            const fTitleInput = folderDiv.querySelector(`#folder-title-${color.replace('#','')}`);
+            fTitleInput.onclick = (e) => e.stopPropagation(); // Don't collapse folder when renaming
+            fTitleInput.onchange = (e) => {
+                app.data.folderTitles[color] = e.target.value;
+                app.save();
+            };
+
+            // 2. Folder Expand/Collapse Memory
+            const fToggleBtn = folderDiv.querySelector(`#folder-toggle-${color.replace('#','')}`);
+            const fContent = folderDiv.querySelector(`#folder-content-${color.replace('#','')}`);
+            fToggleBtn.onclick = () => {
+                const nowOpen = !(app.data.folderState[color] !== false);
+                app.data.folderState[color] = nowOpen;
+                app.save();
+                fContent.style.display = nowOpen ? 'block' : 'none';
+                fToggleBtn.querySelector('i').innerText = nowOpen ? 'expand_less' : 'expand_more';
+            };
+
+            // 3. Note Auto-Size, Expand Memory, & Auto-Save
+            groupNotes.forEach(n => {
+                const nHead = folderDiv.querySelector(`#note-head-${n.id}`);
+                const nBodyContainer = folderDiv.querySelector(`#note-body-${n.id}`);
+                const textArea = folderDiv.querySelector(`#text-${n.id}`);
+
+                // Magic function to force textarea to stretch to exact height of content
+                const autoResize = () => {
+                    textArea.style.height = 'auto';
+                    textArea.style.height = (textArea.scrollHeight) + 'px';
+                };
+
+                // Resize instantly on load if expanded
+                if(n._expanded) setTimeout(autoResize, 0);
+
+                // Note Expand/Collapse
+                nHead.onclick = () => {
+                    n._expanded = !n._expanded;
+                    app.save();
+                    nBodyContainer.style.display = n._expanded ? 'block' : 'none';
+                    if(n._expanded) setTimeout(autoResize, 0);
+                };
+
+                // Auto-Resize as you type
+                textArea.addEventListener('input', autoResize);
+
+                // Auto-Save when you tap away/close keyboard
+                textArea.onchange = (e) => {
+                    n.body = e.target.value;
+                    app.save();
+                    
+                    // Visual confirmation flash
+                    const oldBg = textArea.style.background;
+                    textArea.style.background = `rgba(0,230,118,0.1)`; // Flash green
+                    setTimeout(() => textArea.style.background = oldBg, 600);
+                };
+            });
         });
     },
 
-
-    openNoteModal: (n=null) => {
-        document.getElementById('modal-note').classList.add('open');
-        const now = new Date();
-        const localIso = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
-        const set = (id,v) => document.getElementById(id).value = v;
-        const cBox = document.getElementById('note-color-selector'); cBox.innerHTML = '';
-        app.noteColors.forEach(c => {
-            const d = document.createElement('div'); d.className = 'color-opt'; d.style.background = c;
-            d.onclick = () => { document.querySelectorAll('.color-opt').forEach(x=>x.classList.remove('selected')); d.classList.add('selected'); app.tempNoteColor = c; };
-            if((n && n.color === c) || (!n && c === app.noteColors[0])) { d.classList.add('selected'); app.tempNoteColor = c; }
-            cBox.appendChild(d);
-        });
-        if(n) {
-            app.currentNoteId = n.id;
-            set('note-date', n.date); set('note-title', n.title); document.getElementById('note-body').value = n.body;
-            document.getElementById('note-modal-title').innerText = "EDIT NOTE";
-            document.getElementById('btn-delete-note').style.display = 'block';
-        } else {
-            app.currentNoteId = null;
-            set('note-date', localIso); set('note-title', ''); document.getElementById('note-body').value = '';
-            document.getElementById('note-modal-title').innerText = "NEW NOTE";
-            document.getElementById('btn-delete-note').style.display = 'none';
+    deleteNoteById: (id) => {
+        if(confirm("Permanently delete this note?")) {
+            app.data.notes = app.data.notes.filter(n => n.id !== id);
+            app.save();
+            app.renderNotes();
         }
     },
-    saveNote: () => {
-        const title = document.getElementById('note-title').value;
-        const body = document.getElementById('note-body').value;
-        const date = document.getElementById('note-date').value;
-        if(!title && !body) return alert("Empty Note");
-        const n = { id: app.currentNoteId || Date.now(), title, body, date, color: app.tempNoteColor };
-        if(app.currentNoteId) { const i = app.data.notes.findIndex(x => x.id === app.currentNoteId); if(i>-1) app.data.notes[i] = n; }
-        else { app.data.notes.push(n); }
-        app.save(); document.getElementById('modal-note').classList.remove('open'); app.renderNotes();
-    },
+
     deleteNote: () => {
         if(confirm("Delete note?")) { app.data.notes = app.data.notes.filter(n => n.id !== app.currentNoteId); app.save(); document.getElementById('modal-note').classList.remove('open'); app.renderNotes(); }
     },
