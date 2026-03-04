@@ -63,73 +63,6 @@
             overflow: hidden; 
         }
         
-                /* --- PREMIUM IN-PLACE NOTES SYSTEM --- */
-        .note-folder {
-            background: #0d0d0d; 
-            border-radius: 8px; 
-            margin-bottom: 8px; 
-            overflow: hidden;
-            border-left-width: 4px; 
-            border-left-style: solid;
-        }
-        .note-folder-header {
-            display: flex; justify-content: space-between; align-items: center;
-            /* TWEAK SPACING HERE: 6px Top/Bot, 10px Left/Right */
-            padding: 6px 10px; 
-            cursor: pointer; 
-            background: rgba(255,255,255,0.03); 
-            border-bottom: 1px solid #1a1a1a;
-        }
-        .note-folder-input {
-            background: transparent; border: none; font-weight: bold; font-size: 0.85rem; 
-            outline: none; width: 70%; font-family: inherit;
-        }
-        .note-card-inline {
-            background: #050505; 
-            /* TWEAK SPACING HERE: 4px Top, 6px Right/Bot/Left gives tight margins inside the folder */
-            margin: 4px 6px 6px 6px; 
-            border-left-width: 2px; 
-            border-left-style: solid; 
-            border-radius: 6px; 
-            border-top: 1px solid #1a1a1a;
-            border-right: 1px solid #1a1a1a;
-            border-bottom: 1px solid #1a1a1a;
-        }
-        .note-card-header {
-            display: flex; justify-content: center; align-items: center; position: relative;
-            /* TWEAK SPACING HERE: 6px Top/Bot, 8px Left/Right */
-            padding: 6px 8px; 
-            cursor: pointer;
-        }
-        .note-card-title { 
-            font-weight: bold; 
-            /* TWEAK TITLE FONT SIZE HERE */
-            font-size: 0.95rem; 
-            text-align: center; 
-            width: 100%; 
-            letter-spacing: 0.5px;
-        }
-        .note-card-date { position: absolute; right: 8px; font-size: 0.6rem; color: #555; }
-        
-        .note-textarea {
-            width: 100%; background: rgba(0,0,0,0.4); border: none; color: #ccc; 
-            /* TWEAK NOTE BODY FONT SIZE HERE */
-            font-size: 0.8rem; 
-            /* TWEAK INNER TEXT PADDING HERE */
-            padding: 10px; 
-            font-family: inherit; resize: none; overflow: hidden; outline: none; line-height: 1.4;
-            border-bottom-left-radius: 6px; border-bottom-right-radius: 6px;
-        }
-
-        /* 35-COLOR GRID */
-        .color-grid-container {
-            display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 15px;
-        }
-        .color-grid-item {
-            aspect-ratio: 1; border-radius: 4px; cursor: pointer; border: 2px solid transparent; transition: 0.1s;
-        }
-        .color-grid-item.selected { border-color: white; transform: scale(1.15); box-shadow: 0 0 10px rgba(255,255,255,0.4); }
-
         /* Tactical Sub-Cards for Calculators */
         .card-inner {
             background: rgba(0,0,0,0.4);
@@ -534,6 +467,74 @@
         }
         .game-row:nth-child(even) { background: #0e0e0e; }
         .stat-high { color: #00E676; font-weight: bold; }
+        
+                /* --- PREMIUM IN-PLACE NOTES SYSTEM --- */
+        .note-folder {
+            background: #0d0d0d; 
+            border-radius: 8px; 
+            margin-bottom: 8px; 
+            overflow: hidden;
+            border-left-width: 4px; 
+            border-left-style: solid;
+        }
+        .note-folder-header {
+            display: flex; justify-content: space-between; align-items: center;
+            /* TWEAK SPACING HERE: 6px Top/Bot, 10px Left/Right */
+            padding: 6px 10px; 
+            cursor: pointer; 
+            background: rgba(255,255,255,0.03); 
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .note-folder-input {
+            background: transparent; border: none; font-weight: bold; font-size: 0.85rem; 
+            outline: none; width: 70%; font-family: inherit;
+        }
+        .note-card-inline {
+            background: #050505; 
+            /* TWEAK SPACING HERE: 4px Top, 6px Right/Bot/Left gives tight margins inside the folder */
+            margin: 4px 6px 6px 6px; 
+            border-left-width: 2px; 
+            border-left-style: solid; 
+            border-radius: 6px; 
+            border-top: 1px solid #1a1a1a;
+            border-right: 1px solid #1a1a1a;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .note-card-header {
+            display: flex; justify-content: center; align-items: center; position: relative;
+            /* TWEAK SPACING HERE: 6px Top/Bot, 8px Left/Right */
+            padding: 6px 8px; 
+            cursor: pointer;
+        }
+        .note-card-title { 
+            font-weight: bold; 
+            /* TWEAK TITLE FONT SIZE HERE */
+            font-size: 0.95rem; 
+            text-align: center; 
+            width: 100%; 
+            letter-spacing: 0.5px;
+        }
+        .note-card-date { position: absolute; right: 8px; font-size: 0.6rem; color: #555; }
+        
+        .note-textarea {
+            width: 100%; background: rgba(0,0,0,0.4); border: none; color: #ccc; 
+            /* TWEAK NOTE BODY FONT SIZE HERE */
+            font-size: 0.8rem; 
+            /* TWEAK INNER TEXT PADDING HERE */
+            padding: 10px; 
+            font-family: inherit; resize: none; overflow: hidden; outline: none; line-height: 1.4;
+            border-bottom-left-radius: 6px; border-bottom-right-radius: 6px;
+        }
+
+        /* 35-COLOR GRID */
+        .color-grid-container {
+            display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 15px;
+        }
+        .color-grid-item {
+            aspect-ratio: 1; border-radius: 4px; cursor: pointer; border: 2px solid transparent; transition: 0.1s;
+        }
+        .color-grid-item.selected { border-color: white; transform: scale(1.15); box-shadow: 0 0 10px rgba(255,255,255,0.4); }
+
     </style>
 </head>
 <body>
