@@ -1755,17 +1755,52 @@ setTimeout(() => {
         }
     },
 
-        openNoteModal: () => {
+            openNoteModal: () => {
+        app.currentNoteId = null;
+        document.getElementById('note-modal-title').innerText = "NEW NOTE";
         document.getElementById('note-title').value = '';
         
-        // Build the 35-color grid dynamically
+        // Set Date to exactly right now
+        const now = new Date();
+        const localIso = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+        document.getElementById('note-date-input').value = localIso;
+        
+        document.getElementById('btn-delete-note').style.display = 'none';
+        
+        app.buildColorGrid(app.selectedNoteColor);
+        document.getElementById('modal-note').classList.add('open');
+    },
+
+    openEditNoteModal: (id) => {
+        app.currentNoteId = id;
+        const n = app.data.notes.find(x => x.id === id);
+        if(!n) return;
+
+        document.getElementById('note-modal-title').innerText = "EDIT NOTE";
+        document.getElementById('note-title').value = n.title;
+        
+        // Format saved date for the input
+        let dateVal = n.date;
+        if(dateVal.endsWith('Z') || dateVal.length > 16) {
+            const dateObj = new Date(dateVal);
+            dateVal = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+        }
+        document.getElementById('note-date-input').value = dateVal;
+        
+        document.getElementById('btn-delete-note').style.display = 'block';
+        
+        app.buildColorGrid(n.color);
+        document.getElementById('modal-note').classList.add('open');
+    },
+
+    buildColorGrid: (activeColor) => {
         const grid = document.getElementById('note-color-selector');
         grid.innerHTML = '';
         app.noteColors.forEach(hex => {
             const div = document.createElement('div');
             div.className = 'color-grid-item';
             div.style.background = hex;
-            if (hex === app.selectedNoteColor) div.classList.add('selected');
+            if (hex === activeColor) div.classList.add('selected');
             
             div.onclick = () => {
                 document.querySelectorAll('.color-grid-item').forEach(el => el.classList.remove('selected'));
@@ -1774,31 +1809,63 @@ setTimeout(() => {
             };
             grid.appendChild(div);
         });
-
-        document.getElementById('modal-note').classList.add('open');
     },
 
-    createNoteQuick: () => {
+    saveNoteAction: () => {
         const title = document.getElementById('note-title').value.trim() || 'Untitled Note';
-        const newNote = {
-            id: 'note_' + Date.now(),
-            title: title,
-            color: app.selectedNoteColor,
-            body: '',
-            date: new Date().toISOString().split('T')[0],
-            _expanded: true // Starts open so you can type immediately
-        };
-
-        if(!app.data.notes) app.data.notes = [];
-        app.data.notes.unshift(newNote); // Pushes to the top
-
-        // Ensure the folder opens automatically
-        if(!app.data.folderState) app.data.folderState = {};
-        app.data.folderState[app.selectedNoteColor] = true;
+        const dateStr = document.getElementById('note-date-input').value || new Date().toISOString();
+        
+        if (app.currentNoteId) {
+            // EDIT EXISTING
+            const idx = app.data.notes.findIndex(n => n.id === app.currentNoteId);
+            if(idx > -1) {
+                app.data.notes[idx].title = title;
+                app.data.notes[idx].date = dateStr;
+                app.data.notes[idx].color = app.selectedNoteColor;
+            }
+        } else {
+            // CREATE NEW
+            app.data.notes.unshift({
+                id: 'note_' + Date.now(),
+                title: title,
+                color: app.selectedNoteColor,
+                body: '',
+                date: dateStr,
+                _expanded: true
+            });
+            // Ensure folder opens
+            if(!app.data.folderState) app.data.folderState = {};
+            app.data.folderState[app.selectedNoteColor] = true;
+        }
 
         app.save();
         document.getElementById('modal-note').classList.remove('open');
-        app.renderNotes(); // Instantly paints it to the screen
+        app.renderNotes();
+    },
+
+    deleteNote: () => {
+        if(confirm("Permanently delete this note?")) { 
+            app.data.notes = app.data.notes.filter(n => n.id !== app.currentNoteId); 
+            app.save(); 
+            document.getElementById('modal-note').classList.remove('open'); 
+            app.renderNotes(); 
+        }
+    },
+
+    renameFolder: (color) => {
+        if(!app.data.folderSettings) app.data.folderSettings = {};
+        const current = app.data.folderSettings[color] || { title: 'NOTES GROUP', icon: 'cyclone' };
+        
+        const newTitle = prompt("Enter Folder Name:", current.title);
+        if(newTitle !== null) {
+            const newIcon = prompt("Enter Material Icon Name\n(e.g. cyclone, folder, star, verified):", current.icon);
+            app.data.folderSettings[color] = {
+                title: newTitle.toUpperCase(),
+                icon: newIcon || 'cyclone'
+            };
+            app.save();
+            app.renderNotes();
+        }
     },
 
     renderNotes: () => {
@@ -1811,17 +1878,17 @@ setTimeout(() => {
             return;
         }
 
-        // Initialize state memory objects if they don't exist
-        if(!app.data.folderState) app.data.folderState = {};
-        if(!app.data.folderTitles) app.data.folderTitles = {};
-        // --- ADD THIS TO AUTO-UPGRADE OLD NOTES ---
+        // AUTO-UPGRADE OLD NOTES & FIX IDs
         app.data.notes.forEach(n => {
             if (!n.id) n.id = 'note_' + Date.now() + '_' + Math.floor(Math.random()*1000);
-            if (typeof n._expanded === 'undefined') n._expanded = false; // Keep old notes closed by default
+            else n.id = String(n.id); // <--- FIXES THE OLD DELETE BUG
+            
+            if (typeof n._expanded === 'undefined') n._expanded = false;
+            if (!n.date) n.date = new Date().toISOString(); 
         });
-        // ------------------------------------------
 
-        // Group by Color (This was already in the code)
+        if(!app.data.folderState) app.data.folderState = {};
+        if(!app.data.folderSettings) app.data.folderSettings = {};
 
         // Group by Color
         const groups = {};
@@ -1830,138 +1897,137 @@ setTimeout(() => {
             groups[n.color].push(n);
         });
 
+        // Helper to bind interaction events
+        const bindNoteEvents = (n, container) => {
+            const nHead = container.querySelector(`#note-head-${n.id}`);
+            const nDate = container.querySelector(`#note-date-${n.id}`);
+            const nBodyContainer = container.querySelector(`#note-body-${n.id}`);
+            const textArea = container.querySelector(`#text-${n.id}`);
+
+            const autoResize = () => {
+                textArea.style.height = 'auto';
+                textArea.style.height = (textArea.scrollHeight) + 'px';
+            };
+            if(n._expanded) setTimeout(autoResize, 0);
+
+            // Edit Note (Clicking the date box)
+            nDate.onclick = (e) => {
+                e.stopPropagation(); // Stops the card from collapsing
+                app.openEditNoteModal(n.id);
+            };
+
+            // Expand/Collapse (Clicking anywhere else on the header)
+            nHead.onclick = () => {
+                n._expanded = !n._expanded;
+                app.save();
+                nBodyContainer.style.display = n._expanded ? 'block' : 'none';
+                if(n._expanded) setTimeout(autoResize, 0);
+            };
+
+            textArea.addEventListener('input', autoResize);
+            textArea.onchange = (e) => {
+                n.body = e.target.value;
+                app.save();
+                const oldBg = textArea.style.background;
+                textArea.style.background = `rgba(0,230,118,0.1)`; 
+                setTimeout(() => textArea.style.background = oldBg, 600);
+            };
+        };
+
+        // Render UI
         Object.keys(groups).forEach(color => {
             const groupNotes = groups[color];
-            const isFolderOpen = app.data.folderState[color] !== false; // Defaults to true
-            const folderTitle = app.data.folderTitles[color] || 'FOLDER';
-
-            const folderDiv = document.createElement('div');
-            folderDiv.className = 'note-folder';
-            folderDiv.style.borderLeftColor = color;
             
-            // Build Folder Header (With In-Place Renaming!)
-            let html = `
-                <div class="note-folder-header">
-                    <input type="text" class="note-folder-input" style="color:${color};" value="${folderTitle}" id="folder-title-${color.replace('#','')}">
-                    <div id="folder-toggle-${color.replace('#','')}" style="display:flex; align-items:center; color:${color};">
-                        <span style="font-size:0.65rem; margin-right:4px;">${groupNotes.length}</span>
-                        <i class="material-icons-round" style="font-size:18px;">${isFolderOpen ? 'expand_less' : 'expand_more'}</i>
-                    </div>
-                </div>
-                <div id="folder-content-${color.replace('#','')}" style="display:${isFolderOpen ? 'block' : 'none'}; padding-bottom:6px;">
-            `;
+            if (groupNotes.length === 1) {
+                // --- 1. RENDER STANDALONE NOTE ---
+                const n = groupNotes[0];
+                const dateObj = new Date(n.date);
+                const dateStr = !isNaN(dateObj) ? `${dateObj.getMonth()+1}/${dateObj.getDate()}/${dateObj.getFullYear()}` : n.date.split('T')[0];
 
-            // Build Individual Notes inside Folder
-            groupNotes.forEach(n => {
-                const isNoteOpen = n._expanded;
-                html += `
-                    <div class="note-card-inline" style="border-left-color:${color};">
-                        <div class="note-card-header" id="note-head-${n.id}">
-                            <div class="note-card-title" style="color:${color};">${n.title.toUpperCase()}</div>
-                            <div class="note-card-date">${n.date}</div>
-                        </div>
-                        <div id="note-body-${n.id}" style="display:${isNoteOpen ? 'block' : 'none'}; border-top:1px dashed ${color}40;">
-                            <textarea class="note-textarea" id="text-${n.id}" placeholder="Tap to write... (Auto-saves)">${n.body || ''}</textarea>
-                            <div style="text-align:right; padding:4px;">
-                                <button onclick="app.deleteNoteById('${n.id}')" style="background:none; border:none; color:#D50000; font-size:0.6rem; cursor:pointer; font-weight:bold;">🗑 DELETE</button>
-                            </div>
-                        </div>
+                const div = document.createElement('div');
+                div.className = 'note-folder'; // Gives it the nice outer border wrapper
+                div.style.borderLeftColor = color;
+                div.innerHTML = `
+                    <div class="note-card-header" id="note-head-${n.id}">
+                        <div class="note-card-title" style="color:${color};">${n.title.toUpperCase()}</div>
+                        <div class="note-card-date" id="note-date-${n.id}" style="color:${color};">${dateStr}</div>
+                    </div>
+                    <div id="note-body-${n.id}" style="display:${n._expanded ? 'block' : 'none'}; border-top:1px dashed ${color}40;">
+                        <textarea class="note-textarea" id="text-${n.id}" placeholder="Tap to write... (Auto-saves)">${n.body || ''}</textarea>
                     </div>
                 `;
-            });
+                list.appendChild(div);
+                bindNoteEvents(n, div);
 
-            html += `</div>`; // Close folder content
-            folderDiv.innerHTML = html;
-            list.appendChild(folderDiv);
+            } else {
+                // --- 2. RENDER FOLDER ---
+                const isFolderOpen = app.data.folderState[color] !== false;
+                const fSettings = app.data.folderSettings[color] || { title: 'NOTES FOLDER', icon: 'cyclone' };
 
-            // BIND EVENTS
-            
-            // 1. Folder Title Auto-Save (Type directly in the folder header to rename it)
-            const fTitleInput = folderDiv.querySelector(`#folder-title-${color.replace('#','')}`);
-            fTitleInput.onclick = (e) => e.stopPropagation(); // Don't collapse folder when renaming
-            fTitleInput.onchange = (e) => {
-                app.data.folderTitles[color] = e.target.value;
-                app.save();
-            };
+                const folderDiv = document.createElement('div');
+                folderDiv.className = 'note-folder';
+                folderDiv.style.borderLeftColor = color;
+                
+                let html = `
+                    <div class="note-folder-header" id="folder-head-${color.replace('#','')}">
+                        <i class="material-icons-round note-folder-icon" id="folder-icon-${color.replace('#','')}" style="color:${color};">${fSettings.icon}</i>
+                        <div class="note-folder-title" style="color:${color};">${fSettings.title.toUpperCase()}</div>
+                        <div style="display:flex; align-items:center; color:${color};">
+                            <span style="font-size:0.65rem; margin-right:4px;">${groupNotes.length}</span>
+                            <i class="material-icons-round" style="font-size:18px;" id="folder-arrow-${color.replace('#','')}">${isFolderOpen ? 'expand_less' : 'expand_more'}</i>
+                        </div>
+                    </div>
+                    <div id="folder-content-${color.replace('#','')}" style="display:${isFolderOpen ? 'block' : 'none'}; padding-bottom:6px;">
+                `;
 
-            // 2. Folder Expand/Collapse Memory
-            const fToggleBtn = folderDiv.querySelector(`#folder-toggle-${color.replace('#','')}`);
-            const fContent = folderDiv.querySelector(`#folder-content-${color.replace('#','')}`);
-            fToggleBtn.onclick = () => {
-                const nowOpen = !(app.data.folderState[color] !== false);
-                app.data.folderState[color] = nowOpen;
-                app.save();
-                fContent.style.display = nowOpen ? 'block' : 'none';
-                fToggleBtn.querySelector('i').innerText = nowOpen ? 'expand_less' : 'expand_more';
-            };
-
-            // 3. Note Auto-Size, Expand Memory, & Auto-Save
-            groupNotes.forEach(n => {
-                const nHead = folderDiv.querySelector(`#note-head-${n.id}`);
-                const nBodyContainer = folderDiv.querySelector(`#note-body-${n.id}`);
-                const textArea = folderDiv.querySelector(`#text-${n.id}`);
-
-                // Magic function to force textarea to stretch to exact height of content
-                const autoResize = () => {
-                    textArea.style.height = 'auto';
-                    textArea.style.height = (textArea.scrollHeight) + 'px';
-                };
-
-                // Resize instantly on load if expanded
-                if(n._expanded) setTimeout(autoResize, 0);
-
-                // Note Expand/Collapse
-                nHead.onclick = () => {
-                    n._expanded = !n._expanded;
-                    app.save();
-                    nBodyContainer.style.display = n._expanded ? 'block' : 'none';
-                    if(n._expanded) setTimeout(autoResize, 0);
-                };
-
-                // Auto-Resize as you type
-                textArea.addEventListener('input', autoResize);
-
-                // Auto-Save when you tap away/close keyboard
-                textArea.onchange = (e) => {
-                    n.body = e.target.value;
-                    app.save();
+                // Inner Notes
+                groupNotes.forEach(n => {
+                    const dateObj = new Date(n.date);
+                    const dateStr = !isNaN(dateObj) ? `${dateObj.getMonth()+1}/${dateObj.getDate()}/${dateObj.getFullYear()}` : n.date.split('T')[0];
                     
-                    // Visual confirmation flash
-                    const oldBg = textArea.style.background;
-                    textArea.style.background = `rgba(0,230,118,0.1)`; // Flash green
-                    setTimeout(() => textArea.style.background = oldBg, 600);
+                    html += `
+                        <div class="note-card-inline" style="border-left-color:${color};">
+                            <div class="note-card-header" id="note-head-${n.id}">
+                                <div class="note-card-title" style="color:${color};">${n.title.toUpperCase()}</div>
+                                <div class="note-card-date" id="note-date-${n.id}" style="color:${color};">${dateStr}</div>
+                            </div>
+                            <div id="note-body-${n.id}" style="display:${n._expanded ? 'block' : 'none'}; border-top:1px dashed ${color}40;">
+                                <textarea class="note-textarea" id="text-${n.id}" placeholder="Tap to write... (Auto-saves)">${n.body || ''}</textarea>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `</div>`;
+                folderDiv.innerHTML = html;
+                list.appendChild(folderDiv);
+
+                // Bind Folder Events
+                const fHead = folderDiv.querySelector(`#folder-head-${color.replace('#','')}`);
+                const fIcon = folderDiv.querySelector(`#folder-icon-${color.replace('#','')}`);
+                const fContent = folderDiv.querySelector(`#folder-content-${color.replace('#','')}`);
+                const fArrow = folderDiv.querySelector(`#folder-arrow-${color.replace('#','')}`);
+
+                fHead.onclick = (e) => {
+                    if(e.target === fIcon) return; // Let icon click handle itself
+                    const nowOpen = !(app.data.folderState[color] !== false);
+                    app.data.folderState[color] = nowOpen;
+                    app.save();
+                    fContent.style.display = nowOpen ? 'block' : 'none';
+                    fArrow.innerText = nowOpen ? 'expand_less' : 'expand_more';
                 };
-            });
+
+                fIcon.onclick = (e) => {
+                    e.stopPropagation();
+                    app.renameFolder(color);
+                };
+
+                // Bind Inner Notes Events
+                groupNotes.forEach(n => bindNoteEvents(n, folderDiv));
+            }
         });
     },
-
-    deleteNoteById: (id) => {
-        if(confirm("Permanently delete this note?")) {
-            app.data.notes = app.data.notes.filter(n => n.id !== id);
-            app.save();
-            app.renderNotes();
-        }
-    },
-
-    deleteNote: () => {
-        if(confirm("Delete note?")) { app.data.notes = app.data.notes.filter(n => n.id !== app.currentNoteId); app.save(); document.getElementById('modal-note').classList.remove('open'); app.renderNotes(); }
-    },
-        renameFolder: (color) => {
-        // Ensure the settings object exists
-        if(!app.data.folderSettings) app.data.folderSettings = {};
-        const current = app.data.folderSettings[color] || { title: 'NOTES GROUP', icon: 'folder' };
         
-        const newTitle = prompt("Enter Folder Name:", current.title);
-        if(newTitle !== null) {
-            const newIcon = prompt("Enter Material Icon Name\n(e.g. folder, bookmark, lock, build, star, verified):", current.icon);
-            app.data.folderSettings[color] = {
-                title: newTitle.toUpperCase(),
-                icon: newIcon || 'folder'
-            };
-            app.save();
-            app.renderNotes();
-        }
-    },
     toggleLive: () => {
         const s = app.data.liveSession;
         if(s.active) { app.showLiveOverlay(); } else {

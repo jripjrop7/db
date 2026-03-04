@@ -468,7 +468,7 @@
         .game-row:nth-child(even) { background: #0e0e0e; }
         .stat-high { color: #00E676; font-weight: bold; }
         
-                /* --- PREMIUM IN-PLACE NOTES SYSTEM --- */
+                        /* --- PREMIUM IN-PLACE NOTES SYSTEM (V2) --- */
         .note-folder {
             background: #0d0d0d; 
             border-radius: 8px; 
@@ -477,21 +477,25 @@
             border-left-width: 4px; 
             border-left-style: solid;
         }
+        /* FOLDER HEADER: 2/3 Height, Icon Left, Title Center, Arrow Right */
         .note-folder-header {
             display: flex; justify-content: space-between; align-items: center;
-            /* TWEAK SPACING HERE: 6px Top/Bot, 10px Left/Right */
-            padding: 6px 10px; 
+            padding: 4px 8px; /* Thinner Height */
             cursor: pointer; 
             background: rgba(255,255,255,0.03); 
             border-bottom: 1px solid #1a1a1a;
         }
-        .note-folder-input {
-            background: transparent; border: none; font-weight: bold; font-size: 0.85rem; 
-            outline: none; width: 70%; font-family: inherit;
+        .note-folder-icon {
+            font-size: 18px; cursor: pointer; padding: 4px; transition: 0.2s;
         }
+        .note-folder-icon:hover { transform: scale(1.2); }
+        .note-folder-title {
+            flex-grow: 1; text-align: center; font-weight: bold; font-size: 0.8rem; letter-spacing: 1px;
+        }
+        
+        /* NOTE CARDS */
         .note-card-inline {
             background: #050505; 
-            /* TWEAK SPACING HERE: 4px Top, 6px Right/Bot/Left gives tight margins inside the folder */
             margin: 4px 6px 6px 6px; 
             border-left-width: 2px; 
             border-left-style: solid; 
@@ -500,28 +504,25 @@
             border-right: 1px solid #1a1a1a;
             border-bottom: 1px solid #1a1a1a;
         }
+        /* NOTE HEADER: 1.5x Height, Title Left, Date Right */
         .note-card-header {
-            display: flex; justify-content: center; align-items: center; position: relative;
-            /* TWEAK SPACING HERE: 6px Top/Bot, 8px Left/Right */
-            padding: 6px 8px; 
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 10px; /* 1.5x Taller Height */
             cursor: pointer;
         }
         .note-card-title { 
-            font-weight: bold; 
-            /* TWEAK TITLE FONT SIZE HERE */
-            font-size: 0.95rem; 
-            text-align: center; 
-            width: 100%; 
-            letter-spacing: 0.5px;
+            font-weight: bold; font-size: 0.95rem; text-align: left; 
+            letter-spacing: 0.5px; flex-grow: 1;
         }
-        .note-card-date { position: absolute; right: 8px; font-size: 0.6rem; color: #555; }
+        .note-card-date { 
+            font-size: 0.65rem; font-weight: bold; padding: 4px 8px; 
+            background: rgba(255,255,255,0.08); border-radius: 4px; cursor: pointer;
+            box-shadow: inset 0 0 4px rgba(0,0,0,0.5);
+        }
         
         .note-textarea {
             width: 100%; background: rgba(0,0,0,0.4); border: none; color: #ccc; 
-            /* TWEAK NOTE BODY FONT SIZE HERE */
-            font-size: 0.8rem; 
-            /* TWEAK INNER TEXT PADDING HERE */
-            padding: 10px; 
+            font-size: 0.8rem; padding: 10px; 
             font-family: inherit; resize: none; overflow: hidden; outline: none; line-height: 1.4;
             border-bottom-left-radius: 6px; border-bottom-right-radius: 6px;
         }
@@ -534,6 +535,7 @@
             aspect-ratio: 1; border-radius: 4px; cursor: pointer; border: 2px solid transparent; transition: 0.1s;
         }
         .color-grid-item.selected { border-color: white; transform: scale(1.15); box-shadow: 0 0 10px rgba(255,255,255,0.4); }
+
 
     </style>
 </head>
@@ -1398,7 +1400,7 @@
             </div>
         </div>
 
-                <div id="modal-note" class="modal">
+                        <div id="modal-note" class="modal">
             <div class="container">
                 <div class="modal-header">
                     <h1 id="note-modal-title">NEW NOTE</h1>
@@ -1406,14 +1408,21 @@
                 </div>
                 
                 <label>NOTE TITLE</label>
-                <input type="text" id="note-title" placeholder="e.g. Vegas Trip, Daily Goals, etc...">
+                <input type="text" id="note-title" placeholder="e.g. Hit List">
                 
-                <label style="margin-top:10px;">CHOOSE FOLDER COLOR</label>
+                <label>DATE & TIME (CREATION)</label>
+                <input type="datetime-local" id="note-date-input">
+                
+                <label style="margin-top:10px;">CHOOSE COLOR / FOLDER</label>
                 <div id="note-color-selector" class="color-grid-container"></div>
                 
-                <button class="btn btn-primary" onclick="app.createNoteQuick()" style="margin-top:15px;">CREATE NOTE</button>
+                <div class="grid">
+                    <button class="btn btn-primary" id="btn-save-note" onclick="app.saveNoteAction()">SAVE NOTE</button>
+                    <button class="btn btn-danger" id="btn-delete-note" style="margin-top:8px; display:none;" onclick="app.deleteNote()">DELETE</button>
+                </div>
             </div>
         </div>
+
 
 
         <div id="modal-inv-add" class="modal">
