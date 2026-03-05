@@ -547,6 +547,36 @@
         .color-grid-item { aspect-ratio: 1; border-radius: 4px; cursor: pointer; border: 2px solid transparent; transition: 0.1s; }
         .color-grid-item.selected { border-color: white; transform: scale(1.15); box-shadow: 0 0 10px rgba(255,255,255,0.4); }
 
+        /* --- ICON EXPLORER TOOL --- */
+        .icon-explorer-grid {
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)); 
+            gap: 8px; 
+            max-height: 350px; 
+            overflow-y: auto; 
+            padding-right: 4px;
+            margin-top: 10px;
+        }
+        .icon-card {
+            background: linear-gradient(180deg, #15181e 0%, #0a0c10 100%); 
+            border: 1px solid #222; 
+            border-radius: 8px; 
+            padding: 12px 4px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.2s; text-align: center;
+            box-shadow: inset 0 2px 4px rgba(255,255,255,0.02), 0 4px 6px rgba(0,0,0,0.5);
+        }
+        .icon-card:hover, .icon-card:active { 
+            background: #222; border-color: #00E5FF; transform: scale(1.05); 
+        }
+        .icon-card i { 
+            font-size: 26px; color: #fff; margin-bottom: 8px; 
+            text-shadow: 0 2px 5px rgba(0,0,0,0.8);
+        }
+        .icon-card span { 
+            font-size: 0.55rem; color: #aaa; word-break: break-all; line-height: 1.1; 
+            font-family: 'Martian Mono', monospace; /* Looks like code */
+        }
 
 
 
@@ -699,7 +729,20 @@
         </div>
 
         <div id="view-tools" class="container" style="display:none;">
-                                                                
+           
+                        <div class="card" style="border-top: 4px solid #00E5FF;">
+                <h2 style="color:#00E5FF; margin:0;">MATERIAL ICON EXPLORER</h2>
+                
+                <div class="search-row" style="margin-bottom:10px; margin-top:10px;">
+                    <input type="text" id="icon-search" class="search-input" placeholder="Search 2,500+ icons (e.g. car, graph, star)..." oninput="app.iconTools.render()" style="margin:0; height:36px; font-size:0.8rem;">
+                </div>
+
+                <div id="icon-explorer-res" class="icon-explorer-grid">
+                    </div>
+            </div>
+
+
+                                                     
             <div class="card" style="border-color: #00E676;">
                 <h2>PROP INTELLIGENCE HUB</h2>
                 <div class="grid">
