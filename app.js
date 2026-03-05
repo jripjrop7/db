@@ -1158,65 +1158,6 @@ setTimeout(() => {
 
 
 
-        render: () => {
-            const grid = document.getElementById('icon-explorer-res');
-            const search = document.getElementById('icon-search').value.toLowerCase().replace(/ /g, '_'); // Google uses underscores instead of spaces
-            if (!grid) return;
-
-            // Start with the entire 2,500+ database
-            let targetIcons = app.iconTools.allIcons;
-
-            // Filter instantly based on search
-            if (search) {
-                targetIcons = targetIcons.filter(word => word.includes(search));
-            }
-
-            if (targetIcons.length === 0) {
-                grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:#555; padding:20px;">No icons found.</div>';
-                return;
-            }
-
-            // SAFETY LIMIT: Only physically draw up to 150 cards so the phone doesn't freeze
-            const displayLimit = 150;
-            const displayIcons = targetIcons.slice(0, displayLimit);
-
-            // Generate HTML
-            let html = displayIcons.map(word => `
-                <div class="icon-card" onclick="app.iconTools.copy('${word}', this)">
-                    <i class="material-icons-round">${word}</i>
-                    <span>${word}</span>
-                </div>
-            `).join('');
-
-            // If there are more than 150 hidden results, tell the user!
-            if (targetIcons.length > displayLimit) {
-                html += `<div style="grid-column: 1/-1; text-align:center; color:#777; padding:15px; font-size:0.75rem; border-top:1px dashed #333; margin-top:10px;">
-                    + ${targetIcons.length - displayLimit} more icons hidden to save memory.<br>Keep typing to narrow them down!
-                </div>`;
-            }
-
-            grid.innerHTML = html;
-        },
-
-        copy: (word, el) => {
-            navigator.clipboard.writeText(word);
-            
-            // Visual Click Feedback
-            const originalHtml = el.innerHTML;
-            el.innerHTML = `<i class="material-icons-round" style="color:#00E676;">check_circle</i><span style="color:#00E676; font-weight:bold;">COPIED!</span>`;
-            el.style.borderColor = '#00E676';
-            el.style.background = 'rgba(0, 230, 118, 0.1)';
-            
-            setTimeout(() => {
-                el.innerHTML = originalHtml;
-                el.style.borderColor = '#222';
-                el.style.background = '';
-            }, 800);
-        }
-    },
-
-
-
     // 1. Monte Carlo Simulator
     runMonteCarlo: () => {
         const wager = parseFloat(document.getElementById('mc-wager').value);
