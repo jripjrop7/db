@@ -1093,18 +1093,28 @@ setTimeout(() => {
     iconTools: {
         allIcons: [], // Will hold all 2,500+ icons in RAM
 
-        init: async () => {
+                init: async () => {
             const grid = document.getElementById('icon-explorer-res');
             if(!grid) return;
             
             // Temporary loading state
-            grid.innerHTML = '<div style="grid-column: 1/-1; color:#00E676; text-align:center; padding:20px;">Downloading 2,500+ icons from Google...</div>';
+            grid.innerHTML = '<div style="grid-column: 1/-1; color:#00E676; text-align:center; padding:20px;">Bypassing Google Security... Fetching 2,500+ icons...</div>';
 
             try {
-                // Secretly fetch Google's live font metadata
-                const res = await fetch('https://fonts.google.com/metadata/icons');
-                const text = await res.text();
+                // The Target Google Database
+                const target = 'https://fonts.google.com/metadata/icons';
                 
+                // Using the AllOrigins Proxy to bypass the local CORS security block
+                const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(target);
+                
+                const res = await fetch(proxyUrl);
+                const proxyData = await res.json();
+                
+                // The proxy wraps Google's raw data inside a 'contents' string
+                const text = proxyData.contents;
+                
+                if (!text) throw new Error("Proxy returned empty data.");
+
                 // Google adds )]}'\n to the start of their JSON to stop automated scraping. We slice it off!
                 const jsonStr = text.replace(")]}'\n", "");
                 const data = JSON.parse(jsonStr);
@@ -1117,9 +1127,10 @@ setTimeout(() => {
 
             } catch (e) {
                 console.error("Icon Fetch Error:", e);
-                grid.innerHTML = '<div style="grid-column: 1/-1; color:#D50000; text-align:center; padding:20px;">Failed to load icon database. Check connection.</div>';
+                grid.innerHTML = '<div style="grid-column: 1/-1; color:#D50000; text-align:center; padding:20px;">Proxy blocked. Let me know and we will hardcode the list instead!</div>';
             }
         },
+
 
         render: () => {
             const grid = document.getElementById('icon-explorer-res');
