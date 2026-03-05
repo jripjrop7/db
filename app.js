@@ -1156,6 +1156,67 @@ setTimeout(() => {
         }
     },
 
+    // --- MASTER ICON DIRECTORY (FULL SCROLLABLE LIST) ---
+    iconDirectory: {
+        isOpen: false,
+        
+        toggle: () => {
+            app.iconDirectory.isOpen = !app.iconDirectory.isOpen;
+            const container = document.getElementById('icon-dir-list');
+            const btn = document.getElementById('btn-icon-dir');
+            
+            if (app.iconDirectory.isOpen) {
+                btn.innerText = "HIDE LIST";
+                container.style.display = "block";
+                // Only render the massive list once to save CPU
+                if (container.innerHTML.trim() === "") {
+                    app.iconDirectory.render();
+                }
+            } else {
+                btn.innerText = "LOAD LIST";
+                container.style.display = "none";
+            }
+        },
+
+        render: () => {
+            const container = document.getElementById('icon-dir-list');
+            container.innerHTML = '<div style="color:#AA00FF; text-align:center; padding:20px; font-weight:bold;">Generating 1,223 icons...</div>';
+            
+            // We use a tiny timeout so the "Generating..." text paints to the screen before the heavy lifting starts
+            setTimeout(() => {
+                const html = app.iconTools.allIcons.map(word => `
+                    <div class="icon-list-row" onclick="app.iconDirectory.copy('${word}', this)">
+                        <div class="icon-list-icon"><i class="material-icons-round">${word}</i></div>
+                        <div class="icon-list-text">${word}</div>
+                    </div>
+                `).join('');
+                container.innerHTML = html;
+            }, 50);
+        },
+
+        copy: (word, el) => {
+            navigator.clipboard.writeText(word);
+            
+            const textDiv = el.querySelector('.icon-list-text');
+            const iconDiv = el.querySelector('.icon-list-icon i');
+            const origText = textDiv.innerText;
+            const origColor = iconDiv.style.color;
+            
+            // Visual feedback
+            textDiv.innerText = "COPIED TO CLIPBOARD!";
+            textDiv.style.color = "#00E676";
+            textDiv.style.fontWeight = "bold";
+            iconDiv.style.color = "#00E676";
+            
+            setTimeout(() => {
+                textDiv.innerText = origText;
+                textDiv.style.color = "#ccc";
+                textDiv.style.fontWeight = "normal";
+                iconDiv.style.color = origColor;
+            }, 800);
+        }
+    },
+
 
 
     // 1. Monte Carlo Simulator
