@@ -767,6 +767,34 @@
                     </div>
             </div>
 
+            <div class="card" style="border-top: 4px solid #C6FF00;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2 style="color:#C6FF00; margin:0;"><i class="material-icons-round" style="vertical-align:middle; font-size:20px; margin-right:4px;">vpn_key</i>KALSHI VAULT</h2>
+                </div>
+                <div style="font-size:0.65rem; color:#aaa; margin-top:4px; margin-bottom:12px;">
+                    Securely store your API keys in your device's local memory.
+                </div>
+
+                <label>KEY ID</label>
+                <input type="text" id="k-key-id" placeholder="e.g. 123e4567-e89b-12d3-a456-426614174000" style="font-family:'Martian Mono', monospace; font-size:0.7rem;">
+
+                <label>PRIVATE KEY (PEM FORMAT)</label>
+                <textarea id="k-priv-key" rows="4" placeholder="-----BEGIN PRIVATE KEY-----&#10;MIIEvQIBADANBgkqhkiG9w0B...&#10;-----END PRIVATE KEY-----" style="font-family:'Martian Mono', monospace; font-size:0.65rem; width:100%; background:rgba(0,0,0,0.3); border:1px solid #333; color:#ccc; padding:8px; border-radius:6px; resize:vertical;"></textarea>
+
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <button class="btn" style="flex-grow:1; padding:8px; font-size:0.75rem; background:rgba(198, 255, 0, 0.15); color:#C6FF00; border:1px solid #C6FF00;" onclick="app.bot.saveKeys()">SAVE KEYS</button>
+                    <button class="btn btn-danger" style="flex-grow:1; padding:8px; font-size:0.75rem;" onclick="app.bot.clearKeys()">WIPE KEYS</button>
+                </div>
+
+                <div style="margin-top:15px; padding-top:10px; border-top:1px solid #333; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:0.75rem; color:#aaa;">STATUS: <span id="bot-status" style="font-weight:bold; color:#555;">OFFLINE</span></span>
+                    <button class="btn" style="width:auto; padding:4px 10px; font-size:0.7rem; border:1px solid #777;" onclick="app.bot.login()">TEST CONNECTION</button>
+                </div>
+                
+                <div id="k-log" style="display:none;"></div>
+                <div id="k-bal" style="display:none;"></div>
+            </div>
+
 
                                                      
             <div class="card" style="border-color: #00E676;">
