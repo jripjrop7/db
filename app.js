@@ -1,30 +1,75 @@
 const app = {
 	
 	        // --- 154-COLOR MEGA PALETTE (22 Rows of 7) ---
+        // --- 252-COLOR TERMINAL MEGA PALETTE (36 Rows of 7) ---
     noteColors: [
-        '#FFFFFF','#F5F5F5','#E0E0E0','#BDBDBD','#9E9E9E','#616161','#000000', // Grays/Black
-        '#FFEBEE','#FFCDD2','#EF9A9A','#E57373','#EF5350','#F44336','#D32F2F', // Reds
-        '#FF8A80','#FF5252','#FF1744','#D50000','#FCE4EC','#F48FB1','#E91E63', // Neon Reds/Pinks
-        '#FCE4EC','#F8BBD0','#F48FB1','#F06292','#E91E63','#D81B60','#C2185B', // Pinks
-        '#FF80AB','#FF4081','#F50057','#C51162','#FF007F','#AA00FF','#D500F9', // Neon Pinks/Purples
-        '#F3E5F5','#E1BEE7','#CE93D8','#BA68C8','#AB47BC','#9C27B0','#7B1FA2', // Purples
-        '#EDE7F6','#D1C4E9','#B39DDB','#9575CD','#7E57C2','#673AB7','#512DA8', // Deep Purples
-        '#EA80FC','#E040FB','#D500F9','#AA00FF','#B388FF','#82B1FF','#2979FF', // Neon Violets/Blues
-        '#E8EAF6','#C5CAE9','#9FA8DA','#7986CB','#5C6BC0','#3F51B5','#303F9F', // Indigos
-        '#E3F2FD','#BBDEFB','#90CAF9','#64B5F6','#42A5F5','#2196F3','#1976D2', // Blues
-        '#84FFFF','#40C4FF','#00B0FF','#0091EA','#18FFFF','#00E5FF','#00B8D4', // Neon Cyans/Blues
-        '#E0F2F1','#B2DFDB','#80CBC4','#4DB6AC','#26A69A','#009688','#00796B', // Teals
-        '#A7FFEB','#64FFDA','#1DE9B6','#00BFA5','#69F0AE','#00E676','#00C853', // Neon Teals/Greens
-        '#E8F5E9','#C8E6C9','#A5D6A7','#81C784','#66BB6A','#4CAF50','#388E3C', // Greens
-        '#F1F8E9','#DCEDC8','#C5E1A5','#AED581','#9CCC65','#8BC34A','#689F38', // Light Greens
-        '#CCFF90','#B2FF59','#76FF03','#64DD17','#F4FF81','#EEFF41','#C6FF00', // Neon Limes
-        '#F9FBE7','#F0F4C3','#E6EE9C','#DCE775','#D4E157','#CDDC39','#AFB42B', // Limes
-        '#FFFDE7','#FFF59D','#FFF176','#FFEE58','#FFEB3B','#FFC107','#FFA000', // Yellows
-        '#FFFF8D','#FFFF00','#FFEA00','#FFD600','#FFE57F','#FFD740','#FFC400', // Neon Yellows
-        '#FFF8E1','#FFECB3','#FFE082','#FFD54F','#FFCA28','#FFB300','#FF8F00', // Ambers
-        '#FFF3E0','#FFE0B2','#FFCC80','#FFB74D','#FFA726','#FF9800','#F57C00', // Oranges
-        '#FFD180','#FFAB40','#FF9100','#FF6D00','#FF9E80','#FF6E40','#FF3D00'  // Neon/Deep Oranges
+        // ROW 1: The Only Grayscale (Pure White to Pitch Black)
+        '#FFFFFF','#CCCCCC','#999999','#666666','#333333','#111111','#000000',
+        
+        // ROWS 2-5: The Original Bankroll OS Palette
+        '#FF8A80','#FF5252','#FF1744','#D50000','#FF007F','#F50057','#C51162', 
+        '#FFD180','#FFAB40','#FF9100','#FF6D00','#FF3D00','#FFEA00','#FFD600', 
+        '#C6FF00','#76FF03','#00E676','#00C853','#1DE9B6','#00E5FF','#00B8D4', 
+        '#82B1FF','#2979FF','#3D5AFE','#651FFF','#AA00FF','#D500F9','#E040FB',
+        
+        // ROWS 6-7: 100% Pure Neons (Eye-Burners)
+        '#FF00FF','#CC00FF','#7700FF','#0000FF','#0088FF','#00FFFF','#00FF88',
+        '#00FF00','#88FF00','#FFFF00','#FF8800','#FF0000','#FF0088','#FF0044',
+        
+        // ROWS 8-9: Blood & Dark Crimson
+        '#8B0000','#780000','#660000','#540000','#420000','#300000','#1A0000',
+        '#B3003B','#990033','#80002A','#660022','#4D0019','#330011','#1A0008',
+        
+        // ROWS 10-11: Cyberpunk & Deep Space Violets
+        '#8A2BE2','#7A00E6','#6600CC','#5500AA','#440088','#330066','#220044',
+        '#4B0082','#483D8B','#3E1452','#30004A','#260033','#1C002A','#11001A',
+        
+        // ROWS 12-13: Abyssal Navy & Bioluminescent Cyan
+        '#000080','#000066','#00004D','#000033','#00001A','#020B1A','#01060F',
+        '#008B8B','#007373','#005959','#004040','#002626','#001A1A','#000D0D',
+        
+        // ROWS 14-15: Toxic Wasteland & Deep Jungle Greens
+        '#39FF14','#32CD32','#2E8B57','#228B22','#008000','#006400','#004D00',
+        '#004000','#003300','#002600','#001A00','#000D00','#0A120A','#050A05',
+        
+        // ROWS 16-17: Blazing Gold, Bronze, & Rust
+        '#FFD700','#FFC300','#FFB300','#FFA000','#FF8F00','#DAA520','#B8860B',
+        '#996515','#8B4513','#A0522D','#805A00','#664200','#4D3300','#332200',
+        
+        // ROWS 18-19: Hot Plasma & Molten Lava Oranges
+        '#FF4500','#FF5500','#E63E00','#CC3300','#B32D00','#992600','#802000',
+        '#661A00','#4D1300','#330D00','#260900','#1A0600','#0D0300','#0A0200',
+        
+        // ROWS 20-21: Synthwave Lazers & Tactical Armor Slates
+        '#FF0055','#00F0FF','#13FF00','#FFD300','#00FFAA','#7000FF','#F700FF',
+        '#2F4F4F','#1C2F2F','#101C1C','#2E3B4E','#1A2433','#0D131C','#05080D',
+        
+        // ROWS 22-24: Blacklight Series (High-Vis edge colors & their shadows)
+        '#E0115F','#FF007F','#7FFF00','#00FFFF','#8A2BE2','#FF1493','#00FF7F',
+        '#FF3366','#FF33CC','#CC33FF','#6633FF','#3366FF','#33CCFF','#33FFCC',
+        '#801A33','#801A66','#661A80','#331A80','#1A3380','#1A6680','#1A8066',
+        
+        // ROWS 25-30: THE DESCENT INTO BLACK (Pure Hues stepping down to darkness)
+        '#FF0000','#FF8000','#FFFF00','#00FF00','#00FFFF','#0000FF','#8000FF',
+        '#CC0000','#CC6600','#CCCC00','#00CC00','#00CCCC','#0000CC','#6600CC',
+        '#990000','#994C00','#999900','#009900','#009999','#000099','#4C0099',
+        '#660000','#663300','#666600','#006600','#006666','#000066','#330066',
+        '#330000','#331900','#333300','#003300','#003333','#000033','#190033',
+        '#1A0000','#1A0D00','#1A1A00','#001A00','#001A1A','#00001A','#0D001A',
+        
+        // ROWS 31-32: Vibrant Jewels & Deep Jewels
+        '#E0115F','#50C878','#0F52BA','#4B0082','#FF7E00','#8A2BE2','#DFFF00',
+        '#8B0A3B','#2F7546','#08316E','#2D004E','#994C00','#531987','#869900',
+        
+        // ROWS 33-34: Swamp/Camo & Dark Tactical
+        '#4B5320','#2E8B57','#556B2F','#8B4513','#A0522D','#2F4F4F','#483D8B',
+        '#2A2E12','#1B5334','#33401C','#53290B','#60311B','#1C2F2F','#2B2453',
+        
+        // ROWS 35-36: Radioactive Greens & Deep Radiation
+        '#BFFF00','#8CFF00','#44FF00','#00FF22','#00FF55','#00FF88','#00FFBB',
+        '#608000','#468000','#228000','#008011','#00802A','#008044','#00805D'
     ],
+
     selectedNoteColor: '#00E676', // Default
 
     openNoteModal: () => {
