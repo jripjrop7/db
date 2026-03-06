@@ -1485,22 +1485,26 @@
                         <div id="modal-note" class="modal">
             <div class="container">
                 <div class="modal-header">
-                    <h1 id="note-modal-title">NEW NOTE</h1>
+                    <h1 id="note-modal-title">NOTES AND SHIT</h1>
                     <i class="material-icons-round" style="color:white; cursor:pointer;" onclick="document.getElementById('modal-note').classList.remove('open')">close</i>
                 </div>
                 
-                <label>NOTE TITLE</label>
-                <input type="text" id="note-title" placeholder="e.g. Hit List">
+                                <label>TITLE</label>
+                <input type="text" id="note-title" placeholder="e.g. Vegas Trip, Daily Goals...">
                 
-                <label>DATE & TIME (CREATION)</label>
+                <label>CUSTOM ICON</label>
+                <input type="text" id="note-icon-input" placeholder="e.g. diamond, local_play, folder..." style="font-family:'Martian Mono', monospace; font-size:0.75rem; margin-bottom: 10px;">
+
+                <label>DATE/TIME </label>
                 <input type="datetime-local" id="note-date-input">
+
                 
                 <label style="margin-top:10px;">CHOOSE COLOR / FOLDER</label>
                 <div id="note-color-selector" class="color-grid-container"></div>
                 
                 <div class="grid">
-                    <button class="btn btn-primary" id="btn-save-note" onclick="app.saveNoteAction()">SAVE NOTE</button>
-                    <button class="btn btn-danger" id="btn-delete-note" style="margin-top:8px; display:none;" onclick="app.deleteNote()">DELETE</button>
+                    <button class="btn btn-primary" id="btn-save-note" onclick="app.saveNoteAction()">SAVE!</button>
+                    <button class="btn btn-danger" id="btn-delete-note" style="margin-top:8px; display:none;" onclick="app.deleteNote()">‼️DELETE‼️</button>
                 </div>
             </div>
         </div>
