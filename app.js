@@ -874,6 +874,105 @@ const app = {
         }
     },
 
+    // --- KALSHI COMMAND CENTER (PORTFOLIO & TRADING) ---
+    kalshiPortfolio: {
+        positions: [],
+
+        fetch: async () => {
+            const div = document.getElementById('k-port-res');
+            div.innerHTML = '<div style="color:#C6FF00; text-align:center; padding:10px; font-weight:bold;">Authenticating & Syncing Portfolio...</div>';
+            
+            // Uses your existing RSA-PSS Bridge Engine!
+            const data = await app.bot.request('GET', '/trade-api/v2/portfolio/positions?count_filter=position');
+            
+            if (!data || !data.positions || data.positions.length === 0) {
+                div.innerHTML = '<div style="color:#555; text-align:center; padding:10px;">No active positions found in wallet.</div>';
+                return;
+            }
+            
+            app.kalshiPortfolio.positions = data.positions;
+            app.kalshiPortfolio.render();
+        },
+        
+        render: () => {
+            const div = document.getElementById('k-port-res');
+            let html = '';
+            
+            app.kalshiPortfolio.positions.forEach(p => {
+                if(p.position === 0) return; // Skip closed/empty positions
+                
+                // Kalshi V2 represents YES as positive counts, NO as negative counts
+                const count = Math.abs(p.position);
+                const side = p.position > 0 ? 'yes' : 'no';
+                const sideColor = side === 'yes' ? '#00E676' : '#FF5252';
+                
+                // Safely extract cost/value if Kalshi provides it
+                const costBasis = p.position_costs ? Math.abs(p.position_costs / count).toFixed(1) : '--';
+                
+                html += `
+                    <div style="background: linear-gradient(135deg, #11131a 0%, #050608 100%); border-left: 3px solid ${sideColor}; border-top: 1px solid #222; border-radius: 8px; padding: 12px; margin-bottom: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px; border-bottom: 1px solid #1a1a1a; padding-bottom: 8px;">
+                            <div style="font-weight:bold; color:#fff; font-size:0.85rem; width: 75%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.ticker}</div>
+                            <div style="color:${sideColor}; font-weight:bold; font-size:0.75rem; background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">${side.toUpperCase()}</div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="font-size:0.75rem; color:#ccc; line-height: 1.4;">
+                                Contracts: <span style="color:#fff; font-weight:bold;">${count}</span><br>
+                                Avg Cost: <span style="color:#C6FF00;">${costBasis}¢</span>
+                            </div>
+                            <button class="btn" style="width:auto; padding:6px 12px; font-size:0.7rem; background:rgba(255, 255, 255, 0.05); border: 1px solid #333;" onclick="app.kalshiPortfolio.stageSell('${p.ticker}', '${side}', ${count})">SELL LIMIT</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            if (html === '') html = '<div style="color:#555; text-align:center; padding:10px;">No active positions found in wallet.</div>';
+            div.innerHTML = html;
+        },
+        
+        stageSell: (ticker, side, maxCount) => {
+            // 1. Ask for Target Price
+            const price = prompt(`MARKET: ${ticker}\nSIDE: ${side.toUpperCase()}\n\nSet your target SELL PRICE (1 to 99 cents):`);
+            if(!price || isNaN(price) || price < 1 || price > 99) return;
+            
+            // 2. Ask for Contract Amount
+            const sellCount = prompt(`How many contracts do you want to sell at ${price}¢?\n(You currently have ${maxCount} available)`, maxCount);
+            if(!sellCount || isNaN(sellCount) || sellCount < 1 || sellCount > maxCount) return;
+            
+            // 3. Execute
+            app.kalshiPortfolio.executeSell(ticker, side, parseInt(sellCount), parseInt(price));
+        },
+        
+        executeSell: async (ticker, side, count, price) => {
+            if(!confirm(`FINAL CONFIRMATION:\n\nPlacing limit order to SELL ${count}x [${side.toUpperCase()}] contracts of ${ticker} at ${price}¢.\n\nProceed?`)) return;
+            
+            const div = document.getElementById('k-port-res');
+            div.innerHTML = `<div style="color:#FFEA00; text-align:center; padding:20px; font-weight:bold;">Executing Order on API...</div>`;
+
+            const body = {
+                action: 'sell',
+                count: count,
+                side: side,
+                ticker: ticker,
+                type: 'limit',
+                yes_price: (side === 'yes' ? price : undefined),
+                no_price: (side === 'no' ? price : undefined),
+                expiration_ts: null
+            };
+            
+            // Send the Kill Order through the Bridge
+            const res = await app.bot.request('POST', '/trade-api/v2/portfolio/orders', body);
+            
+            if(res && res.order) {
+                alert(`✅ SELL ORDER PLACED SUCCESSFULLY!\n\nOrder ID: ${res.order.order_id}\n\nNote: If the price matches the current bid, it will execute instantly. Otherwise, it will sit in the order book.`);
+                app.kalshiPortfolio.fetch(); // Auto-refresh the board
+            } else {
+                alert("❌ Order Rejected by Exchange. Check API limits or bridge connection.");
+                app.kalshiPortfolio.fetch(); // Reload the board
+            }
+        }
+    },
+
 
             // --- PARLAY ENGINE v3 (PERSISTENCE + EVEN DISTRO) ---
     parlay: {
