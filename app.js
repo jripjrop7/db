@@ -103,9 +103,9 @@ const app = {
         '#2D00F7','#6A00F4','#8900F2','#A100F2','#B100E8','#BC00DD','#D100D1',
         
         // ROW 47: The Retina Melters (The 7 most scientifically aggressive hex codes)
-        '#FE019A','#39FF14','#00E5FF','#F4FF00','#FF3F00','#9D00FF','#00FFAA'
+        '#FE019A','#39FF14','#00E5FF','#F4FF00','#FF3F00','#9D00FF','#00FFAA',
         
-                // ROW 48: The Matrix (Absolute Black to Piercing Code Green)
+        // ROW 48: The Matrix (Absolute Black to Piercing Code Green)
         '#001A00','#003300','#004D00','#008000','#00B300','#00E600','#00FF00',
         
         // ROW 49: Outrun Horizon (The classic Synthwave Sunset gradient)
@@ -146,7 +146,6 @@ const app = {
         
         // ROW 61: Dark Matter (The absolute, barely-visible edges of the spectrum)
         '#030005','#050003','#050300','#030500','#000503','#000305','#040404'
-
     ],
     selectedNoteColor: '#00E676', // Default
 
