@@ -2,6 +2,7 @@ const app = {
 	
 	        // --- 154-COLOR MEGA PALETTE (22 Rows of 7) ---
         // --- 252-COLOR TERMINAL MEGA PALETTE (36 Rows of 7) ---
+        // --- 329-COLOR GOD-TIER TERMINAL PALETTE (47 Rows of 7) ---
     noteColors: [
         // ROW 1: The Only Grayscale (Pure White to Pitch Black)
         '#FFFFFF','#CCCCCC','#999999','#666666','#333333','#111111','#000000',
@@ -67,8 +68,45 @@ const app = {
         
         // ROWS 35-36: Radioactive Greens & Deep Radiation
         '#BFFF00','#8CFF00','#44FF00','#00FF22','#00FF55','#00FF88','#00FFBB',
-        '#608000','#468000','#228000','#008011','#00802A','#008044','#00805D'
+        '#608000','#468000','#228000','#008011','#00802A','#008044','#00805D',
+
+        // --- NEW EXPANSION PACK (77 COLORS) ---
+        
+        // ROW 37: Sunset Overdrive (Pink to Yellow)
+        '#FF0055','#FF2A55','#FF5555','#FF7F55','#FFAA55','#FFD455','#FFFF55',
+        
+        // ROW 38: Retrowave Miami (Magenta to Cobalt)
+        '#FF0099','#FF00CC','#CC00FF','#9900FF','#6600FF','#3300FF','#0000FF',
+        
+        // ROW 39: Toxic Glow (Yellow-Green to Green)
+        '#CCFF00','#99FF00','#66FF00','#33FF00','#00FF00','#00FF33','#00FF66',
+        
+        // ROW 40: Deep Sea Bioluminescence (Green-Aqua to Deep Blue)
+        '#00FF99','#00FFCC','#00FFFF','#00CCFF','#0099FF','#0066FF','#0033FF',
+        
+        // ROW 41: Molten Core (Atomic Red to Sun Yellow)
+        '#FF0000','#FF2200','#FF4400','#FF6600','#FF8800','#FFAA00','#FFCC00',
+        
+        // ROW 42: Laser Candy (High-Vis Solid Pastels)
+        '#FF66B2','#FF66FF','#B266FF','#6666FF','#66B2FF','#66FFFF','#66FFB2',
+        
+        // ROW 43: Poison Ivy / Witchcraft (Deepest, darkest corrupted hues)
+        '#8A0303','#5A0202','#3B0101','#1A0A29','#26053A','#3A084A','#0B2111',
+        
+        // ROW 44: Vampire / Blood Magic
+        '#4A0000','#5E0000','#730000','#8B0000','#A40000','#BE0000','#D80000',
+        
+        // ROW 45: Cyberpunk Alleys (The Neon Cityscape mix)
+        '#00FFC4','#00D4FF','#047BFE','#4B1D52','#8A0A62','#B30047','#FF0033',
+        
+        // ROW 46: Galactic Supernova (Deep Purple to Shocking Violet)
+        '#2D00F7','#6A00F4','#8900F2','#A100F2','#B100E8','#BC00DD','#D100D1',
+        
+        // ROW 47: The Retina Melters (The 7 most scientifically aggressive hex codes)
+        '#FE019A','#39FF14','#00E5FF','#F4FF00','#FF3F00','#9D00FF','#00FFAA'
     ],
+    selectedNoteColor: '#00E676', // Default
+
 
     selectedNoteColor: '#00E676', // Default
 
