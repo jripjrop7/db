@@ -1554,10 +1554,17 @@
                 </select>
                 <label>DATE & TIME</label><input type="datetime-local" id="inp-date">
                 <div id="dynamic-area"></div>
-                <div id="basic-fields"><label>NET AMOUNT ($)</label><input type="number" id="inp-amt" inputmode="decimal" placeholder="0.00"><label>DESCRIPTION</label><input type="text" id="inp-desc" placeholder="Notes, Location, etc."></div>
-                <button class="btn btn-primary" onclick="app.saveTx()">SAVE RECORD</button><button class="btn btn-danger" id="btn-delete" style="display:none;" onclick="app.deleteTx()">DELETE RECORD</button>
-            </div>
-        </div>
+                                <div id="basic-fields">
+                    <label>NET AMOUNT ($)</label>
+                    <input type="number" id="inp-amt" inputmode="decimal" placeholder="0.00">
+                    
+                    <label>DESCRIPTION</label>
+                    <input type="text" id="inp-desc" placeholder="Notes, Location, etc.">
+                    
+                    <label>CUSTOM ICON (OPTIONAL)</label>
+                    <input type="text" id="inp-icon" placeholder="e.g. diamond, terminal..." style="font-family:'Martian Mono', monospace; font-size:0.75rem;">
+                </div>
+
 
         <div id="modal-ticket" class="modal">
             <div class="container">

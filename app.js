@@ -1580,13 +1580,18 @@ setTimeout(() => {
                     // Generate unique ID to track open/closed state
                     if(!t.id) t.id = 'tx_' + Date.now() + '_' + Math.floor(Math.random()*1000);
 
+                                        // --- 1. SET THE ICON (Custom Override First, then Default) ---
                     let iconCode = 'attach_money';
-                    if (t.cat === 'pokerCash') iconCode = 'spades'; 
-                    else {
+                    if (t.customIcon) {
+                        iconCode = t.customIcon;
+                    } else if (t.cat === 'pokerCash') {
+                        iconCode = 'spades'; 
+                    } else {
                         const iconMap = { job:'work', bets:'sports_football', sales:'sell', expenses:'receipt', dice:'casino', casino:'local_play', crypto:'currency_bitcoin', miscIncome:'savings', kalshi:'query_stats' };
                         iconCode = iconMap[t.cat] || 'attach_money';
                     }
 
+                    // ... (tags logic stays the same) ...
                     const tags = [];
                     let titleText = (t.desc && t.desc.trim() !== "") ? t.desc : app.catLabel(t.cat);
 
@@ -1607,13 +1612,18 @@ setTimeout(() => {
 
                     const tagHtml = tags.map(tag => `<span class="tx-tag">${tag}</span>`).join('');
                     
-                    // ICON: Now has an ID and a hover/cursor style
-                    const iconHtml = (t.cat === 'pokerCash') 
-                        ? `<div class="tx-icon" id="icon-${t.id}" style="cursor:pointer; background:${color}20; color:${color}; font-family:serif; flex-shrink:0; transition:0.2s;">♠</div>`
-                        : `<div class="tx-icon" id="icon-${t.id}" style="cursor:pointer; background:${color}20; color:${color}; flex-shrink:0; transition:0.2s;"><i class="material-icons-round">${iconCode}</i></div>`;
-                    
                     const amtStr = `$${Math.abs(t.amt).toLocaleString()}`;
                     const savedNote = t.journal || '';
+
+                    // --- 2. THE VISUAL NOTE INDICATOR (Sleek White Glow) ---
+                    const hasNote = savedNote.trim().length > 0;
+                    const iconBorderStyle = hasNote 
+                        ? `border: 1px solid #fff; box-shadow: 0 0 10px rgba(255,255,255,0.25), inset 0 0 8px rgba(0,0,0,0.8);` 
+                        : `border: 1px solid rgba(255,255,255,0.05); box-shadow: inset 0 0 8px rgba(0,0,0,0.5);`;
+
+                    const iconHtml = (iconCode === 'spades') 
+                        ? `<div class="tx-icon" id="icon-${t.id}" style="cursor:pointer; background:${color}20; color:${color}; font-family:serif; flex-shrink:0; transition:0.3s; ${iconBorderStyle}">♠</div>`
+                        : `<div class="tx-icon" id="icon-${t.id}" style="cursor:pointer; background:${color}20; color:${color}; flex-shrink:0; transition:0.3s; ${iconBorderStyle}"><i class="material-icons-round">${iconCode}</i></div>`;
 
                     // STRUCTURE
                     div.innerHTML = `
@@ -1627,7 +1637,7 @@ setTimeout(() => {
                         </div>
                         
                         <div id="drawer-${t.id}" style="display:${t._noteOpen ? 'block' : 'none'}; width:100%; margin-top:10px; padding-top:10px; border-top:1px dashed ${color}50;">
-                            <textarea id="text-${t.id}" rows="2" placeholder="Yeah, I like to fuck, I got a fuckin' problem..." style="background:rgba(0,0,0,0.3); border:1px solid ${color}40; color:${color}; font-size:0.75rem; padding:8px; width:100%; border-radius:6px; resize:vertical; font-family:inherit; outline:none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);"></textarea>
+                            <textarea id="text-${t.id}" rows="2" placeholder="Tap to add a note..." style="background:rgba(0,0,0,0.3); border:1px solid ${color}40; color:${color}; font-size:0.75rem; padding:8px; width:100%; border-radius:6px; resize:vertical; font-family:inherit; outline:none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);"></textarea>
                         </div>
                     `;
 
@@ -1640,26 +1650,36 @@ setTimeout(() => {
                     
                     // 1. Toggle Drawer on Icon Click
                     iconEl.onclick = (e) => {
-                        e.stopPropagation(); // Stops the main Edit Modal from opening!
+                        e.stopPropagation(); 
                         t._noteOpen = !t._noteOpen;
-                        app.save(); // Saves the open/closed state permanently to memory
+                        app.save(); 
                         drawerEl.style.display = t._noteOpen ? 'block' : 'none';
-                        iconEl.style.transform = t._noteOpen ? 'scale(1.1)' : 'scale(1)'; // Little pop effect
+                        iconEl.style.transform = t._noteOpen ? 'scale(1.1)' : 'scale(1)'; 
                     };
                     
                     // 2. Prevent Modal when clicking the text box
                     textArea.onclick = (e) => e.stopPropagation(); 
                     
-                                        // 3. Auto-Save when tapping away / closing keyboard
+                    // 3. Auto-Save & Dynamic Glow Application
                     textArea.onchange = (e) => {
                         t.journal = e.target.value;
                         app.save();
                         
-                        // Subtle flash to confirm save visually
+                        // Dynamically add/remove the white glow if they added or deleted the note!
+                        const isNowEmpty = t.journal.trim().length === 0;
+                        if (!isNowEmpty) {
+                            iconEl.style.border = '1px solid #fff';
+                            iconEl.style.boxShadow = '0 0 10px rgba(255,255,255,0.25), inset 0 0 8px rgba(0,0,0,0.8)';
+                        } else {
+                            iconEl.style.border = '1px solid rgba(255,255,255,0.05)';
+                            iconEl.style.boxShadow = 'inset 0 0 8px rgba(0,0,0,0.5)';
+                        }
+
                         const oldBorder = textArea.style.border;
-                        textArea.style.border = `1px solid #00FF41`; // Neon Green
+                        textArea.style.border = `1px solid #00FF41`; 
                         setTimeout(() => { textArea.style.border = oldBorder; }, 800);
                     };
+
 
                     list.appendChild(div);
                                 }); // <--- 1. Closes the g.txs.forEach loop
@@ -2242,31 +2262,7 @@ setTimeout(() => {
     },
     setType: (type) => { app.isExpense = (type === 'exp'); document.getElementById('btn-exp').className = `type-opt exp ${app.isExpense?'active':''}`; document.getElementById('btn-inc').className = `type-opt inc ${!app.isExpense?'active':''}`; },
     
-    openModal: (tx = null) => {
-        document.getElementById('modal-form').classList.add('open');
-        const now = new Date();
-        const localIso = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
-        if (tx) {
-            app.currentId = tx.id;
-            document.getElementById('modal-title').innerText = "EDIT RECORD";
-            document.getElementById('inp-cat').value = tx.cat;
-            document.getElementById('inp-date').value = tx.date;
-            document.getElementById('btn-delete').style.display = 'block';
-            app.setType(tx.amt < 0 ? 'exp' : 'inc');
-            document.getElementById('inp-amt').value = Math.abs(tx.amt);
-            document.getElementById('inp-desc').value = tx.desc;
-            app.renderDynamicFields(); app.fillDynamicFields(tx);
-        } else {
-            app.currentId = null;
-            document.getElementById('modal-title').innerText = "NEW RECORD";
-            document.getElementById('inp-cat').value = 'expenses';
-            document.getElementById('inp-date').value = localIso;
-            document.getElementById('btn-delete').style.display = 'none';
-            document.getElementById('inp-amt').value = ''; document.getElementById('inp-desc').value = '';
-            app.setType('exp');
-            app.renderDynamicFields();
-        }
-    },
+    
     closeModal: () => document.getElementById('modal-form').classList.remove('open'),
     
     renderDynamicFields: () => {
@@ -2318,12 +2314,44 @@ setTimeout(() => {
         else if (['casino','dice','crypto'].includes(tx.cat)) { get('d-buyin').value=d.buyin||''; get('d-cashout').value=d.cashout||''; get('d-desc').value=tx.desc; }
         else if (tx.cat === 'kalshi') { get('d-buyin').value=d.buyin||''; get('d-cashout').value=d.cashout||''; get('d-multi').value=d.multi||''; get('d-desc').value=tx.desc; }
     },
+        openModal: (tx = null) => {
+        document.getElementById('modal-form').classList.add('open');
+        const now = new Date();
+        const localIso = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+        if (tx) {
+            app.currentId = tx.id;
+            document.getElementById('modal-title').innerText = "EDIT RECORD";
+            document.getElementById('inp-cat').value = tx.cat;
+            document.getElementById('inp-date').value = tx.date;
+            document.getElementById('btn-delete').style.display = 'block';
+            app.setType(tx.amt < 0 ? 'exp' : 'inc');
+            document.getElementById('inp-amt').value = Math.abs(tx.amt);
+            document.getElementById('inp-desc').value = tx.desc || '';
+            document.getElementById('inp-icon').value = tx.customIcon || ''; // Load Custom Icon
+            app.renderDynamicFields(); app.fillDynamicFields(tx);
+        } else {
+            app.currentId = null;
+            document.getElementById('modal-title').innerText = "NEW RECORD";
+            document.getElementById('inp-cat').value = 'expenses';
+            document.getElementById('inp-date').value = localIso;
+            document.getElementById('btn-delete').style.display = 'none';
+            document.getElementById('inp-amt').value = ''; 
+            document.getElementById('inp-desc').value = '';
+            document.getElementById('inp-icon').value = ''; // Clear Custom Icon
+            app.setType('exp');
+            app.renderDynamicFields();
+        }
+    },
+    closeModal: () => document.getElementById('modal-form').classList.remove('open'),
+    
     saveTx: () => {
         const cat = document.getElementById('inp-cat').value;
         const date = document.getElementById('inp-date').value;
         let amt = parseFloat(document.getElementById('inp-amt').value) || 0;
         let desc = document.getElementById('inp-desc').value;
+        const customIcon = document.getElementById('inp-icon').value.trim().toLowerCase(); // Grab Custom Icon
         let details = {};
+        
         const val = (id) => parseFloat(document.getElementById(id).value) || 0;
         const txt = (id) => document.getElementById(id).value;
 
@@ -2332,7 +2360,6 @@ setTimeout(() => {
         else if (cat === 'bets') { 
             const wager=val('d-wager'), payout=val('d-payout'), isBonus=document.getElementById('d-bonus').checked; 
             amt = isBonus ? payout : (payout - wager); 
-            // Title is now d-desc, Book is separate
             desc = txt('d-desc'); 
             const book = document.getElementById('d-real-book').value;
             const sport = document.getElementById('d-sport').value; 
@@ -2348,10 +2375,41 @@ setTimeout(() => {
         else if (cat === 'kalshi') { const buyin = val('d-buyin'), cashout = val('d-cashout'); amt = cashout - buyin; desc = txt('d-desc'); details = { buyin, cashout, multi: val('d-multi') }; }
         else { if (app.isExpense) amt = -Math.abs(amt); else amt = Math.abs(amt); }
 
-        const tx = { id: app.currentId || Date.now(), cat, date, amt, desc, details };
-        if (app.currentId) { const idx = app.data.txs.findIndex(t => t.id == app.currentId); if(idx > -1) app.data.txs[idx] = tx; } else { app.data.txs.push(tx); }
-        app.save(); app.closeModal();
+        // --- THE LIFESAVER: PULL EXISTING HIDDEN NOTES BEFORE SAVING ---
+        let existingJournal = '';
+        let existingNoteOpen = false;
+        
+        if (app.currentId) {
+            const oldTx = app.data.txs.find(t => t.id === app.currentId);
+            if (oldTx) {
+                existingJournal = oldTx.journal || '';
+                existingNoteOpen = oldTx._noteOpen || false;
+            }
+        }
+
+        const tx = { 
+            id: app.currentId || Date.now(), 
+            cat, 
+            date, 
+            amt, 
+            desc, 
+            details,
+            customIcon: customIcon,           // Applies Custom Icon
+            journal: existingJournal,         // Saves the note!
+            _noteOpen: existingNoteOpen       // Saves open/closed state!
+        };
+
+        if (app.currentId) { 
+            const idx = app.data.txs.findIndex(t => t.id == app.currentId); 
+            if(idx > -1) app.data.txs[idx] = tx; 
+        } else { 
+            app.data.txs.push(tx); 
+        }
+        
+        app.save(); 
+        app.closeModal();
     },
+
     deleteTx: () => { if(confirm("Delete record?")) { app.data.txs = app.data.txs.filter(t => t.id !== app.currentId); app.save(); app.closeModal(); } },
     
     // Ticket Functions
