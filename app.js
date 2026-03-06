@@ -108,8 +108,6 @@ const app = {
     selectedNoteColor: '#00E676', // Default
 
 
-    selectedNoteColor: '#00E676', // Default
-
     openNoteModal: () => {
         app.currentNoteId = null;
         document.getElementById('note-modal-title').innerText = "NEW NOTE";
@@ -1478,7 +1476,7 @@ setTimeout(() => {
             }
 
             // SAFETY LIMIT: Only physically draw up to 150 cards so the phone doesn't freeze
-            const displayLimit = 333;
+            const displayLimit = 150;
             const displayIcons = targetIcons.slice(0, displayLimit);
 
             // Generate HTML
