@@ -104,6 +104,49 @@ const app = {
         
         // ROW 47: The Retina Melters (The 7 most scientifically aggressive hex codes)
         '#FE019A','#39FF14','#00E5FF','#F4FF00','#FF3F00','#9D00FF','#00FFAA'
+        
+                // ROW 48: The Matrix (Absolute Black to Piercing Code Green)
+        '#001A00','#003300','#004D00','#008000','#00B300','#00E600','#00FF00',
+        
+        // ROW 49: Outrun Horizon (The classic Synthwave Sunset gradient)
+        '#0A002A','#2A0054','#4A007F','#8B008B','#CC0052','#FF3300','#FF8800',
+        
+        // ROW 50: Vegas Strip (A mix of vivid, clashing Casino Neons)
+        '#FF1493','#00FFFF','#FFD700','#FF4500','#7CFC00','#8A2BE2','#FF00FF',
+        
+        // ROW 51: Phantom Monochrome (Tinted ultra-blacks that barely register as color)
+        '#050011','#000A11','#001105','#0A1100','#110A00','#11000A','#090909',
+        
+        // ROW 52: Glacier Ice (Deep ocean blue freezing into bright cyan)
+        '#000B1A','#001633','#002B66','#004099','#0055CC','#0077FF','#00AAFF',
+        
+        // ROW 53: Alien Flora (Jarring, unnatural extraterrestrial hues)
+        '#9900FF','#00FFCC','#FF0099','#CCFF00','#0033FF','#FF0033','#33FF00',
+        
+        // ROW 54: Volcanic Obsidian (Cooling Magma)
+        '#0D0300','#1A0500','#330A00','#661400','#991F00','#CC2900','#FF3300',
+        
+        // ROW 55: Acid Pool (Toxic Sludge to Chemical Yellow)
+        '#1A1A00','#333300','#666600','#999900','#CCCC00','#E6E600','#FFFF00',
+        
+        // ROW 56: Deep Nebula (The darkest corner of space to Starlight Pink)
+        '#1A001A','#330033','#4D004D','#800080','#B300B3','#E600E6','#FF00FF',
+        
+        // ROW 57: Blood Moon (Lunar Eclipse Progression)
+        '#1A050A','#330A14','#661429','#991F3D','#CC2952','#E62E5C','#FF3366',
+        
+        // ROW 58: Electric Indigo (High Voltage Blue/Purples)
+        '#190033','#330066','#4C0099','#6600CC','#8000FF','#9933FF','#B266FF',
+        
+        // ROW 59: Neon Rust (Oxidized Cyberpunk Orange)
+        '#2B0F00','#551F00','#802E00','#AA3D00','#D44D00','#FF5C00','#FF7B33',
+        
+        // ROW 60: Quantum Anomaly (Aggressive, triadic screen-glitch colors)
+        '#FF00AA','#AAFF00','#00AAFF','#FF0055','#55FF00','#0055FF','#FF55FF',
+        
+        // ROW 61: Dark Matter (The absolute, barely-visible edges of the spectrum)
+        '#030005','#050003','#050300','#030500','#000503','#000305','#040404'
+
     ],
     selectedNoteColor: '#00E676', // Default
 
