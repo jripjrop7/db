@@ -717,6 +717,345 @@ const app = {
         }
     },
 
+// --- KALSHI AUTO-TRADER (HYBRID ENGINE) ---
+    bot: {
+        // 1. CREDENTIALS
+        saveKeys: () => {
+            const keyId = document.getElementById('k-key-id').value.trim();
+            const privKey = document.getElementById('k-priv-key').value.trim();
+            
+            if(!keyId || !privKey) return alert("Please enter Key ID & Private Key");
+            
+            if(!keyId.includes('-')) alert("Warning: Key ID should look like a UUID (e.g. 123e4567-e89b...)");
+
+            localStorage.setItem('k_key_id', keyId);
+            localStorage.setItem('k_priv_key', privKey); 
+            
+            alert("Keys Saved!");
+            app.bot.log("Keys saved locally.");
+        },
+
+        clearKeys: () => {
+            localStorage.removeItem('k_key_id');
+            localStorage.removeItem('k_priv_key');
+            document.getElementById('k-key-id').value = '';
+            document.getElementById('k-priv-key').value = '';
+            alert("Keys Wiped.");
+        },
+
+        log: (msg) => {
+            const logDiv = document.getElementById('k-log');
+            if(logDiv) {
+                const time = new Date().toLocaleTimeString();
+                logDiv.innerHTML = `[${time}] ${msg}<br>` + logDiv.innerHTML;
+            }
+        },
+
+        // 2. CRYPTO ENGINE (RSA-PSS)
+        importPrivateKey: async (pem) => {
+            try {
+                const cleanPem = pem.replace(/-----BEGIN.*?-----/g, "")
+                                    .replace(/-----END.*?-----/g, "")
+                                    .replace(/\s/g, "");
+                
+                const binaryDerString = window.atob(cleanPem);
+                const binaryDer = new Uint8Array(binaryDerString.length);
+                for (let i = 0; i < binaryDerString.length; i++) {
+                    binaryDer[i] = binaryDerString.charCodeAt(i);
+                }
+
+                return await window.crypto.subtle.importKey(
+                    "pkcs8", 
+                    binaryDer.buffer, 
+                    { name: "RSA-PSS", hash: "SHA-256" }, 
+                    false, 
+                    ["sign"]
+                );
+            } catch (e) {
+                throw new Error("Key Format Error. Ensure key is PKCS#8.");
+            }
+        },
+
+        signRequest: async (key, timestamp, method, path) => {
+            const sigString = timestamp + method + path;
+            const encoder = new TextEncoder();
+            const signature = await window.crypto.subtle.sign(
+                { name: "RSA-PSS", saltLength: 32 }, 
+                key, 
+                encoder.encode(sigString)
+            );
+            return btoa(String.fromCharCode(...new Uint8Array(signature)));
+        },
+
+        // 3. REQUEST ENGINE
+        request: async (method, endpoint, body = null) => {
+            const keyId = localStorage.getItem('k_key_id');
+            const privKeyPem = localStorage.getItem('k_priv_key');
+
+            if(!keyId || !privKeyPem) {
+                app.bot.log("❌ Keys missing. Check Vault.");
+                return null;
+            }
+
+            try {
+                const timestamp = Date.now().toString();
+                const pathForSigning = endpoint.split('?')[0]; 
+                
+                const privateKey = await app.bot.importPrivateKey(privKeyPem);
+                const signature = await app.bot.signRequest(privateKey, timestamp, method, pathForSigning);
+
+                // LOCAL BRIDGE URL
+                const bridgeUrl = 'http://localhost:3000/api' + endpoint;
+
+                app.bot.log(`Sending to Bridge...`);
+
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'KALSHI-ACCESS-KEY': keyId,
+                        'KALSHI-ACCESS-SIGNATURE': signature,
+                        'KALSHI-ACCESS-TIMESTAMP': timestamp
+                    }
+                };
+
+                if (body) options.body = JSON.stringify(body);
+
+                const response = await fetch(bridgeUrl, options);
+
+                if(!response.ok) {
+                    const txt = await response.text();
+                    throw new Error(`Bridge Error ${response.status}: ${txt}`);
+                }
+
+                return await response.json();
+
+            } catch (e) {
+                app.bot.log(`❌ Error: ${e.message}`);
+                return null;
+            }
+        },
+
+                // 4. CONNECTION TEST
+        login: async () => {
+            app.bot.log("Testing Bridge...");
+            
+            // 1. Fetch Balance
+            const data = await app.bot.request('GET', '/trade-api/v2/portfolio/balance');
+
+            if (data) {
+                app.bot.log("✅ BRIDGE CONNECTED!");
+                
+                const bal = (data.balance || 0) / 100;
+                
+                // 2. Safe UI Update (No crashing!)
+                const balEl = document.getElementById('k-bal');
+                if (balEl) balEl.innerText = "$" + bal.toFixed(2); 
+
+                const statusEl = document.getElementById('bot-status');
+                if (statusEl) {
+                    statusEl.innerText = "ONLINE";
+                    statusEl.style.color = "#00E676";
+                }
+            } else {
+                app.bot.log("❌ Bridge connected, but Kalshi rejected the keys.");
+            }
+        },
+
+
+        // 5. THE ULTIMATE SEARCH (Events API + Local Filter + HTML Safety)
+        searchMarkets: async (modeOrQuery = "") => {
+            const list = document.getElementById('bot-market-list');
+            list.innerHTML = '<div style="text-align:center; color:#00E676; margin-top:20px;">Fetching Data...</div>';
+            app.bot.log(`🔎 Mode: "${modeOrQuery}"...`);
+
+            // HTML Safety Lock
+            const safeText = (str) => {
+                if (!str) return "Unknown";
+                return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            };
+
+            const now = Math.floor(Date.now() / 1000);
+            const hours48 = now + (48 * 60 * 60);
+
+            // ALWAYS use the Events API. It's the only way to keep things cleanly grouped!
+            // We pull a large batch (200) so we have plenty to filter locally.
+            let endpoint = `/trade-api/v2/events?limit=200&status=open&with_nested_markets=true`;
+            
+            if (modeOrQuery === 'NBA') {
+                endpoint += `&series_ticker=NBA`;
+            } else if (modeOrQuery === 'ECON') {
+                endpoint += `&series_ticker=CPI`;
+            } else if (modeOrQuery === 'MENTIONS') {
+                endpoint += `&query=mention`;
+            } else if (modeOrQuery !== 'LIVE' && modeOrQuery !== '') {
+                endpoint += `&query=${encodeURIComponent(modeOrQuery)}`;
+            }
+
+            const data = await app.bot.request('GET', endpoint);
+
+            if(!data || !data.events || data.events.length === 0) {
+                list.innerHTML = '<div style="text-align:center; color:#ff5252; padding:20px;">No active events found.</div>';
+                return;
+            }
+
+            // FILTER LOCALLY (The logic you correctly pointed out we should bring back)
+            let filteredEvents = data.events.filter(evt => {
+                const markets = evt.markets || [];
+                if (markets.length === 0) return false;
+                
+                // Get expiration of the first market in the event
+                const expiryTs = markets[0].close_ts || markets[0].expiration_ts;
+                if (!expiryTs) return true; // Keep it if we can't verify time
+
+                if (modeOrQuery === 'LIVE') {
+                    // MUST be expiring within 48 hours AND not already expired
+                    return (expiryTs > now && expiryTs < hours48);
+                }
+                
+                return true; 
+            });
+
+            if (filteredEvents.length === 0) {
+                 list.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">No matches found after filtering (e.g. no events < 48h).</div>';
+                 return;
+            }
+
+            // SORT: Soonest closing first
+            filteredEvents.sort((a, b) => {
+                const getTs = (evt) => evt.markets[0]?.close_ts || evt.markets[0]?.expiration_ts || 9999999999;
+                return getTs(a) - getTs(b);
+            });
+
+            // RENDER
+            list.innerHTML = '';
+            let drawCount = 0;
+
+            filteredEvents.forEach(evt => {
+                try {
+                    const markets = evt.markets || [];
+                    
+                    let dateStr = "No Date";
+                    let isUrgent = false;
+
+                    const expiryTs = markets[0].close_ts || markets[0].expiration_ts;
+                    if (expiryTs) {
+                        const expiryDate = new Date(expiryTs * 1000);
+                        isUrgent = (expiryTs - now) < (48 * 60 * 60);
+                        
+                        if (expiryDate.toDateString() === new Date().toDateString()) {
+                             dateStr = `TODAY ${expiryDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+                        } else {
+                             dateStr = `${expiryDate.getMonth()+1}/${expiryDate.getDate()} ${expiryDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+                        }
+                    }
+
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.style.borderLeft = isUrgent ? '4px solid #D50000' : '4px solid #2962FF';
+                    card.style.marginBottom = '10px';
+                    card.style.padding = '8px';
+
+                    let html = `
+                        <div style="margin-bottom:6px; border-bottom:1px solid #333; padding-bottom:4px;">
+                            <div style="font-weight:bold; font-size:0.9rem; color:#fff;">${safeText(evt.title)}</div>
+                            <div style="font-size:0.65rem; color:${isUrgent ? '#FF5252' : '#00E676'}; font-weight:bold;">
+                               Ends: ${dateStr}
+                            </div>
+                        </div>
+                        <div style="max-height:250px; overflow-y:auto;">
+                    `;
+
+                                        markets.forEach(m => {
+                        // THE FIX: Switch from BID (waiting) to ASK (instant execution)
+                        const yesPrice = m.yes_ask || 0;
+                        const noPrice = m.no_ask || 0;
+                        
+                        let name = m.subtitle || m.title || m.ticker;
+                        if(name.length < 3) name = m.ticker; 
+
+                        html += `
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; background:#111; padding:8px; border-radius:4px;">
+                                <div style="width:45%; overflow:hidden;">
+                                    <div style="font-size:0.8rem; color:#eee; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${safeText(name)}">
+                                        ${safeText(name)}
+                                    </div>
+                                </div>
+                                <div style="display:flex; gap:5px;">
+                                    <button class="btn" style="width:auto; padding:4px 10px; font-size:0.75rem; background:rgba(0, 230, 118, 0.15); color:#00E676; border:1px solid #00E676;" 
+                                        onclick="app.bot.stageTrade('${m.ticker}', 'yes', ${yesPrice})">
+                                        YES ${yesPrice}¢
+                                    </button>
+                                    <button class="btn" style="width:auto; padding:4px 10px; font-size:0.75rem; background:rgba(213, 0, 0, 0.15); color:#FF5252; border:1px solid #FF5252;" 
+                                        onclick="app.bot.stageTrade('${m.ticker}', 'no', ${noPrice})">
+                                        NO ${noPrice}¢
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+
+                    html += `</div>`;
+                    card.innerHTML = html;
+                    list.appendChild(card);
+                    drawCount++;
+
+                } catch (err) {
+                    console.error("Render Error:", err);
+                }
+            });
+            
+            app.bot.log(`Drawn ${drawCount} events.`);
+        },
+
+
+
+
+        // 6. STAGE TRADE (Standard)
+        stageTrade: (ticker, side, price) => {
+            document.getElementById('trade-ticker').value = ticker;
+            document.getElementById('trade-side').value = side;
+            document.getElementById('trade-price').value = price;
+            document.getElementById('trade-count').value = 1;
+            app.bot.log(`Selected ${ticker}`);
+            document.getElementById('trade-ticker').scrollIntoView({ behavior: 'smooth' });
+        },
+
+        // 7. EXECUTE ORDER (Standard)
+        executeOrder: async () => {
+            const ticker = document.getElementById('trade-ticker').value;
+            const side = document.getElementById('trade-side').value;
+            const count = parseInt(document.getElementById('trade-count').value);
+            const price = parseInt(document.getElementById('trade-price').value);
+
+            if(!ticker || !count || !price) return alert("Invalid Trade Params");
+
+            if(!confirm(`CONFIRM: Buy ${count} contracts of ${ticker} (${side}) @ ${price}¢?`)) return;
+
+            app.bot.log(`🚀 SENDING ORDER...`);
+
+            const body = {
+                action: 'buy',
+                count: count,
+                side: side,
+                ticker: ticker,
+                type: 'limit',
+                yes_price: (side === 'yes' ? price : undefined),
+                no_price: (side === 'no' ? price : undefined),
+                expiration_ts: null
+            };
+
+            const data = await app.bot.request('POST', '/trade-api/v2/portfolio/orders', body);
+
+            if(data && data.order) {
+                app.bot.log(`✅ ORDER PLACED! ID: ${data.order.order_id}`);
+                app.bot.login(); 
+            } else {
+                app.bot.log("❌ Order Failed.");
+            }
+        }
+    },
 
 
             // --- PARLAY ENGINE v3 (PERSISTENCE + EVEN DISTRO) ---
