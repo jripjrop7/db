@@ -887,51 +887,119 @@ const app = {
         }
     },
 
-    // --- KALSHI COMMAND CENTER (PORTFOLIO & TRADING) ---
+        // --- KALSHI COMMAND CENTER (LIVE PNL & TRADING) ---
     kalshiPortfolio: {
         positions: [],
+        cashBalance: 0,
+        portfolioValue: 0,
 
-                        fetch: async () => {
+        fetch: async () => {
             const div = document.getElementById('k-port-res');
-            div.innerHTML = '<div style="color:#C6FF00; text-align:center; padding:10px; font-weight:bold;">Authenticating & Syncing Portfolio...</div>';
+            document.getElementById('k-port-header').style.display = 'none';
+            div.innerHTML = '<div style="color:#C6FF00; text-align:center; padding:10px; font-weight:bold;">Authenticating...</div>';
             
-            // Ask Kalshi for the list, specifically filtering for open positions
-            const data = await app.bot.request('GET', '/trade-api/v2/portfolio/positions?count_filter=position');
-            
-            // The magic fix: targeting 'market_positions'
-            const mPositions = data.market_positions || [];
-            
-            // Filter out closed/empty positions just in case Kalshi sends them
-            app.kalshiPortfolio.positions = mPositions.filter(p => p.position !== 0);
-            
-            app.kalshiPortfolio.render();
+            try {
+                // 1. Fetch Account Balance
+                const balData = await app.bot.request('GET', '/trade-api/v2/portfolio/balance');
+                app.kalshiPortfolio.cashBalance = balData.balance || 0;
+                
+                // 2. Fetch Open Positions
+                div.innerHTML = '<div style="color:#C6FF00; text-align:center; padding:10px; font-weight:bold;">Fetching Open Positions...</div>';
+                const data = await app.bot.request('GET', '/trade-api/v2/portfolio/positions?count_filter=position');
+                const mPositions = data.market_positions || [];
+                app.kalshiPortfolio.positions = mPositions.filter(p => p.position !== 0);
+
+                // 3. ENRICH DATA: Fetch Live Market Prices for each position
+                div.innerHTML = '<div style="color:#C6FF00; text-align:center; padding:10px; font-weight:bold;">Syncing Live Order Books...</div>';
+                
+                let totalPositionValueCents = 0;
+
+                for (let p of app.kalshiPortfolio.positions) {
+                    try {
+                        const mktData = await app.bot.request('GET', `/trade-api/v2/markets/${p.ticker}`);
+                        if (mktData && mktData.market) {
+                            p.live_yes_bid = mktData.market.yes_bid;
+                            p.live_yes_ask = mktData.market.yes_ask;
+                            p.live_no_bid = mktData.market.no_bid;
+                            p.live_no_ask = mktData.market.no_ask;
+                            p.last_price = mktData.market.last_price;
+                        }
+                    } catch (e) {
+                        console.log("Could not fetch live price for " + p.ticker);
+                    }
+
+                    // Math for Portfolio Value
+                    const count = Math.abs(p.position);
+                    const side = p.position > 0 ? 'yes' : 'no';
+                    const currentBid = side === 'yes' ? (p.live_yes_bid || 0) : (p.live_no_bid || 0);
+                    totalPositionValueCents += (count * currentBid);
+                }
+
+                app.kalshiPortfolio.portfolioValue = totalPositionValueCents;
+                app.kalshiPortfolio.render();
+
+            } catch (e) {
+                div.innerHTML = `<div style="color:#FF5252; text-align:center; padding:10px;">Sync Failed. Check bridge.</div>`;
+            }
         },
         
         render: () => {
             const div = document.getElementById('k-port-res');
+            
+            // Render Header
+            document.getElementById('k-port-header').style.display = 'flex';
+            document.getElementById('k-cash-avail').innerText = "$" + (app.kalshiPortfolio.cashBalance / 100).toFixed(2);
+            document.getElementById('k-port-val').innerText = "$" + (app.kalshiPortfolio.portfolioValue / 100).toFixed(2);
+
             let html = '';
             
             app.kalshiPortfolio.positions.forEach(p => {
-                // Math time: Kalshi uses positive for YES, negative for NO. 
                 const count = Math.abs(p.position);
                 const side = p.position > 0 ? 'yes' : 'no';
                 const sideColor = side === 'yes' ? '#00E676' : '#FF5252';
                 
-                // Average Cost Basis (Total spent / Number of contracts)
-                const costBasis = count > 0 ? (p.total_traded / count).toFixed(1) : '--';
+                // MATH: Costs and Values
+                const costBasisCents = count > 0 ? (p.total_traded / count) : 0;
+                const totalCostDollars = (p.total_traded / 100).toFixed(2);
+                
+                // Live Prices
+                const currentBidCents = side === 'yes' ? (p.live_yes_bid || 0) : (p.live_no_bid || 0);
+                const currentValDollars = ((count * currentBidCents) / 100).toFixed(2);
+                
+                // Profit & Loss
+                const pnlDollars = (currentValDollars - totalCostDollars).toFixed(2);
+                const pnlColor = pnlDollars >= 0 ? '#00E676' : '#FF5252';
+                const pnlSign = pnlDollars >= 0 ? '+' : '';
+
+                // Clean up ticker for display (Kalshi tickers are long)
+                const shortTicker = p.ticker.substring(0, 35) + '...';
                 
                 html += `
                     <div style="background: linear-gradient(135deg, #11131a 0%, #050608 100%); border-left: 3px solid ${sideColor}; border-top: 1px solid #222; border-radius: 8px; padding: 12px; margin-bottom: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                        
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px; border-bottom: 1px solid #1a1a1a; padding-bottom: 8px;">
-                            <div style="font-weight:bold; color:#fff; font-size:0.85rem; width: 75%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${p.ticker}">${p.ticker}</div>
-                            <div style="color:${sideColor}; font-weight:bold; font-size:0.75rem; background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">${side.toUpperCase()}</div>
+                            <div style="font-weight:bold; color:#fff; font-size:0.75rem; width: 75%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${p.ticker}">${shortTicker}</div>
+                            <div style="color:${sideColor}; font-weight:bold; font-size:0.75rem; background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">${count} ${side.toUpperCase()}</div>
                         </div>
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div style="font-size:0.75rem; color:#ccc; line-height: 1.4;">
-                                Contracts: <span style="color:#fff; font-weight:bold;">${count}</span><br>
-                                Avg Cost: <span style="color:#C6FF00;">${costBasis}¢</span>
+                        
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                            <div style="background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; border: 1px solid #222;">
+                                <div style="font-size:0.55rem; color:#888;">AVG COST</div>
+                                <div style="font-size:0.85rem; color:#fff; font-family:'Martian Mono', monospace;">${costBasisCents.toFixed(1)}¢ <span style="font-size:0.6rem; color:#aaa;">($${totalCostDollars})</span></div>
                             </div>
-                            <button class="btn" style="width:auto; padding:6px 12px; font-size:0.7rem; background:rgba(255, 255, 255, 0.05); border: 1px solid #333;" onclick="app.kalshiPortfolio.stageSell('${p.ticker}', '${side}', ${count})">SELL LIMIT</button>
+                            <div style="background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; border: 1px solid #222;">
+                                <div style="font-size:0.55rem; color:#888;">CURRENT BID (VALUE)</div>
+                                <div style="font-size:0.85rem; color:#C6FF00; font-family:'Martian Mono', monospace;">${currentBidCents}¢ <span style="font-size:0.6rem; color:#aaa;">($${currentValDollars})</span></div>
+                            </div>
+                            <div style="grid-column: 1 / -1; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; border: 1px solid #222; display:flex; justify-content:space-between; align-items:center;">
+                                <div style="font-size:0.65rem; color:#888; font-weight:bold;">UNREALIZED P/L:</div>
+                                <div style="font-size:0.9rem; color:${pnlColor}; font-family:'Martian Mono', monospace; font-weight:bold;">${pnlSign}$${pnlDollars}</div>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; justify-content:space-between; gap: 8px;">
+                            <button class="btn" style="flex:1; padding:8px 0; font-size:0.65rem; background:rgba(255, 255, 255, 0.05); border: 1px solid #333;" onclick="app.kalshiPortfolio.stageSell('${p.ticker}', '${side}', ${count})">SELL LIMIT</button>
+                            <button class="btn" style="flex:1; padding:8px 0; font-size:0.65rem; background:rgba(255, 82, 82, 0.1); color:#FF5252; border: 1px solid #FF5252;" onclick="app.kalshiPortfolio.executeMarketSell('${p.ticker}', '${side}', ${count}, ${currentBidCents})">CASH OUT (MKT)</button>
                         </div>
                     </div>
                 `;
@@ -940,50 +1008,53 @@ const app = {
             if (html === '') html = '<div style="color:#555; text-align:center; padding:10px;">No active positions found in wallet.</div>';
             div.innerHTML = html;
         },
-
         
         stageSell: (ticker, side, maxCount) => {
-            // 1. Ask for Target Price
             const price = prompt(`MARKET: ${ticker}\nSIDE: ${side.toUpperCase()}\n\nSet your target SELL PRICE (1 to 99 cents):`);
             if(!price || isNaN(price) || price < 1 || price > 99) return;
             
-            // 2. Ask for Contract Amount
             const sellCount = prompt(`How many contracts do you want to sell at ${price}¢?\n(You currently have ${maxCount} available)`, maxCount);
             if(!sellCount || isNaN(sellCount) || sellCount < 1 || sellCount > maxCount) return;
             
-            // 3. Execute
-            app.kalshiPortfolio.executeSell(ticker, side, parseInt(sellCount), parseInt(price));
+            app.kalshiPortfolio.executeOrder(ticker, side, parseInt(sellCount), 'limit', parseInt(price));
+        },
+
+        executeMarketSell: (ticker, side, count, currentBid) => {
+            if(!confirm(`⚠️ INSTANT CASH OUT ⚠️\n\nYou are about to MARKET SELL ${count} [${side.toUpperCase()}] contracts.\n\nThe current highest bid is ${currentBid}¢.\nAre you sure you want to dump these instantly?`)) return;
+            
+            app.kalshiPortfolio.executeOrder(ticker, side, count, 'market', null);
         },
         
-        executeSell: async (ticker, side, count, price) => {
-            if(!confirm(`FINAL CONFIRMATION:\n\nPlacing limit order to SELL ${count}x [${side.toUpperCase()}] contracts of ${ticker} at ${price}¢.\n\nProceed?`)) return;
-            
+        executeOrder: async (ticker, side, count, type, price) => {
             const div = document.getElementById('k-port-res');
-            div.innerHTML = `<div style="color:#FFEA00; text-align:center; padding:20px; font-weight:bold;">Executing Order on API...</div>`;
+            div.innerHTML = `<div style="color:#FFEA00; text-align:center; padding:20px; font-weight:bold;">Executing ${type.toUpperCase()} Order on Exchange...</div>`;
 
             const body = {
                 action: 'sell',
                 count: count,
                 side: side,
                 ticker: ticker,
-                type: 'limit',
-                yes_price: (side === 'yes' ? price : undefined),
-                no_price: (side === 'no' ? price : undefined),
+                type: type, // 'limit' or 'market'
                 expiration_ts: null
             };
+
+            if (type === 'limit') {
+                if (side === 'yes') body.yes_price = price;
+                if (side === 'no') body.no_price = price;
+            }
             
-            // Send the Kill Order through the Bridge
             const res = await app.bot.request('POST', '/trade-api/v2/portfolio/orders', body);
             
             if(res && res.order) {
-                alert(`✅ SELL ORDER PLACED SUCCESSFULLY!\n\nOrder ID: ${res.order.order_id}\n\nNote: If the price matches the current bid, it will execute instantly. Otherwise, it will sit in the order book.`);
+                alert(`✅ ${type.toUpperCase()} ORDER SUBMITTED!\n\nOrder ID: ${res.order.order_id}`);
                 app.kalshiPortfolio.fetch(); // Auto-refresh the board
             } else {
-                alert("❌ Order Rejected by Exchange. Check API limits or bridge connection.");
+                alert("❌ Order Rejected by Exchange. Check API limits or liquidity.");
                 app.kalshiPortfolio.fetch(); // Reload the board
             }
         }
     },
+
 
 
             // --- PARLAY ENGINE v3 (PERSISTENCE + EVEN DISTRO) ---
