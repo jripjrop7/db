@@ -666,19 +666,32 @@ const app = {
             }
         },
 
-        // 4. CONNECTION TEST
+                // 4. CONNECTION TEST
         login: async () => {
             app.bot.log("Testing Bridge...");
+            
+            // 1. Fetch Balance
             const data = await app.bot.request('GET', '/trade-api/v2/portfolio/balance');
 
             if (data) {
                 app.bot.log("✅ BRIDGE CONNECTED!");
+                
                 const bal = (data.balance || 0) / 100;
-                document.getElementById('k-bal').innerText = app.formatMoney(bal);
-                document.getElementById('bot-status').innerText = "ONLINE";
-                document.getElementById('bot-status').style.color = "#00E676";
+                
+                // 2. Safe UI Update (No crashing!)
+                const balEl = document.getElementById('k-bal');
+                if (balEl) balEl.innerText = "$" + bal.toFixed(2); 
+
+                const statusEl = document.getElementById('bot-status');
+                if (statusEl) {
+                    statusEl.innerText = "ONLINE";
+                    statusEl.style.color = "#00E676";
+                }
+            } else {
+                app.bot.log("❌ Bridge connected, but Kalshi rejected the keys.");
             }
         },
+
 
         // 5. THE ULTIMATE SEARCH (Events API + Local Filter + HTML Safety)
         searchMarkets: async (modeOrQuery = "") => {
