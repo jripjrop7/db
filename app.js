@@ -605,7 +605,7 @@ const app = {
             }
         },
         
-        render: () => {
+                render: () => {
             const div = document.getElementById('k-port-res');
             
             // Render Header
@@ -620,43 +620,68 @@ const app = {
                 const side = p.position > 0 ? 'yes' : 'no';
                 const sideColor = side === 'yes' ? '#00E676' : '#FF5252';
                 
-                // MATH: Costs and Values
+                // --- 1. ENTRY MATH (Cost Basis) ---
                 const costBasisCents = count > 0 ? (p.total_traded / count) : 0;
                 const totalCostDollars = (p.total_traded / 100).toFixed(2);
                 
-                // Live Prices
+                const entryProb = costBasisCents.toFixed(1);
+                const entryMulti = costBasisCents > 0 ? (100 / costBasisCents).toFixed(2) : '0.00';
+                
+                // --- 2. LIVE MARKET MATH (Current Bids) ---
+                // (We use the 'bid' because that is what you could instantly sell it for right now)
                 const currentBidCents = side === 'yes' ? (p.live_yes_bid || 0) : (p.live_no_bid || 0);
                 const currentValDollars = ((count * currentBidCents) / 100).toFixed(2);
                 
-                // Profit & Loss
+                const liveProb = currentBidCents.toFixed(1);
+                const liveMulti = currentBidCents > 0 ? (100 / currentBidCents).toFixed(2) : '0.00';
+                
+                // --- 3. PROFIT & LOSS ---
                 const pnlDollars = (currentValDollars - totalCostDollars).toFixed(2);
                 const pnlColor = pnlDollars >= 0 ? '#00E676' : '#FF5252';
                 const pnlSign = pnlDollars >= 0 ? '+' : '';
 
-                // Clean up ticker for display (Kalshi tickers are long)
+                // Clean up ticker for display
                 const shortTicker = p.ticker.substring(0, 35) + '...';
                 
                 html += `
                     <div style="background: linear-gradient(135deg, #11131a 0%, #050608 100%); border-left: 3px solid ${sideColor}; border-top: 1px solid #222; border-radius: 8px; padding: 12px; margin-bottom: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
                         
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px; border-bottom: 1px solid #1a1a1a; padding-bottom: 8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px; border-bottom: 1px solid #1a1a1a; padding-bottom: 8px;">
                             <div style="font-weight:bold; color:#fff; font-size:0.75rem; width: 75%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${p.ticker}">${shortTicker}</div>
                             <div style="color:${sideColor}; font-weight:bold; font-size:0.75rem; background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">${count} ${side.toUpperCase()}</div>
                         </div>
                         
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-                            <div style="background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; border: 1px solid #222;">
-                                <div style="font-size:0.55rem; color:#888;">AVG COST</div>
-                                <div style="font-size:0.85rem; color:#fff; font-family:'Martian Mono', monospace;">${costBasisCents.toFixed(1)}¢ <span style="font-size:0.6rem; color:#aaa;">($${totalCostDollars})</span></div>
+                        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px; font-family:'Martian Mono', monospace;">
+                            
+                            <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; border: 1px solid #222; display:flex; justify-content:space-between; align-items:center;">
+                                <div style="font-size:0.6rem; color:#888;">ENTRY</div>
+                                <div style="font-size:0.75rem; color:#fff;">
+                                    ${costBasisCents.toFixed(1)}¢ <span style="color:#555; margin:0 4px;">|</span> ${entryProb}% <span style="color:#555; margin:0 4px;">|</span> ${entryMulti}x
+                                </div>
                             </div>
-                            <div style="background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; border: 1px solid #222;">
-                                <div style="font-size:0.55rem; color:#888;">CURRENT BID (VALUE)</div>
-                                <div style="font-size:0.85rem; color:#C6FF00; font-family:'Martian Mono', monospace;">${currentBidCents}¢ <span style="font-size:0.6rem; color:#aaa;">($${currentValDollars})</span></div>
+
+                            <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; border: 1px solid #222; display:flex; justify-content:space-between; align-items:center;">
+                                <div style="font-size:0.6rem; color:#888;">LIVE SELL</div>
+                                <div style="font-size:0.75rem; color:#C6FF00;">
+                                    ${currentBidCents}¢ <span style="color:#555; margin:0 4px;">|</span> ${liveProb}% <span style="color:#555; margin:0 4px;">|</span> ${liveMulti}x
+                                </div>
                             </div>
-                            <div style="grid-column: 1 / -1; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; border: 1px solid #222; display:flex; justify-content:space-between; align-items:center;">
-                                <div style="font-size:0.65rem; color:#888; font-weight:bold;">UNREALIZED P/L:</div>
-                                <div style="font-size:0.9rem; color:${pnlColor}; font-family:'Martian Mono', monospace; font-weight:bold;">${pnlSign}$${pnlDollars}</div>
+
+                            <div style="display:flex; justify-content:space-between; gap:6px; margin-top:2px;">
+                                 <div style="flex:1; background: rgba(0,0,0,0.3); padding: 8px 4px; border-radius: 4px; border: 1px solid #222; text-align:center;">
+                                    <div style="font-size:0.5rem; color:#888; margin-bottom:2px;">TOTAL COST</div>
+                                    <div style="font-size:0.75rem; color:#fff;">$${totalCostDollars}</div>
+                                 </div>
+                                 <div style="flex:1; background: rgba(0,0,0,0.3); padding: 8px 4px; border-radius: 4px; border: 1px solid #222; text-align:center;">
+                                    <div style="font-size:0.5rem; color:#888; margin-bottom:2px;">CURR VALUE</div>
+                                    <div style="font-size:0.75rem; color:#fff;">$${currentValDollars}</div>
+                                 </div>
+                                 <div style="flex:1; background: rgba(${pnlDollars >= 0 ? '0,230,118' : '255,82,82'},0.05); padding: 8px 4px; border-radius: 4px; border: 1px solid ${pnlColor}40; text-align:center;">
+                                    <div style="font-size:0.5rem; color:#888; margin-bottom:2px;">UNREALIZED</div>
+                                    <div style="font-size:0.8rem; color:${pnlColor}; font-weight:bold;">${pnlSign}$${pnlDollars}</div>
+                                 </div>
                             </div>
+                            
                         </div>
 
                         <div style="display:flex; justify-content:space-between; gap: 8px;">
@@ -670,6 +695,7 @@ const app = {
             if (html === '') html = '<div style="color:#555; text-align:center; padding:10px;">No active positions found in wallet.</div>';
             div.innerHTML = html;
         },
+
         
         stageSell: (ticker, side, maxCount) => {
             const price = prompt(`MARKET: ${ticker}\nSIDE: ${side.toUpperCase()}\n\nSet your target SELL PRICE (1 to 99 cents):`);
