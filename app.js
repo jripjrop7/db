@@ -891,40 +891,39 @@ const app = {
     kalshiPortfolio: {
         positions: [],
 
-                fetch: async () => {
+                        fetch: async () => {
             const div = document.getElementById('k-port-res');
-            div.innerHTML = '<div style="color:#C6FF00; text-align:center; padding:10px;">Pulling raw data...</div>';
+            div.innerHTML = '<div style="color:#C6FF00; text-align:center; padding:10px; font-weight:bold;">Authenticating & Syncing Portfolio...</div>';
             
-            // We removed the position filter just to force Kalshi to send EVERYTHING it has
-            const data = await app.bot.request('GET', '/trade-api/v2/portfolio/positions?settlement_status=unsettled');
+            // Ask Kalshi for the list, specifically filtering for open positions
+            const data = await app.bot.request('GET', '/trade-api/v2/portfolio/positions?count_filter=position');
             
-            // DUMP THE RAW JSON TO THE SCREEN
-            div.innerHTML = `<div style="font-family:monospace; font-size:0.65rem; color:#aaa; padding:10px; word-break:break-all;">
-                <b>RAW DATA:</b><br><br>
-                ${JSON.stringify(data)}
-            </div>`;
+            // The magic fix: targeting 'market_positions'
+            const mPositions = data.market_positions || [];
+            
+            // Filter out closed/empty positions just in case Kalshi sends them
+            app.kalshiPortfolio.positions = mPositions.filter(p => p.position !== 0);
+            
+            app.kalshiPortfolio.render();
         },
-
         
         render: () => {
             const div = document.getElementById('k-port-res');
             let html = '';
             
             app.kalshiPortfolio.positions.forEach(p => {
-                if(p.position === 0) return; // Skip closed/empty positions
-                
-                // Kalshi V2 represents YES as positive counts, NO as negative counts
+                // Math time: Kalshi uses positive for YES, negative for NO. 
                 const count = Math.abs(p.position);
                 const side = p.position > 0 ? 'yes' : 'no';
                 const sideColor = side === 'yes' ? '#00E676' : '#FF5252';
                 
-                // Safely extract cost/value if Kalshi provides it
-                const costBasis = p.position_costs ? Math.abs(p.position_costs / count).toFixed(1) : '--';
+                // Average Cost Basis (Total spent / Number of contracts)
+                const costBasis = count > 0 ? (p.total_traded / count).toFixed(1) : '--';
                 
                 html += `
                     <div style="background: linear-gradient(135deg, #11131a 0%, #050608 100%); border-left: 3px solid ${sideColor}; border-top: 1px solid #222; border-radius: 8px; padding: 12px; margin-bottom: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px; border-bottom: 1px solid #1a1a1a; padding-bottom: 8px;">
-                            <div style="font-weight:bold; color:#fff; font-size:0.85rem; width: 75%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.ticker}</div>
+                            <div style="font-weight:bold; color:#fff; font-size:0.85rem; width: 75%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${p.ticker}">${p.ticker}</div>
                             <div style="color:${sideColor}; font-weight:bold; font-size:0.75rem; background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">${side.toUpperCase()}</div>
                         </div>
                         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -941,6 +940,7 @@ const app = {
             if (html === '') html = '<div style="color:#555; text-align:center; padding:10px;">No active positions found in wallet.</div>';
             div.innerHTML = html;
         },
+
         
         stageSell: (ticker, side, maxCount) => {
             // 1. Ask for Target Price
