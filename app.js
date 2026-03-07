@@ -684,18 +684,64 @@ const app = {
                             
                         </div>
 
-                        <div style="display:flex; justify-content:space-between; gap: 8px;">
+                                                <div style="display:flex; justify-content:space-between; gap: 8px;">
                             <button class="btn" style="flex:1; padding:8px 0; font-size:0.65rem; background:rgba(255, 255, 255, 0.05); border: 1px solid #333;" onclick="app.kalshiPortfolio.stageSell('${p.ticker}', '${side}', ${count})">SELL LIMIT</button>
-                            <button class="btn" style="flex:1; padding:8px 0; font-size:0.65rem; background:rgba(255, 82, 82, 0.1); color:#FF5252; border: 1px solid #FF5252;" onclick="app.kalshiPortfolio.executeMarketSell('${p.ticker}', '${side}', ${count}, ${currentBidCents})">CASH OUT (MKT)</button>
+                            <button class="btn" style="flex:1; padding:8px 0; font-size:0.65rem; background:rgba(255, 82, 82, 0.1); color:#FF5252; border: 1px solid #FF5252;" onclick="app.kalshiPortfolio.executeMarketSell('${p.ticker}', '${side}', ${count}, ${currentBidCents})">CASH OUT</button>
+                            <button class="btn" style="flex:1; padding:8px 0; font-size:0.65rem; background:rgba(0, 230, 118, 0.1); color:#00E676; border: 1px solid #00E676;" onclick="app.kalshiPortfolio.viewLegs('${p.ticker}')">🔍 LEGS</button>
                         </div>
+
+                        <div id="legs-${p.ticker}" style="display:none; margin-top:10px; border-top:1px dashed #333; padding-top:10px;"></div>
                     </div>
+
                 `;
             });
             
             if (html === '') html = '<div style="color:#555; text-align:center; padding:10px;">No active positions found in wallet.</div>';
             div.innerHTML = html;
         },
-
+        viewLegs: async (ticker) => {
+            const div = document.getElementById(`legs-${ticker}`);
+            
+            // Toggle close if already open
+            if (div.style.display === 'block') {
+                div.style.display = 'none';
+                return;
+            }
+            
+            div.style.display = 'block';
+            div.innerHTML = '<div style="color:#aaa; font-size:0.65rem; text-align:center;">Fetching market dossier from API...</div>';
+            
+            try {
+                // Fetch deep market rules
+                const data = await app.bot.request('GET', `/trade-api/v2/markets/${ticker}`);
+                
+                if (data && data.market) {
+                    const m = data.market;
+                    const subtitle = m.subtitle || "Single Event Market";
+                    const rules = m.rules_primary || "No extended rules provided.";
+                    const status = m.status || "active";
+                    
+                    div.innerHTML = `
+                        <div style="background:rgba(0,0,0,0.4); padding:10px; border-radius:6px; border:1px solid #222;">
+                            <div style="font-size:0.6rem; color:#888; margin-bottom:4px; display:flex; justify-content:space-between;">
+                                <span>MARKET CONDITIONS</span>
+                                <span style="color:${status === 'active' ? '#00E676' : '#FFEA00'};">${status.toUpperCase()}</span>
+                            </div>
+                            <div style="font-size:0.75rem; color:#fff; line-height:1.4; font-family:'Martian Mono', monospace; margin-bottom:8px;">
+                                ${subtitle}
+                            </div>
+                            <div style="font-size:0.6rem; color:#777; border-top:1px solid #222; padding-top:6px; line-height:1.3;">
+                                <b>SETTLEMENT RULES:</b><br>${rules}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    div.innerHTML = '<div style="color:#FF5252; font-size:0.65rem; text-align:center;">Failed to load legs.</div>';
+                }
+            } catch (e) {
+                div.innerHTML = '<div style="color:#FF5252; font-size:0.65rem; text-align:center;">Network Error fetching legs.</div>';
+            }
+        },
         
         stageSell: (ticker, side, maxCount) => {
             const price = prompt(`MARKET: ${ticker}\nSIDE: ${side.toUpperCase()}\n\nSet your target SELL PRICE (1 to 99 cents):`);
