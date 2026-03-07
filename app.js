@@ -549,17 +549,23 @@ const app = {
 
     
 
-        // --- KALSHI COMMAND CENTER (LIVE PNL & TRADING) ---
+            // --- KALSHI COMMAND CENTER (LIVE PNL & TRADING) ---
     kalshiPortfolio: {
         positions: [],
         cashBalance: 0,
         portfolioValue: 0,
+        expandedLegs: {}, // Tracks what is open
+        marketCache: {},  // Caches the downloaded rules
 
         fetch: async () => {
             const div = document.getElementById('k-port-res');
             document.getElementById('k-port-header').style.display = 'none';
             div.innerHTML = '<div style="color:#C6FF00; text-align:center; padding:10px; font-weight:bold;">Authenticating...</div>';
             
+            // Clear memory on fresh sync
+            app.kalshiPortfolio.expandedLegs = {};
+            app.kalshiPortfolio.marketCache = {};
+
             try {
                 // 1. Fetch Account Balance
                 const balData = await app.bot.request('GET', '/trade-api/v2/portfolio/balance');
@@ -590,7 +596,6 @@ const app = {
                         console.log("Could not fetch live price for " + p.ticker);
                     }
 
-                    // Math for Portfolio Value
                     const count = Math.abs(p.position);
                     const side = p.position > 0 ? 'yes' : 'no';
                     const currentBid = side === 'yes' ? (p.live_yes_bid || 0) : (p.live_no_bid || 0);
@@ -605,10 +610,9 @@ const app = {
             }
         },
         
-                render: () => {
+        render: () => {
             const div = document.getElementById('k-port-res');
             
-            // Render Header
             document.getElementById('k-port-header').style.display = 'flex';
             document.getElementById('k-cash-avail').innerText = "$" + (app.kalshiPortfolio.cashBalance / 100).toFixed(2);
             document.getElementById('k-port-val').innerText = "$" + (app.kalshiPortfolio.portfolioValue / 100).toFixed(2);
@@ -620,28 +624,25 @@ const app = {
                 const side = p.position > 0 ? 'yes' : 'no';
                 const sideColor = side === 'yes' ? '#00E676' : '#FF5252';
                 
-                // --- 1. ENTRY MATH (Cost Basis) ---
                 const costBasisCents = count > 0 ? (p.total_traded / count) : 0;
                 const totalCostDollars = (p.total_traded / 100).toFixed(2);
-                
                 const entryProb = costBasisCents.toFixed(1);
                 const entryMulti = costBasisCents > 0 ? (100 / costBasisCents).toFixed(2) : '0.00';
                 
-                // --- 2. LIVE MARKET MATH (Current Bids) ---
-                // (We use the 'bid' because that is what you could instantly sell it for right now)
                 const currentBidCents = side === 'yes' ? (p.live_yes_bid || 0) : (p.live_no_bid || 0);
                 const currentValDollars = ((count * currentBidCents) / 100).toFixed(2);
-                
                 const liveProb = currentBidCents.toFixed(1);
                 const liveMulti = currentBidCents > 0 ? (100 / currentBidCents).toFixed(2) : '0.00';
                 
-                // --- 3. PROFIT & LOSS ---
                 const pnlDollars = (currentValDollars - totalCostDollars).toFixed(2);
                 const pnlColor = pnlDollars >= 0 ? '#00E676' : '#FF5252';
                 const pnlSign = pnlDollars >= 0 ? '+' : '';
 
-                // Clean up ticker for display
                 const shortTicker = p.ticker.substring(0, 35) + '...';
+                
+                // Check memory to see if this legs box should be open and pre-filled
+                const isExpanded = app.kalshiPortfolio.expandedLegs[p.ticker] ? 'block' : 'none';
+                const cachedHtml = app.kalshiPortfolio.marketCache[p.ticker] || '';
                 
                 html += `
                     <div style="background: linear-gradient(135deg, #11131a 0%, #050608 100%); border-left: 3px solid ${sideColor}; border-top: 1px solid #222; border-radius: 8px; padding: 12px; margin-bottom: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
@@ -652,21 +653,18 @@ const app = {
                         </div>
                         
                         <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px; font-family:'Martian Mono', monospace;">
-                            
                             <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; border: 1px solid #222; display:flex; justify-content:space-between; align-items:center;">
                                 <div style="font-size:0.6rem; color:#888;">ENTRY</div>
                                 <div style="font-size:0.75rem; color:#fff;">
                                     ${costBasisCents.toFixed(1)}¢ <span style="color:#555; margin:0 4px;">|</span> ${entryProb}% <span style="color:#555; margin:0 4px;">|</span> ${entryMulti}x
                                 </div>
                             </div>
-
                             <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; border: 1px solid #222; display:flex; justify-content:space-between; align-items:center;">
                                 <div style="font-size:0.6rem; color:#888;">LIVE SELL</div>
                                 <div style="font-size:0.75rem; color:#C6FF00;">
                                     ${currentBidCents}¢ <span style="color:#555; margin:0 4px;">|</span> ${liveProb}% <span style="color:#555; margin:0 4px;">|</span> ${liveMulti}x
                                 </div>
                             </div>
-
                             <div style="display:flex; justify-content:space-between; gap:6px; margin-top:2px;">
                                  <div style="flex:1; background: rgba(0,0,0,0.3); padding: 8px 4px; border-radius: 4px; border: 1px solid #222; text-align:center;">
                                     <div style="font-size:0.5rem; color:#888; margin-bottom:2px;">TOTAL COST</div>
@@ -681,47 +679,86 @@ const app = {
                                     <div style="font-size:0.8rem; color:${pnlColor}; font-weight:bold;">${pnlSign}$${pnlDollars}</div>
                                  </div>
                             </div>
-                            
                         </div>
 
-                                                <div style="display:flex; justify-content:space-between; gap: 8px;">
+                        <div style="display:flex; justify-content:space-between; gap: 8px;">
                             <button class="btn" style="flex:1; padding:8px 0; font-size:0.65rem; background:rgba(255, 255, 255, 0.05); border: 1px solid #333;" onclick="app.kalshiPortfolio.stageSell('${p.ticker}', '${side}', ${count})">SELL LIMIT</button>
                             <button class="btn" style="flex:1; padding:8px 0; font-size:0.65rem; background:rgba(255, 82, 82, 0.1); color:#FF5252; border: 1px solid #FF5252;" onclick="app.kalshiPortfolio.executeMarketSell('${p.ticker}', '${side}', ${count}, ${currentBidCents})">CASH OUT</button>
                             <button class="btn" style="flex:1; padding:8px 0; font-size:0.65rem; background:rgba(0, 230, 118, 0.1); color:#00E676; border: 1px solid #00E676;" onclick="app.kalshiPortfolio.viewLegs('${p.ticker}')">🔍 LEGS</button>
                         </div>
 
-                        <div id="legs-${p.ticker}" style="display:none; margin-top:10px; border-top:1px dashed #333; padding-top:10px;"></div>
+                        <div id="legs-${p.ticker}" style="display:${isExpanded}; margin-top:10px; border-top:1px dashed #333; padding-top:10px;">
+                            ${cachedHtml}
+                        </div>
                     </div>
-
                 `;
             });
             
             if (html === '') html = '<div style="color:#555; text-align:center; padding:10px;">No active positions found in wallet.</div>';
             div.innerHTML = html;
         },
+        
+        stageSell: (ticker, side, maxCount) => {
+            const price = prompt(`MARKET: ${ticker}\nSIDE: ${side.toUpperCase()}\n\nSet your target SELL PRICE (1 to 99 cents):`);
+            if(!price || isNaN(price) || price < 1 || price > 99) return;
+            const sellCount = prompt(`How many contracts do you want to sell at ${price}¢?\n(You currently have ${maxCount} available)`, maxCount);
+            if(!sellCount || isNaN(sellCount) || sellCount < 1 || sellCount > maxCount) return;
+            app.kalshiPortfolio.executeOrder(ticker, side, parseInt(sellCount), 'limit', parseInt(price));
+        },
+
+        executeMarketSell: (ticker, side, count, currentBid) => {
+            if(!confirm(`⚠️ INSTANT CASH OUT ⚠️\n\nYou are about to MARKET SELL ${count} [${side.toUpperCase()}] contracts.\n\nThe current highest bid is ${currentBid}¢.\nAre you sure you want to dump these instantly?`)) return;
+            app.kalshiPortfolio.executeOrder(ticker, side, count, 'market', null);
+        },
+        
+        executeOrder: async (ticker, side, count, type, price) => {
+            const div = document.getElementById('k-port-res');
+            div.innerHTML = `<div style="color:#FFEA00; text-align:center; padding:20px; font-weight:bold;">Executing ${type.toUpperCase()} Order on Exchange...</div>`;
+            const body = { action: 'sell', count: count, side: side, ticker: ticker, type: type, expiration_ts: null };
+            if (type === 'limit') {
+                if (side === 'yes') body.yes_price = price;
+                if (side === 'no') body.no_price = price;
+            }
+            const res = await app.bot.request('POST', '/trade-api/v2/portfolio/orders', body);
+            if(res && res.order) {
+                alert(`✅ ${type.toUpperCase()} ORDER SUBMITTED!\n\nOrder ID: ${res.order.order_id}`);
+                app.kalshiPortfolio.fetch(); 
+            } else {
+                alert("❌ Order Rejected by Exchange. Check API limits or liquidity.");
+                app.kalshiPortfolio.fetch(); 
+            }
+        },
+
         viewLegs: async (ticker) => {
             const div = document.getElementById(`legs-${ticker}`);
             
-            // Toggle close if already open
-            if (div.style.display === 'block') {
+            // 1. Toggle memory state
+            if (app.kalshiPortfolio.expandedLegs[ticker]) {
+                app.kalshiPortfolio.expandedLegs[ticker] = false;
                 div.style.display = 'none';
                 return;
             }
             
+            app.kalshiPortfolio.expandedLegs[ticker] = true;
             div.style.display = 'block';
+
+            // 2. Use Cache if available (prevents API spam)
+            if (app.kalshiPortfolio.marketCache[ticker]) {
+                div.innerHTML = app.kalshiPortfolio.marketCache[ticker];
+                return;
+            }
+            
             div.innerHTML = '<div style="color:#aaa; font-size:0.65rem; text-align:center;">Fetching market dossier from API...</div>';
             
             try {
-                // Fetch deep market rules
                 const data = await app.bot.request('GET', `/trade-api/v2/markets/${ticker}`);
-                
                 if (data && data.market) {
                     const m = data.market;
                     const subtitle = m.subtitle || "Single Event Market";
                     const rules = m.rules_primary || "No extended rules provided.";
                     const status = m.status || "active";
                     
-                    div.innerHTML = `
+                    const html = `
                         <div style="background:rgba(0,0,0,0.4); padding:10px; border-radius:6px; border:1px solid #222;">
                             <div style="font-size:0.6rem; color:#888; margin-bottom:4px; display:flex; justify-content:space-between;">
                                 <span>MARKET CONDITIONS</span>
@@ -735,59 +772,18 @@ const app = {
                             </div>
                         </div>
                     `;
+                    // 3. Save to cache and inject
+                    app.kalshiPortfolio.marketCache[ticker] = html;
+                    div.innerHTML = html;
                 } else {
                     div.innerHTML = '<div style="color:#FF5252; font-size:0.65rem; text-align:center;">Failed to load legs.</div>';
                 }
             } catch (e) {
                 div.innerHTML = '<div style="color:#FF5252; font-size:0.65rem; text-align:center;">Network Error fetching legs.</div>';
             }
-        },
-        
-        stageSell: (ticker, side, maxCount) => {
-            const price = prompt(`MARKET: ${ticker}\nSIDE: ${side.toUpperCase()}\n\nSet your target SELL PRICE (1 to 99 cents):`);
-            if(!price || isNaN(price) || price < 1 || price > 99) return;
-            
-            const sellCount = prompt(`How many contracts do you want to sell at ${price}¢?\n(You currently have ${maxCount} available)`, maxCount);
-            if(!sellCount || isNaN(sellCount) || sellCount < 1 || sellCount > maxCount) return;
-            
-            app.kalshiPortfolio.executeOrder(ticker, side, parseInt(sellCount), 'limit', parseInt(price));
-        },
-
-        executeMarketSell: (ticker, side, count, currentBid) => {
-            if(!confirm(`⚠️ INSTANT CASH OUT ⚠️\n\nYou are about to MARKET SELL ${count} [${side.toUpperCase()}] contracts.\n\nThe current highest bid is ${currentBid}¢.\nAre you sure you want to dump these instantly?`)) return;
-            
-            app.kalshiPortfolio.executeOrder(ticker, side, count, 'market', null);
-        },
-        
-        executeOrder: async (ticker, side, count, type, price) => {
-            const div = document.getElementById('k-port-res');
-            div.innerHTML = `<div style="color:#FFEA00; text-align:center; padding:20px; font-weight:bold;">Executing ${type.toUpperCase()} Order on Exchange...</div>`;
-
-            const body = {
-                action: 'sell',
-                count: count,
-                side: side,
-                ticker: ticker,
-                type: type, // 'limit' or 'market'
-                expiration_ts: null
-            };
-
-            if (type === 'limit') {
-                if (side === 'yes') body.yes_price = price;
-                if (side === 'no') body.no_price = price;
-            }
-            
-            const res = await app.bot.request('POST', '/trade-api/v2/portfolio/orders', body);
-            
-            if(res && res.order) {
-                alert(`✅ ${type.toUpperCase()} ORDER SUBMITTED!\n\nOrder ID: ${res.order.order_id}`);
-                app.kalshiPortfolio.fetch(); // Auto-refresh the board
-            } else {
-                alert("❌ Order Rejected by Exchange. Check API limits or liquidity.");
-                app.kalshiPortfolio.fetch(); // Reload the board
-            }
         }
     },
+
 
 // --- KALSHI AUTO-TRADER (HYBRID ENGINE) ---
     bot: {
