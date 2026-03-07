@@ -891,21 +891,20 @@ const app = {
     kalshiPortfolio: {
         positions: [],
 
-        fetch: async () => {
+                fetch: async () => {
             const div = document.getElementById('k-port-res');
-            div.innerHTML = '<div style="color:#C6FF00; text-align:center; padding:10px; font-weight:bold;">Authenticating & Syncing Portfolio...</div>';
+            div.innerHTML = '<div style="color:#C6FF00; text-align:center; padding:10px;">Pulling raw data...</div>';
             
-            // Uses your existing RSA-PSS Bridge Engine!
-            const data = await app.bot.request('GET', '/trade-api/v2/portfolio/positions?count_filter=position');
+            // We removed the position filter just to force Kalshi to send EVERYTHING it has
+            const data = await app.bot.request('GET', '/trade-api/v2/portfolio/positions?settlement_status=unsettled');
             
-            if (!data || !data.positions || data.positions.length === 0) {
-                div.innerHTML = '<div style="color:#555; text-align:center; padding:10px;">No active positions found in wallet.</div>';
-                return;
-            }
-            
-            app.kalshiPortfolio.positions = data.positions;
-            app.kalshiPortfolio.render();
+            // DUMP THE RAW JSON TO THE SCREEN
+            div.innerHTML = `<div style="font-family:monospace; font-size:0.65rem; color:#aaa; padding:10px; word-break:break-all;">
+                <b>RAW DATA:</b><br><br>
+                ${JSON.stringify(data)}
+            </div>`;
         },
+
         
         render: () => {
             const div = document.getElementById('k-port-res');
