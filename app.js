@@ -206,7 +206,7 @@ const app = {
     saveNoteAction: () => {
         const title = document.getElementById('note-title').value.trim() || 'Untitled Note';
         const dateStr = document.getElementById('note-date-input').value || new Date().toISOString();
-        const iconVal = document.getElementById('note-icon-input').value.trim().toLowerCase(); // Grab Icon
+        const iconVal = document.getElementById('note-icon-input').value.trim(); // Grab Icon
         
         if (app.currentNoteId) {
             // EDIT EXISTING
@@ -315,7 +315,25 @@ const app = {
                 const dateStr = !isNaN(dateObj) ? `${dateObj.getMonth()+1}/${dateObj.getDate()}/${dateObj.getFullYear()}` : n.date.split('T')[0];
 
                 // If no icon assigned, fallback to sticky_note_2
-                const dispIcon = n.icon ? n.icon : 'sticky_note_2';
+                                    const customVal = n.icon || '';
+                    let isEmojiText = false;
+                    let dispIcon = 'sticky_note_2';
+                    
+                    if (customVal) {
+                        if (!/^[a-z0-9_]+$/.test(customVal) || (customVal.length <= 2 && !['tv','hd','sd','mp','4g','5g','8k','wc','3d'].includes(customVal))) {
+                            isEmojiText = true;
+                        } else {
+                            dispIcon = customVal;
+                        }
+                    }
+                    
+                    let iconHtmlBlock = '';
+                    if (isEmojiText) {
+                        iconHtmlBlock = `<span style="color:${color}; margin-right:8px; font-size:16px; flex-shrink:0; display:inline-flex; justify-content:center; align-items:center; font-family:'Martian Mono', monospace;">${customVal}</span>`;
+                    } else {
+                        iconHtmlBlock = `<i class="material-icons-round" style="color:${color}; margin-right:8px; font-size:18px; flex-shrink:0;">${dispIcon}</i>`;
+                    }
+
 
                 const div = document.createElement('div');
                 div.className = 'note-standalone'; 
@@ -323,7 +341,7 @@ const app = {
                 div.innerHTML = `
                     <div class="note-card-header" id="note-head-${n.id}" style="background: linear-gradient(90deg, ${color}15 0%, rgba(0,0,0,0) 100%); border-bottom: 1px solid ${color}30;">
                         <div style="display:flex; align-items:center; flex-grow:1; overflow:hidden;">
-                            <i class="material-icons-round" style="color:${color}; margin-right:8px; font-size:18px; flex-shrink:0;">${dispIcon}</i>
+                            ${iconHtmlBlock}
                             <div class="note-card-title" style="color:${color}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${n.title.toUpperCase()}</div>
                         </div>
                         <div class="note-card-date" id="note-date-${n.id}" style="color:${color}; margin-left:8px; flex-shrink:0;">${dateStr}</div>
@@ -360,13 +378,31 @@ const app = {
                 groupNotes.forEach(n => {
                     const dateObj = new Date(n.date);
                     const dateStr = !isNaN(dateObj) ? `${dateObj.getMonth()+1}/${dateObj.getDate()}/${dateObj.getFullYear()}` : n.date.split('T')[0];
-                    const dispIcon = n.icon ? n.icon : 'sticky_note_2';
+                                        const customVal = n.icon || '';
+                    let isEmojiText = false;
+                    let dispIcon = 'sticky_note_2';
+                    
+                    if (customVal) {
+                        if (!/^[a-z0-9_]+$/.test(customVal) || (customVal.length <= 2 && !['tv','hd','sd','mp','4g','5g','8k','wc','3d'].includes(customVal))) {
+                            isEmojiText = true;
+                        } else {
+                            dispIcon = customVal;
+                        }
+                    }
+                    
+                    let iconHtmlBlock = '';
+                    if (isEmojiText) {
+                        iconHtmlBlock = `<span style="color:${color}; margin-right:8px; font-size:16px; flex-shrink:0; display:inline-flex; justify-content:center; align-items:center; font-family:'Martian Mono', monospace;">${customVal}</span>`;
+                    } else {
+                        iconHtmlBlock = `<i class="material-icons-round" style="color:${color}; margin-right:8px; font-size:18px; flex-shrink:0;">${dispIcon}</i>`;
+                    }
+
                     
                     html += `
                         <div class="note-card-inline" style="border-left-color:${color};">
                             <div class="note-card-header" id="note-head-${n.id}" style="background: linear-gradient(90deg, ${color}10 0%, rgba(0,0,0,0) 100%); border-bottom: 1px solid #1a1a1a;">
                                 <div style="display:flex; align-items:center; flex-grow:1; overflow:hidden;">
-                                    <i class="material-icons-round" style="color:${color}; margin-right:8px; font-size:18px; flex-shrink:0;">${dispIcon}</i>
+                                    ${iconHtmlBlock}
                                     <div class="note-card-title" style="color:${color}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${n.title.toUpperCase()}</div>
                                 </div>
                                 <div class="note-card-date" id="note-date-${n.id}" style="color:${color}; margin-left:8px; flex-shrink:0;">${dateStr}</div>
@@ -2234,10 +2270,18 @@ setTimeout(() => {
                     // Generate unique ID to track open/closed state
                     if(!t.id) t.id = 'tx_' + Date.now() + '_' + Math.floor(Math.random()*1000);
 
-                                        // --- 1. SET THE ICON (Custom Override First, then Default) ---
+                                                            // --- 1. SMART OMNI-FIELD (Icon vs Emoji/Text) ---
                     let iconCode = 'attach_money';
-                    if (t.customIcon) {
-                        iconCode = t.customIcon;
+                    let isEmojiText = false;
+                    let customVal = t.customIcon || ''; 
+
+                    if (customVal) {
+                        // THE BRAIN: If it has uppercase, spaces, emojis, or is <= 2 chars (and not a known short icon) -> It's Custom Text!
+                        if (!/^[a-z0-9_]+$/.test(customVal) || (customVal.length <= 2 && !['tv','hd','sd','mp','4g','5g','8k','wc','3d'].includes(customVal))) {
+                            isEmojiText = true;
+                        } else {
+                            iconCode = customVal;
+                        }
                     } else if (t.cat === 'pokerCash') {
                         iconCode = 'spades'; 
                     } else {
@@ -2245,10 +2289,10 @@ setTimeout(() => {
                         iconCode = iconMap[t.cat] || 'attach_money';
                     }
 
-                    // ... (tags logic stays the same) ...
+                    // ... (Tags logic stays exactly the same here) ...
                     const tags = [];
                     let titleText = (t.desc && t.desc.trim() !== "") ? t.desc : app.catLabel(t.cat);
-
+                    
                     if (t.cat === 'bets' && t.details) {
                         titleText = t.desc || "Bet";
                         if(t.details.wager) tags.push(`$${t.details.wager}`);
@@ -2265,19 +2309,28 @@ setTimeout(() => {
                     else if (t.cat === 'casino') tags.push('Casino');
 
                     const tagHtml = tags.map(tag => `<span class="tx-tag">${tag}</span>`).join('');
-                    
                     const amtStr = `$${Math.abs(t.amt).toLocaleString()}`;
                     const savedNote = t.journal || '';
 
-                    // --- 2. THE VISUAL NOTE INDICATOR (Sleek White Glow) ---
+                    // --- 2. THE VISUAL ICON/EMOJI GENERATOR ---
                     const hasNote = savedNote.trim().length > 0;
                     const iconBorderStyle = hasNote 
                         ? `border: 1px solid #fff; box-shadow: 0 0 10px rgba(255,255,255,0.25), inset 0 0 8px rgba(0,0,0,0.8);` 
                         : `border: 1px solid rgba(255,255,255,0.05); box-shadow: inset 0 0 8px rgba(0,0,0,0.5);`;
 
-                    const iconHtml = (iconCode === 'spades') 
-                        ? `<div class="tx-icon" id="icon-${t.id}" style="cursor:pointer; background:${color}20; color:${color}; font-family:serif; flex-shrink:0; transition:0.3s; ${iconBorderStyle}">♠</div>`
-                        : `<div class="tx-icon" id="icon-${t.id}" style="cursor:pointer; background:${color}20; color:${color}; flex-shrink:0; transition:0.3s; ${iconBorderStyle}"><i class="material-icons-round">${iconCode}</i></div>`;
+                    let innerIconHtml = '';
+                    if (isEmojiText) {
+                        // Wrap custom text/emoji in a span
+                        innerIconHtml = `<span style="font-size:20px; line-height:1; font-family:'Martian Mono', monospace;">${customVal}</span>`;
+                    } else if (iconCode === 'spades') {
+                        innerIconHtml = `♠`;
+                    } else {
+                        // Standard Material Icon
+                        innerIconHtml = `<i class="material-icons-round">${iconCode}</i>`;
+                    }
+
+                    // Build the outer box and perfectly center the contents using flexbox
+                    const iconHtml = `<div class="tx-icon" id="icon-${t.id}" style="cursor:pointer; background:${color}20; color:${color}; ${iconCode==='spades'?'font-family:serif;':''} flex-shrink:0; transition:0.3s; display:flex; justify-content:center; align-items:center; ${iconBorderStyle}">${innerIconHtml}</div>`;
 
                     // STRUCTURE
                     div.innerHTML = `
@@ -2746,7 +2799,7 @@ setTimeout(() => {
         const date = document.getElementById('inp-date').value;
         let amt = parseFloat(document.getElementById('inp-amt').value) || 0;
         let desc = document.getElementById('inp-desc').value;
-        const customIcon = document.getElementById('inp-icon').value.trim().toLowerCase(); // Grab Custom Icon
+        const customIcon = document.getElementById('inp-icon').value.trim(); // Grab Custom Icon
         let details = {};
         
         const val = (id) => parseFloat(document.getElementById(id).value) || 0;
