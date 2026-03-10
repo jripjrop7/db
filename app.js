@@ -2290,9 +2290,9 @@ setTimeout(() => {
                 
                 // Render the Date Separator Card
                 const sep = document.createElement('div');
-                                // --- PULL CRYPTO DATA FOR THIS DATE ---
-                // (Assuming your raw YYYY-MM-DD date string is just called 'date'. If your loop uses a different name like 'dateKey', change it here)
-                const cData = app.cryptoEngine ? app.cryptoEngine.history[date] : null; 
+                                                // --- PULL CRYPTO DATA FOR THIS DATE ---
+                // We changed 'date' to 'dateStr' so it matches your loop variable perfectly!
+                const cData = (app.cryptoEngine && app.cryptoEngine.history) ? app.cryptoEngine.history[dateStr] : null; 
                 let cryptoHtml = `<span style="color:#555;">Loading market...</span>`;
                 
                 if (cData && cData.btc) {
@@ -2310,35 +2310,30 @@ setTimeout(() => {
                 sep.className = 'date-separator';
                 sep.innerHTML = `
                     <div id="date-head-${safeId}" style="cursor:pointer;">
-                                                                        <div style="display:flex; justify-content:flex-end; align-items:center; position:relative; min-height:21px; margin-bottom:6px;">
-                            
+                        
+                        <div style="display:flex; justify-content:flex-end; align-items:center; position:relative; min-height:21px; margin-bottom:6px;">
                             <span style="position:absolute; left:50%; transform:translateX(-50%); font-weight:bold; letter-spacing:1px; white-space:nowrap; color:#FF007F;">
                                 🏴‍☠️ ${dateStr.toUpperCase()} 🏴‍☠️ 
                                 <i id="date-icon-${safeId}" class="material-icons-round" style="font-size:18px; vertical-align:middle; color:${arrowColor}; margin-left:4px; transition:0.3s;">${isExpanded ? 'expand_less' : 'expand_more'}</i>
                             </span>
-                            
                             <span style="font-weight:bold; z-index:1; color:${g.net >= 0 ? '#00E676' : '#D50000'}">
                                 ${g.net >= 0 ? '+' : '-'}$${Math.abs(g.net).toLocaleString()}
                             </span>
-                            
                         </div>
                        
-                                                <div class="date-sep-stats" style="display:flex; justify-content:space-between; align-items:center; font-family:'Martian Mono', monospace; font-size:0.6rem; margin-top:8px; border-top:1px solid #222; padding-top:6px;">
-                            
+                        <div class="date-sep-stats" style="display:flex; justify-content:space-between; align-items:center; font-family:'Martian Mono', monospace; font-size:0.6rem; margin-top:8px; border-top:1px solid #222; padding-top:6px;">
                             <div>${cryptoHtml}</div>
-                            
                             <div style="color:#9D2BFF; text-align:right;">
                                 TX ${g.count}/<span style="color:#00E676;">$${Math.round(g.credits).toLocaleString()}</span>/<span style="color:#FF5252;">$${Math.round(g.debits).toLocaleString()}</span>
                             </div>
-
                         </div>
 
-                    
-                    <div id="date-note-${safeId}" style="display:${isExpanded ? 'block' : 'none'}; margin-top:12px; padding-top:12px; border-top:1px dashed rgba(255, 0, 127, 0.4);">
+                    </div> <div id="date-note-${safeId}" style="display:${isExpanded ? 'block' : 'none'}; margin-top:12px; padding-top:12px; border-top:1px dashed rgba(255, 0, 127, 0.4);">
                         <textarea id="date-text-${safeId}" rows="3" placeholder="Bring your girl to the crib, maybe we can solve 'em..." style="background:#050505; border:1px solid #333; color:#ccc; font-size:0.8rem; margin-bottom:4px; padding:10px; width:100%; border-radius:6px; resize:vertical; font-family:inherit; outline:none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);"></textarea>
                     </div>
                 `;
                 list.appendChild(sep);
+
 
                 // --- BIND THE AUTO-SAVE & PERSISTENCE LOGIC ---
                 const headEl = sep.querySelector(`#date-head-${safeId}`);
