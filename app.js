@@ -637,32 +637,41 @@ const app = {
     },
 
 
-            // --- CRYPTO MARKET HISTORY ENGINE (COINGECKO) ---
+                // --- CRYPTO MARKET HISTORY ENGINE (BULLETPROOF) ---
     cryptoEngine: {
-        history: {}, 
+        // Load from phone memory first so we don't spam the API on every refresh
+        history: JSON.parse(localStorage.getItem('k_crypto_hist') || '{}'),
+        lastFetch: parseInt(localStorage.getItem('k_crypto_time') || '0'),
         
         fetchData: async () => {
+            const now = Date.now();
+            
+            // Only ping CoinGecko if we have no data, or if it's been more than 4 hours
+            if (Object.keys(app.cryptoEngine.history).length > 0 && (now - app.cryptoEngine.lastFetch < 14400000)) {
+                app.render(); // Data is safe in memory, just render!
+                return;
+            }
+            
             try {
-                // Fetch the last 1000 days of daily midnight prices for BTC and ETH
                 const [btcRes, ethRes] = await Promise.all([
                     fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=1000&interval=daily'),
                     fetch('https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&days=1000&interval=daily')
                 ]);
                 
+                if (!btcRes.ok || !ethRes.ok) throw new Error("CoinGecko Rate Limited Us");
+
                 const btcData = await btcRes.json();
                 const ethData = await ethRes.json();
 
-                // Process BTC (Calculate % change using yesterday's close as today's open)
+                // Process BTC
                 if (btcData && btcData.prices) {
                     for (let i = 1; i < btcData.prices.length; i++) {
                         const date = new Date(btcData.prices[i][0]).toISOString().split('T')[0];
                         const open = btcData.prices[i-1][1];
                         const close = btcData.prices[i][1];
-                        const pct = ((close - open) / open) * 100;
-                        
                         if (!app.cryptoEngine.history[date]) app.cryptoEngine.history[date] = {};
                         app.cryptoEngine.history[date].btc = close;
-                        app.cryptoEngine.history[date].btcPct = pct;
+                        app.cryptoEngine.history[date].btcPct = ((close - open) / open) * 100;
                     }
                 }
 
@@ -672,21 +681,41 @@ const app = {
                         const date = new Date(ethData.prices[i][0]).toISOString().split('T')[0];
                         const open = ethData.prices[i-1][1];
                         const close = ethData.prices[i][1];
-                        const pct = ((close - open) / open) * 100;
-                        
                         if (!app.cryptoEngine.history[date]) app.cryptoEngine.history[date] = {};
                         app.cryptoEngine.history[date].eth = close;
-                        app.cryptoEngine.history[date].ethPct = pct;
+                        app.cryptoEngine.history[date].ethPct = ((close - open) / open) * 100;
                     }
                 }
                 
-                // Trigger a silent visual refresh once the market data loads
+                // Save safely to phone memory
+                localStorage.setItem('k_crypto_hist', JSON.stringify(app.cryptoEngine.history));
+                localStorage.setItem('k_crypto_time', now.toString());
+                
                 app.render(); 
             } catch (e) {
-                console.log("Crypto market data failed to load:", e);
+                console.log("Crypto fetch skipped/failed:", e.message);
+                app.render(); // Still render so the UI doesn't hang forever
             }
+        },
+
+        // Fuzzy Matcher: Finds the closest date regardless of timezone shifts
+        getDataForDate: (targetDateStr) => {
+            try {
+                // Force convert whatever date string format the loop uses into standard YYYY-MM-DD
+                const d = new Date(targetDateStr);
+                const exact = d.toISOString().split('T')[0];
+                if (app.cryptoEngine.history[exact]) return app.cryptoEngine.history[exact];
+                
+                // If UTC timezone shifted it, check 1 day prior
+                const prev = new Date(d); prev.setDate(prev.getDate() - 1);
+                const prevStr = prev.toISOString().split('T')[0];
+                if (app.cryptoEngine.history[prevStr]) return app.cryptoEngine.history[prevStr];
+                
+            } catch(e) {}
+            return null;
         }
     },
+
 
 
 
@@ -2296,8 +2325,9 @@ setTimeout(() => {
                 const sep = document.createElement('div');
                                                 // --- PULL CRYPTO DATA FOR THIS DATE ---
                 // We changed 'date' to 'dateStr' so it matches your loop variable perfectly!
-                const cData = (app.cryptoEngine && app.cryptoEngine.history) ? app.cryptoEngine.history[dateStr] : null; 
-                let cryptoHtml = `<span style="color:#555;">Loading market...</span>`;
+                const cData = app.cryptoEngine ? app.cryptoEngine.getDataForDate(dateStr) : null; 
+                let cryptoHtml = `<span style="color:#555;">Market data unavailable</span>`;
+
                 
                 if (cData && cData.btc) {
                     const bColor = cData.btcPct >= 0 ? '#00E676' : '#FF5252';
