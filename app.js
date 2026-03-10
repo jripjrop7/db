@@ -637,7 +637,54 @@ const app = {
     },
 
 
-    
+        // --- CRYPTO MARKET HISTORY ENGINE ---
+    cryptoEngine: {
+        history: {}, // Stores dates: { "2024-03-09": { btc: 68000, btcPct: 2.5, eth: 3900, ethPct: -1.2 } }
+        
+        fetchData: async () => {
+            try {
+                // Fetch the last 1000 days of daily candles for BTC and ETH
+                const [btcRes, ethRes] = await Promise.all([
+                    fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=1000'),
+                    fetch('https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=1000')
+                ]);
+                
+                const btcData = await btcRes.json();
+                const ethData = await ethRes.json();
+
+                // Process BTC
+                btcData.forEach(candle => {
+                    // candle[0] is the UTC open time, which aligns with standard crypto market days
+                    const date = new Date(candle[0]).toISOString().split('T')[0]; 
+                    const open = parseFloat(candle[1]);
+                    const close = parseFloat(candle[4]);
+                    const pct = ((close - open) / open) * 100;
+                    
+                    if (!app.cryptoEngine.history[date]) app.cryptoEngine.history[date] = {};
+                    app.cryptoEngine.history[date].btc = close;
+                    app.cryptoEngine.history[date].btcPct = pct;
+                });
+
+                // Process ETH
+                ethData.forEach(candle => {
+                    const date = new Date(candle[0]).toISOString().split('T')[0];
+                    const open = parseFloat(candle[1]);
+                    const close = parseFloat(candle[4]);
+                    const pct = ((close - open) / open) * 100;
+                    
+                    if (!app.cryptoEngine.history[date]) app.cryptoEngine.history[date] = {};
+                    app.cryptoEngine.history[date].eth = close;
+                    app.cryptoEngine.history[date].ethPct = pct;
+                });
+                
+                // Trigger a silent visual refresh once the market data loads
+                app.render(); 
+            } catch (e) {
+                console.log("Crypto market data failed to load:", e);
+            }
+        }
+    },
+
 
             // --- KALSHI COMMAND CENTER (LIVE PNL & TRADING) ---
     kalshiPortfolio: {
@@ -1714,6 +1761,7 @@ setTimeout(() => {
         app.setupCollapsibles();         
         app.iconTools.init();
         app.renderEmojiVault();
+        app.cryptoEngine.fetchData();
 
     },
 
@@ -2242,6 +2290,23 @@ setTimeout(() => {
                 
                 // Render the Date Separator Card
                 const sep = document.createElement('div');
+                                // --- PULL CRYPTO DATA FOR THIS DATE ---
+                // (Assuming your raw YYYY-MM-DD date string is just called 'date'. If your loop uses a different name like 'dateKey', change it here)
+                const cData = app.cryptoEngine ? app.cryptoEngine.history[date] : null; 
+                let cryptoHtml = `<span style="color:#555;">Loading market...</span>`;
+                
+                if (cData && cData.btc) {
+                    const bColor = cData.btcPct >= 0 ? '#00E676' : '#FF5252';
+                    const bSign = cData.btcPct >= 0 ? '+' : '';
+                    const eColor = cData.ethPct >= 0 ? '#00E676' : '#FF5252';
+                    const eSign = cData.ethPct >= 0 ? '+' : '';
+                    
+                    cryptoHtml = `
+                        <span style="color:#9D2BFF;">BTC=$${Math.round(cData.btc).toLocaleString()}</span> <span style="color:${bColor};">${bSign}${cData.btcPct.toFixed(2)}%</span>
+                        <span style="color:#9D2BFF; margin-left:6px;">ETH=$${Math.round(cData.eth).toLocaleString()}</span> <span style="color:${eColor};">${eSign}${cData.ethPct.toFixed(2)}%</span>
+                    `;
+                }
+
                 sep.className = 'date-separator';
                 sep.innerHTML = `
                     <div id="date-head-${safeId}" style="cursor:pointer;">
@@ -2258,12 +2323,16 @@ setTimeout(() => {
                             
                         </div>
                        
-                        <div class="date-sep-stats">
-                            <span>TXNS: ${g.count}</span>
-                            <span style="color:#00C853">IN: +$${g.credits.toLocaleString()}</span>
-                            <span style="color:#D50000">OUT: -$${g.debits.toLocaleString()}</span>
+                                                <div class="date-sep-stats" style="display:flex; justify-content:space-between; align-items:center; font-family:'Martian Mono', monospace; font-size:0.6rem; margin-top:8px; border-top:1px solid #222; padding-top:6px;">
+                            
+                            <div>${cryptoHtml}</div>
+                            
+                            <div style="color:#9D2BFF; text-align:right;">
+                                TX ${g.count}/<span style="color:#00E676;">$${Math.round(g.credits).toLocaleString()}</span>/<span style="color:#FF5252;">$${Math.round(g.debits).toLocaleString()}</span>
+                            </div>
+
                         </div>
-                    </div>
+
                     
                     <div id="date-note-${safeId}" style="display:${isExpanded ? 'block' : 'none'}; margin-top:12px; padding-top:12px; border-top:1px dashed rgba(255, 0, 127, 0.4);">
                         <textarea id="date-text-${safeId}" rows="3" placeholder="Bring your girl to the crib, maybe we can solve 'em..." style="background:#050505; border:1px solid #333; color:#ccc; font-size:0.8rem; margin-bottom:4px; padding:10px; width:100%; border-radius:6px; resize:vertical; font-family:inherit; outline:none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);"></textarea>
