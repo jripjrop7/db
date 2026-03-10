@@ -637,45 +637,48 @@ const app = {
     },
 
 
-        // --- CRYPTO MARKET HISTORY ENGINE ---
+            // --- CRYPTO MARKET HISTORY ENGINE (COINGECKO) ---
     cryptoEngine: {
-        history: {}, // Stores dates: { "2024-03-09": { btc: 68000, btcPct: 2.5, eth: 3900, ethPct: -1.2 } }
+        history: {}, 
         
         fetchData: async () => {
             try {
-                // Fetch the last 1000 days of daily candles for BTC and ETH
+                // Fetch the last 1000 days of daily midnight prices for BTC and ETH
                 const [btcRes, ethRes] = await Promise.all([
-                    fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=1000'),
-                    fetch('https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=1d&limit=1000')
+                    fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=1000&interval=daily'),
+                    fetch('https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&days=1000&interval=daily')
                 ]);
                 
                 const btcData = await btcRes.json();
                 const ethData = await ethRes.json();
 
-                // Process BTC
-                btcData.forEach(candle => {
-                    // candle[0] is the UTC open time, which aligns with standard crypto market days
-                    const date = new Date(candle[0]).toISOString().split('T')[0]; 
-                    const open = parseFloat(candle[1]);
-                    const close = parseFloat(candle[4]);
-                    const pct = ((close - open) / open) * 100;
-                    
-                    if (!app.cryptoEngine.history[date]) app.cryptoEngine.history[date] = {};
-                    app.cryptoEngine.history[date].btc = close;
-                    app.cryptoEngine.history[date].btcPct = pct;
-                });
+                // Process BTC (Calculate % change using yesterday's close as today's open)
+                if (btcData && btcData.prices) {
+                    for (let i = 1; i < btcData.prices.length; i++) {
+                        const date = new Date(btcData.prices[i][0]).toISOString().split('T')[0];
+                        const open = btcData.prices[i-1][1];
+                        const close = btcData.prices[i][1];
+                        const pct = ((close - open) / open) * 100;
+                        
+                        if (!app.cryptoEngine.history[date]) app.cryptoEngine.history[date] = {};
+                        app.cryptoEngine.history[date].btc = close;
+                        app.cryptoEngine.history[date].btcPct = pct;
+                    }
+                }
 
                 // Process ETH
-                ethData.forEach(candle => {
-                    const date = new Date(candle[0]).toISOString().split('T')[0];
-                    const open = parseFloat(candle[1]);
-                    const close = parseFloat(candle[4]);
-                    const pct = ((close - open) / open) * 100;
-                    
-                    if (!app.cryptoEngine.history[date]) app.cryptoEngine.history[date] = {};
-                    app.cryptoEngine.history[date].eth = close;
-                    app.cryptoEngine.history[date].ethPct = pct;
-                });
+                if (ethData && ethData.prices) {
+                    for (let i = 1; i < ethData.prices.length; i++) {
+                        const date = new Date(ethData.prices[i][0]).toISOString().split('T')[0];
+                        const open = ethData.prices[i-1][1];
+                        const close = ethData.prices[i][1];
+                        const pct = ((close - open) / open) * 100;
+                        
+                        if (!app.cryptoEngine.history[date]) app.cryptoEngine.history[date] = {};
+                        app.cryptoEngine.history[date].eth = close;
+                        app.cryptoEngine.history[date].ethPct = pct;
+                    }
+                }
                 
                 // Trigger a silent visual refresh once the market data loads
                 app.render(); 
@@ -684,6 +687,7 @@ const app = {
             }
         }
     },
+
 
 
             // --- KALSHI COMMAND CENTER (LIVE PNL & TRADING) ---
