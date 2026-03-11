@@ -637,87 +637,91 @@ const app = {
     },
 
 
-                    // --- CRYPTO MARKET HISTORY ENGINE (DIAGNOSTIC) ---
-        // --- CRYPTO MARKET HISTORY ENGINE (COINCAP) ---
+                        // --- CRYPTO MARKET HISTORY ENGINE (PERMANENT CACHE) ---
     cryptoEngine: {
-        history: {}, 
-        status: "WAITING...",
+        // Load the permanent database from the phone's hard drive
+        history: JSON.parse(localStorage.getItem('k_crypto_hist') || '{}'),
+        status: "CHECKING CACHE...",
         
         fetchData: async () => {
-            app.cryptoEngine.status = "PINGING COINCAP...";
+            app.cryptoEngine.status = "UPDATING DATABASE...";
             if (typeof app.render === 'function') app.render(); 
             
             try {
-                // Fetch daily historical data from CoinCap (No CORS blocks, no US bans)
+                // CryptoCompare allows local apps and provides perfect daily Open/Close data
                 const [btcRes, ethRes] = await Promise.all([
-                    fetch('https://api.coincap.io/v2/assets/bitcoin/history?interval=d1'),
-                    fetch('https://api.coincap.io/v2/assets/ethereum/history?interval=d1')
+                    fetch('https://min-api.cryptocompare.com/data/v2/histoday?fsym=BTC&tsym=USD&limit=1000'),
+                    fetch('https://min-api.cryptocompare.com/data/v2/histoday?fsym=ETH&tsym=USD&limit=1000')
                 ]);
                 
-                if (!btcRes.ok || !ethRes.ok) throw new Error("API Connection Blocked");
+                if (!btcRes.ok || !ethRes.ok) throw new Error("Connection Blocked");
 
-                const btcData = await btcRes.json();
-                const ethData = await ethRes.json();
-
-                let addedCount = 0;
+                const btcJson = await btcRes.json();
+                const ethJson = await ethRes.json();
 
                 // Process BTC
-                if (btcData && btcData.data) {
-                    for (let i = 1; i < btcData.data.length; i++) {
-                        const date = btcData.data[i].date.split('T')[0]; // Grabs exact YYYY-MM-DD
-                        const open = parseFloat(btcData.data[i-1].priceUsd);
-                        const close = parseFloat(btcData.data[i].priceUsd);
-                        if (!app.cryptoEngine.history[date]) app.cryptoEngine.history[date] = {};
-                        app.cryptoEngine.history[date].btc = close;
-                        app.cryptoEngine.history[date].btcPct = ((close - open) / open) * 100;
-                        addedCount++;
-                    }
+                if (btcJson && btcJson.Data && btcJson.Data.Data) {
+                    btcJson.Data.Data.forEach(day => {
+                        // CryptoCompare uses seconds, so we multiply by 1000 for standard milliseconds
+                        const dateStr = new Date(day.time * 1000).toISOString().split('T')[0];
+                        if (!app.cryptoEngine.history[dateStr]) app.cryptoEngine.history[dateStr] = {};
+                        app.cryptoEngine.history[dateStr].btc = day.close;
+                        app.cryptoEngine.history[dateStr].btcPct = day.open > 0 ? ((day.close - day.open) / day.open) * 100 : 0;
+                    });
                 }
 
                 // Process ETH
-                if (ethData && ethData.data) {
-                    for (let i = 1; i < ethData.data.length; i++) {
-                        const date = ethData.data[i].date.split('T')[0];
-                        const open = parseFloat(ethData.data[i-1].priceUsd);
-                        const close = parseFloat(ethData.data[i].priceUsd);
-                        if (!app.cryptoEngine.history[date]) app.cryptoEngine.history[date] = {};
-                        app.cryptoEngine.history[date].eth = close;
-                        app.cryptoEngine.history[date].ethPct = ((close - open) / open) * 100;
-                    }
+                if (ethJson && ethJson.Data && ethJson.Data.Data) {
+                    ethJson.Data.Data.forEach(day => {
+                        const dateStr = new Date(day.time * 1000).toISOString().split('T')[0];
+                        if (!app.cryptoEngine.history[dateStr]) app.cryptoEngine.history[dateStr] = {};
+                        app.cryptoEngine.history[dateStr].eth = day.close;
+                        app.cryptoEngine.history[dateStr].ethPct = day.open > 0 ? ((day.close - day.open) / day.open) * 100 : 0;
+                    });
                 }
                 
-                if (addedCount > 0) {
-                    app.cryptoEngine.status = "ONLINE";
-                } else {
-                    app.cryptoEngine.status = "API RETURNED EMPTY";
-                }
+                // YOUR IDEA: Permanently save the updated database to the phone!
+                localStorage.setItem('k_crypto_hist', JSON.stringify(app.cryptoEngine.history));
                 
-                // Trigger visual refresh
+                app.cryptoEngine.status = "ONLINE";
                 if (typeof app.render === 'function') app.render(); 
             } catch (e) {
-                app.cryptoEngine.status = "NETWORK ERR: " + e.message;
+                // Even if offline, we still have the cache!
+                app.cryptoEngine.status = "OFFLINE (USING CACHE)";
                 if (typeof app.render === 'function') app.render();
             }
         },
 
         getDataForDate: (targetDateStr) => {
-            if (app.cryptoEngine.status !== "ONLINE") return null;
             try {
-                // targetDateStr is exactly "Tue, Mar 10, 2026"
+                // targetDateStr comes in as "Tue, Mar 10, 2026"
                 const d = new Date(targetDateStr);
                 if (isNaN(d.getTime())) return null; 
                 
-                // Force local extraction to perfectly avoid UTC timezone shifting
+                // Extract local date perfectly to match the database keys
                 const yyyy = d.getFullYear();
                 const mm = String(d.getMonth() + 1).padStart(2, '0');
                 const dd = String(d.getDate()).padStart(2, '0');
-                const exact = `${yyyy}-${mm}-${dd}`; // Formats to "2026-03-10"
+                const exact = `${yyyy}-${mm}-${dd}`; 
                 
-                if (app.cryptoEngine.history[exact]) return app.cryptoEngine.history[exact];
+                // 1. Check exact date
+                if (app.cryptoEngine.history[exact] && app.cryptoEngine.history[exact].btc) {
+                    return app.cryptoEngine.history[exact];
+                }
+                
+                // 2. Fallback: Check yesterday if exact hasn't posted yet
+                const prev = new Date(d); prev.setDate(prev.getDate() - 1);
+                const exactPrev = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-${String(prev.getDate()).padStart(2, '0')}`;
+                
+                if (app.cryptoEngine.history[exactPrev] && app.cryptoEngine.history[exactPrev].btc) {
+                    return app.cryptoEngine.history[exactPrev];
+                }
             } catch(e) {}
+            
             return null;
         }
     },
+
 
 
 
