@@ -638,22 +638,23 @@ const app = {
 
 
                     // --- CRYPTO MARKET HISTORY ENGINE (DIAGNOSTIC) ---
+        // --- CRYPTO MARKET HISTORY ENGINE (COINCAP) ---
     cryptoEngine: {
         history: {}, 
-        status: "WAITING FOR INIT COMMAND...",
+        status: "WAITING...",
         
         fetchData: async () => {
-            app.cryptoEngine.status = "PINGING COINGECKO...";
-            if (typeof app.render === 'function') app.render(); // Force UI update
+            app.cryptoEngine.status = "PINGING COINCAP...";
+            if (typeof app.render === 'function') app.render(); 
             
             try {
+                // Fetch daily historical data from CoinCap (No CORS blocks, no US bans)
                 const [btcRes, ethRes] = await Promise.all([
-                    fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=1000&interval=daily'),
-                    fetch('https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&days=1000&interval=daily')
+                    fetch('https://api.coincap.io/v2/assets/bitcoin/history?interval=d1'),
+                    fetch('https://api.coincap.io/v2/assets/ethereum/history?interval=d1')
                 ]);
                 
-                if (!btcRes.ok) throw new Error(`BTC_ERR_${btcRes.status}`);
-                if (!ethRes.ok) throw new Error(`ETH_ERR_${ethRes.status}`);
+                if (!btcRes.ok || !ethRes.ok) throw new Error("API Connection Blocked");
 
                 const btcData = await btcRes.json();
                 const ethData = await ethRes.json();
@@ -661,11 +662,11 @@ const app = {
                 let addedCount = 0;
 
                 // Process BTC
-                if (btcData && btcData.prices) {
-                    for (let i = 1; i < btcData.prices.length; i++) {
-                        const date = new Date(btcData.prices[i][0]).toISOString().split('T')[0];
-                        const open = btcData.prices[i-1][1];
-                        const close = btcData.prices[i][1];
+                if (btcData && btcData.data) {
+                    for (let i = 1; i < btcData.data.length; i++) {
+                        const date = btcData.data[i].date.split('T')[0]; // Grabs exact YYYY-MM-DD
+                        const open = parseFloat(btcData.data[i-1].priceUsd);
+                        const close = parseFloat(btcData.data[i].priceUsd);
                         if (!app.cryptoEngine.history[date]) app.cryptoEngine.history[date] = {};
                         app.cryptoEngine.history[date].btc = close;
                         app.cryptoEngine.history[date].btcPct = ((close - open) / open) * 100;
@@ -674,11 +675,11 @@ const app = {
                 }
 
                 // Process ETH
-                if (ethData && ethData.prices) {
-                    for (let i = 1; i < ethData.prices.length; i++) {
-                        const date = new Date(ethData.prices[i][0]).toISOString().split('T')[0];
-                        const open = ethData.prices[i-1][1];
-                        const close = ethData.prices[i][1];
+                if (ethData && ethData.data) {
+                    for (let i = 1; i < ethData.data.length; i++) {
+                        const date = ethData.data[i].date.split('T')[0];
+                        const open = parseFloat(ethData.data[i-1].priceUsd);
+                        const close = parseFloat(ethData.data[i].priceUsd);
                         if (!app.cryptoEngine.history[date]) app.cryptoEngine.history[date] = {};
                         app.cryptoEngine.history[date].eth = close;
                         app.cryptoEngine.history[date].ethPct = ((close - open) / open) * 100;
@@ -691,6 +692,7 @@ const app = {
                     app.cryptoEngine.status = "API RETURNED EMPTY";
                 }
                 
+                // Trigger visual refresh
                 if (typeof app.render === 'function') app.render(); 
             } catch (e) {
                 app.cryptoEngine.status = "NETWORK ERR: " + e.message;
@@ -701,19 +703,22 @@ const app = {
         getDataForDate: (targetDateStr) => {
             if (app.cryptoEngine.status !== "ONLINE") return null;
             try {
+                // targetDateStr is exactly "Tue, Mar 10, 2026"
                 const d = new Date(targetDateStr);
-                if (isNaN(d.getTime())) return null; // Invalid date format
-                const exact = d.toISOString().split('T')[0];
-                if (app.cryptoEngine.history[exact]) return app.cryptoEngine.history[exact];
+                if (isNaN(d.getTime())) return null; 
                 
-                // Fallback: Check yesterday in case of timezone shift
-                const prev = new Date(d); prev.setDate(prev.getDate() - 1);
-                const prevStr = prev.toISOString().split('T')[0];
-                if (app.cryptoEngine.history[prevStr]) return app.cryptoEngine.history[prevStr];
+                // Force local extraction to perfectly avoid UTC timezone shifting
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const exact = `${yyyy}-${mm}-${dd}`; // Formats to "2026-03-10"
+                
+                if (app.cryptoEngine.history[exact]) return app.cryptoEngine.history[exact];
             } catch(e) {}
             return null;
         }
     },
+
 
 
 
