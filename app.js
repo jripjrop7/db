@@ -722,12 +722,6 @@ const app = {
         }
     },
 
-
-
-
-
-
-
             // --- KALSHI COMMAND CENTER (LIVE PNL & TRADING) ---
     kalshiPortfolio: {
         positions: [],
@@ -875,6 +869,31 @@ const app = {
             
             if (html === '') html = '<div style="color:#555; text-align:center; padding:10px;">No active positions found in wallet.</div>';
             div.innerHTML = html;
+                        // --- 🚀 AUTO-EXPAND ENGINE FOR ALL INLINE NOTES ---
+            // Grabs every textarea on the screen
+            document.querySelectorAll('textarea').forEach(ta => {
+                // Skip the pop-up modal text boxes so we don't break their layouts
+                if(ta.closest('.modal')) return; 
+
+                // Lock manual scrolling and dragging
+                ta.style.resize = 'none';
+                ta.style.overflow = 'hidden';
+                ta.style.minHeight = '60px'; // Keeps a nice clean shape when totally empty
+                
+                // The math to perfectly snap the box to the text height
+                const autoFit = () => {
+                    ta.style.height = 'auto'; // Reset it briefly
+                    ta.style.height = ta.scrollHeight + 'px'; // Snap it to exact pixel depth
+                };
+                
+                // 1. Adjust in real-time as you type
+                ta.addEventListener('input', autoFit);
+                
+                // 2. The Magic Trick: ResizeObserver automatically fires 'autoFit' the 
+                // exact millisecond you click to open a closed Date Separator!
+                const observer = new ResizeObserver(() => autoFit());
+                observer.observe(ta);
+            });
         },
         
         stageSell: (ticker, side, maxCount) => {
