@@ -637,20 +637,14 @@ const app = {
     },
 
 
-                // --- CRYPTO MARKET HISTORY ENGINE (BULLETPROOF) ---
+                    // --- CRYPTO MARKET HISTORY ENGINE (DIAGNOSTIC) ---
     cryptoEngine: {
-        // Load from phone memory first so we don't spam the API on every refresh
-        history: JSON.parse(localStorage.getItem('k_crypto_hist') || '{}'),
-        lastFetch: parseInt(localStorage.getItem('k_crypto_time') || '0'),
+        history: {}, 
+        status: "WAITING FOR INIT COMMAND...",
         
         fetchData: async () => {
-            const now = Date.now();
-            
-            // Only ping CoinGecko if we have no data, or if it's been more than 4 hours
-            if (Object.keys(app.cryptoEngine.history).length > 0 && (now - app.cryptoEngine.lastFetch < 14400000)) {
-                app.render(); // Data is safe in memory, just render!
-                return;
-            }
+            app.cryptoEngine.status = "PINGING COINGECKO...";
+            if (typeof app.render === 'function') app.render(); // Force UI update
             
             try {
                 const [btcRes, ethRes] = await Promise.all([
@@ -658,10 +652,13 @@ const app = {
                     fetch('https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&days=1000&interval=daily')
                 ]);
                 
-                if (!btcRes.ok || !ethRes.ok) throw new Error("CoinGecko Rate Limited Us");
+                if (!btcRes.ok) throw new Error(`BTC_ERR_${btcRes.status}`);
+                if (!ethRes.ok) throw new Error(`ETH_ERR_${ethRes.status}`);
 
                 const btcData = await btcRes.json();
                 const ethData = await ethRes.json();
+
+                let addedCount = 0;
 
                 // Process BTC
                 if (btcData && btcData.prices) {
@@ -672,6 +669,7 @@ const app = {
                         if (!app.cryptoEngine.history[date]) app.cryptoEngine.history[date] = {};
                         app.cryptoEngine.history[date].btc = close;
                         app.cryptoEngine.history[date].btcPct = ((close - open) / open) * 100;
+                        addedCount++;
                     }
                 }
 
@@ -687,34 +685,36 @@ const app = {
                     }
                 }
                 
-                // Save safely to phone memory
-                localStorage.setItem('k_crypto_hist', JSON.stringify(app.cryptoEngine.history));
-                localStorage.setItem('k_crypto_time', now.toString());
+                if (addedCount > 0) {
+                    app.cryptoEngine.status = "ONLINE";
+                } else {
+                    app.cryptoEngine.status = "API RETURNED EMPTY";
+                }
                 
-                app.render(); 
+                if (typeof app.render === 'function') app.render(); 
             } catch (e) {
-                console.log("Crypto fetch skipped/failed:", e.message);
-                app.render(); // Still render so the UI doesn't hang forever
+                app.cryptoEngine.status = "NETWORK ERR: " + e.message;
+                if (typeof app.render === 'function') app.render();
             }
         },
 
-        // Fuzzy Matcher: Finds the closest date regardless of timezone shifts
         getDataForDate: (targetDateStr) => {
+            if (app.cryptoEngine.status !== "ONLINE") return null;
             try {
-                // Force convert whatever date string format the loop uses into standard YYYY-MM-DD
                 const d = new Date(targetDateStr);
+                if (isNaN(d.getTime())) return null; // Invalid date format
                 const exact = d.toISOString().split('T')[0];
                 if (app.cryptoEngine.history[exact]) return app.cryptoEngine.history[exact];
                 
-                // If UTC timezone shifted it, check 1 day prior
+                // Fallback: Check yesterday in case of timezone shift
                 const prev = new Date(d); prev.setDate(prev.getDate() - 1);
                 const prevStr = prev.toISOString().split('T')[0];
                 if (app.cryptoEngine.history[prevStr]) return app.cryptoEngine.history[prevStr];
-                
             } catch(e) {}
             return null;
         }
     },
+
 
 
 
@@ -2325,9 +2325,8 @@ setTimeout(() => {
                 const sep = document.createElement('div');
                                                 // --- PULL CRYPTO DATA FOR THIS DATE ---
                 // We changed 'date' to 'dateStr' so it matches your loop variable perfectly!
-                const cData = app.cryptoEngine ? app.cryptoEngine.getDataForDate(dateStr) : null; 
-                let cryptoHtml = `<span style="color:#555;">Market data unavailable</span>`;
-
+                                const cData = app.cryptoEngine ? app.cryptoEngine.getDataForDate(dateStr) : null; 
+                let cryptoHtml = '';
                 
                 if (cData && cData.btc) {
                     const bColor = cData.btcPct >= 0 ? '#00E676' : '#FF5252';
@@ -2339,7 +2338,12 @@ setTimeout(() => {
                         <span style="color:#9D2BFF;">BTC=$${Math.round(cData.btc).toLocaleString()}</span> <span style="color:${bColor};">${bSign}${cData.btcPct.toFixed(2)}%</span>
                         <span style="color:#9D2BFF; margin-left:6px;">ETH=$${Math.round(cData.eth).toLocaleString()}</span> <span style="color:${eColor};">${eSign}${cData.ethPct.toFixed(2)}%</span>
                     `;
+                } else {
+                    // THE TATTLETALE: Prints exactly why it failed, and what date it was trying to parse.
+                    const sysStatus = app.cryptoEngine ? app.cryptoEngine.status : "ENGINE NOT FOUND";
+                    cryptoHtml = `<span style="color:#FFEA00; font-size:0.55rem;">[${sysStatus}] Parsing: ${dateStr}</span>`;
                 }
+
 
                 sep.className = 'date-separator';
                 sep.innerHTML = `
