@@ -4905,6 +4905,122 @@ setTimeout(() => {
 window.onload = app.init;
 
 
+// ==========================================
+// --- BUSTA DASHBOARD TELEMETRY ENGINE ---
+// ==========================================
+let bankrollChart = null;
+let lastBustaSpinCount = 0;
+
+function initBustaChart() {
+    const canvas = document.getElementById('bankrollChart');
+    if (!canvas) return; 
+
+    const ctx = canvas.getContext('2d');
+    bankrollChart = new Chart(ctx, {
+        type: 'line',
+        data: { 
+            labels: [], 
+            datasets: [{
+                label: 'Live PnL (Bits)',
+                data: [],
+                borderColor: '#0f0',
+                backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                borderWidth: 2,
+                pointRadius: 0, 
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { display: false }, 
+                y: { grid: { color: '#111' }, ticks: { color: '#888' } }
+            },
+            plugins: { legend: { display: false } },
+            animation: false 
+        }
+    });
+}
+
+async function fetchBustaData() {
+    try {
+        const response = await fetch('http://localhost:8080/api/history');
+        const data = await response.json();
+        
+        if (data.length === 0 || data.length === lastBustaSpinCount) return; 
+        lastBustaSpinCount = data.length;
+
+        const latest = data[data.length - 1];
+
+        // --- SEED FAVORABILITY MATH ---
+        let totalMultipliers = 0;
+        let moonCount = 0;
+        data.forEach(d => {
+            totalMultipliers += parseFloat(d.multiplier);
+            if (parseFloat(d.multiplier) >= 10) moonCount++;
+        });
+        const avgMult = data.length > 0 ? (totalMultipliers / data.length).toFixed(2) : '0.00';
+
+        // 1. Update HUD
+        document.getElementById('hud-pnl').innerText = (latest.pnlBits > 0 ? '+' : '') + latest.pnlBits.toFixed(1) + 'k';
+        document.getElementById('hud-pnl').className = 'stat-value ' + (latest.pnlBits >= 0 ? 'neon-green' : 'neon-red');
+        document.getElementById('hud-drawdown').innerText = latest.maxDrawdownBits.toFixed(1) + 'k';
+        document.getElementById('hud-avg-mult').innerText = avgMult + 'x';
+        document.getElementById('hud-moons').innerText = moonCount;
+        document.getElementById('hud-spins').innerText = latest.totalSpins;
+
+        // 2. Update Chart
+        if (bankrollChart) {
+            bankrollChart.data.labels = data.map(d => d.totalSpins);
+            bankrollChart.data.datasets[0].data = data.map(d => parseFloat(d.pnlBits.toFixed(1)));
+            
+            bankrollChart.data.datasets[0].borderColor = latest.pnlBits >= 0 ? '#0f0' : '#ff003c';
+            bankrollChart.data.datasets[0].backgroundColor = latest.pnlBits >= 0 ? 'rgba(0, 255, 0, 0.1)' : 'rgba(255, 0, 60, 0.1)';
+            bankrollChart.update();
+        }
+
+        // 3. Update Wins Table (Only hits)
+        const winsBody = document.getElementById('wins-body');
+        if (winsBody) {
+            winsBody.innerHTML = ''; 
+            const hits = data.filter(d => d.multiplier >= d.target).reverse();
+            
+            hits.forEach(hit => {
+                winsBody.innerHTML += `
+                    <tr>
+                        <td>#${hit.totalSpins}</td>
+                        <td>${hit.timestamp}</td>
+                        <td>${hit.wagerBits}</td>
+                        <td>${hit.target}x</td>
+                        <td class="win-mult">${hit.multiplier}x</td>
+                        <td>${(hit.pnlBits > 0 ? '+' : '')}${hit.pnlBits.toFixed(1)}k</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // 4. Update Terminal Log (ALL Spins, limits to last 100 to prevent browser lag)
+        const terminal = document.getElementById('live-terminal');
+        if (terminal) {
+            const recentSpins = data.slice(-100).reverse();
+            terminal.innerHTML = recentSpins.map(d => {
+                const isHit = d.multiplier >= d.target;
+                const multColor = isHit ? '#0f0' : '#555';
+                return `[${d.timestamp}] ID: ${d.id} | Spin #${d.totalSpins} | Target: ${d.target}x | Hit: <span style="color:${multColor}; font-weight:bold;">${d.multiplier}x</span> | PnL: ${d.pnlBits.toFixed(1)}k`;
+            }).join('<br>');
+        }
+
+    } catch (e) {
+        // Silently wait for the Mac bridge to start
+    }
+}
+
+// Automatically start the engine 1 second after app load
+setTimeout(() => {
+    initBustaChart();
+    setInterval(fetchBustaData, 1000);
+}, 1000);
 
 
 
