@@ -595,10 +595,13 @@
 /* --- BUSTA DASHBOARD GRID & FULLSCREEN ---  */
 /* ========================================== */
 
+/* THE FIX: Break out of the mobile container */
 .desktop-fullscreen {
-    width: 100%;
-    height: calc(100vh - 80px); /* Leaves room for your bottom nav bar */
-    padding: 15px;
+    max-width: 100% !important; 
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 15px !important;
+    height: calc(100vh - 80px) !important;
     box-sizing: border-box;
     background-color: #050505; 
     color: #0f0; 
@@ -656,21 +659,23 @@ table { width: 100%; text-align: left; border-collapse: collapse; font-size: 13p
 th { border-bottom: 1px solid #333; padding-bottom: 5px; color: #888; }
 td { padding: 8px 0; border-bottom: 1px solid #111; }
 .win-mult { color: #0f0; font-weight: bold; text-shadow: 0 0 3px rgba(0,255,0,0.4); }
+.moon-mult { color: #FFD700; font-weight: bold; text-shadow: 0 0 8px #FFD700; }
 
 /* --- MACBOOK PRO WIDESCREEN OPTIMIZATION --- */
 @media (min-width: 1024px) {
     .busta-grid {
-        grid-template-columns: 2.5fr 1.5fr; /* Chart side wider than terminal side */
+        grid-template-columns: 2fr 1fr 1fr; /* 3 Columns: Chart, Tables, Terminal */
         grid-template-rows: 80px 1fr 1fr;
         grid-template-areas: 
-            "hud hud"
-            "chart terminal"
-            "wins terminal";
+            "hud hud hud"
+            "chart wins terminal"
+            "chart moon terminal";
     }
     .hud-panel { grid-area: hud; }
     .chart-panel { grid-area: chart; }
-    .terminal-panel { grid-area: terminal; }
     .wins-panel { grid-area: wins; }
+    .moon-panel { grid-area: moon; }
+    .terminal-panel { grid-area: terminal; }
 }
 
 
@@ -2000,7 +2005,11 @@ td { padding: 8px 0; border-bottom: 1px solid #111; }
                 <span class="stat-value" id="hud-peak">0.0k</span>
             </div>
             <div class="stat-box">
-                <span class="stat-label">SPIN COUNT</span>
+                <span class="stat-label">WIN RATE</span>
+                <span class="stat-value" id="hud-winrate">0.0%</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">TOTAL SPINS</span>
                 <span class="stat-value" id="hud-spins">0</span>
             </div>
         </div>
@@ -2009,29 +2018,29 @@ td { padding: 8px 0; border-bottom: 1px solid #111; }
             <canvas id="bankrollChart"></canvas>
         </div>
 
-        <div class="panel terminal-panel">
-            <div class="panel-header">RAW TELEMETRY</div>
-            <div id="live-terminal" class="terminal-feed"></div>
-        </div>
-
         <div class="panel wins-panel">
             <div class="panel-header">CONFIRMED HITS</div>
             <div class="table-container">
                 <table id="wins-table">
-                    <thead>
-                        <tr>
-                            <th>Spin #</th>
-                            <th>Time</th>
-                            <th>Wager</th>
-                            <th>Target</th>
-                            <th>Hit</th>
-                            <th>PnL Snap</th>
-                        </tr>
-                    </thead>
-                    <tbody id="wins-body">
-                        </tbody>
+                    <thead><tr><th>Spin #</th><th>Time</th><th>Wager</th><th>Tgt</th><th>Hit</th></tr></thead>
+                    <tbody id="wins-body"></tbody>
                 </table>
             </div>
+        </div>
+
+        <div class="panel moon-panel">
+            <div class="panel-header" style="color:#FFD700; text-shadow: 0 0 5px #FFD700; border-bottom: 1px solid #FFD700;">1000x+ MOONSHOTS</div>
+            <div class="table-container">
+                <table id="moon-table">
+                    <thead><tr><th>Spin #</th><th>Time</th><th>Tgt</th><th>Hit</th><th>PnL Snap</th></tr></thead>
+                    <tbody id="moon-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel terminal-panel">
+            <div class="panel-header">RAW TELEMETRY</div>
+            <div id="live-terminal" class="terminal-feed"></div>
         </div>
         
     </div>
