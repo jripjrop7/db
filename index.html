@@ -751,54 +751,48 @@ td { padding: 8px 0; border-bottom: 1px solid #111; }
 /* ========================================== */
 
 @media (min-width: 1024px) {
-    /* 1. Busta Grid Shift */
-    .busta-grid {
-        grid-template-columns: 2fr 1fr 1fr; /* 3 Columns: Chart, Tables, Terminal */
-        grid-template-rows: 80px 1fr 1fr;
-        grid-template-areas: 
-            "hud hud hud"
-            "chart wins terminal"
-            "chart moon terminal";
-    }
-    .hud-panel { grid-area: hud; }
-    .chart-panel { grid-area: chart; }
-    .wins-panel { grid-area: wins; }
-    .moon-panel { grid-area: moon; }
-    .terminal-panel { grid-area: terminal; }
-
-    /* 2. Stretch the main body to fill the screen */
-    body {
-        display: flex;
-        flex-direction: row; 
-        height: 100vh;
-        overflow: hidden;
-    }
-
-    /* 3. Break the mobile container locks */
-    .container {
+    /* 1. Force both the Body AND the Master Wrapper to fill the screen */
+    body, body > div {
+        display: flex !important;
+        flex-direction: row !important;
+        width: 100vw !important;
         max-width: 100% !important;
-        flex-grow: 1; 
-        height: 100vh;
-        overflow-y: auto; 
+        height: 100vh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+    }
+
+    /* 2. Break the mobile container locks so the active tab fills the screen */
+    .container {
+        flex-grow: 1 !important;
+        max-width: 100% !important;
+        width: calc(100vw - 250px) !important; /* Full screen minus the sidebar */
+        height: 100vh !important;
+        margin: 0 !important;
         padding: 30px !important;
+        overflow-y: auto !important;
     }
 
-    /* 4. Transform the Bottom Nav into a Left Sidebar */
+    /* 3. The Nav Fix: Yank it to the left and force its width */
     .nav {
-        position: static !important; 
-        width: 250px; 
-        height: 100vh;
-        flex-direction: column !important; 
-        justify-content: flex-start !important; 
-        padding-top: 30px;
-        background-color: #0a0a0a;
-        border-right: 1px solid #1a331a;
+        order: -1 !important; /* Forces the nav to the absolute left side */
+        position: relative !important;
+        width: 250px !important;
+        min-width: 250px !important; /* Stops it from getting squished */
+        height: 100vh !important;
+        flex-direction: column !important;
+        justify-content: flex-start !important;
+        padding-top: 30px !important;
+        border-right: 1px solid #1a331a !important;
         border-top: none !important;
+        background-color: #0a0a0a !important;
+        transform: none !important; /* Overrides any mobile slide-up animations */
     }
 
-    /* 5. Make Nav Buttons look like a desktop menu */
+    /* 4. Make Nav Buttons look like a desktop menu */
     .nav-item {
-        width: 100%;
+        width: 100% !important;
         justify-content: flex-start !important; 
         padding: 15px 25px !important;
         font-size: 16px !important;
@@ -806,18 +800,32 @@ td { padding: 8px 0; border-bottom: 1px solid #111; }
     }
 
     .nav-item i {
-        margin-right: 15px; 
+        margin-right: 15px !important; 
         margin-bottom: 0 !important;
     }
 
-    /* 6. Move the Floating Action Button (FAB) */
+    /* 5. Move the Floating Action Button (FAB) */
     .fab {
         bottom: 30px;
         right: 30px;
         transform: scale(1.2); 
     }
-}
 
+    /* 6. Busta Grid Shift (3 columns for Widescreen) */
+    .busta-grid {
+        grid-template-columns: 2fr 1fr 1fr !important;
+        grid-template-rows: 80px 1fr 1fr !important;
+        grid-template-areas: 
+            "hud hud hud"
+            "chart wins terminal"
+            "chart moon terminal" !important;
+    }
+    .hud-panel { grid-area: hud; }
+    .chart-panel { grid-area: chart; }
+    .wins-panel { grid-area: wins; }
+    .moon-panel { grid-area: moon; }
+    .terminal-panel { grid-area: terminal; }
+}
 
     </style>
 </head>
