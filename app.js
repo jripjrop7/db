@@ -4908,39 +4908,45 @@ window.onload = app.init;
 // ==========================================
 // --- BUSTA DASHBOARD TELEMETRY ENGINE ---
 // ==========================================
-let bankrollChart = null;
+let sessionChart = null;
+let allTimeChart = null;
 let lastBustaSpinCount = 0;
 
-function initBustaChart() {
-    const canvas = document.getElementById('bankrollChart');
-    if (!canvas) return; 
+// Smart Number Formatter (666 -> 666 | 1350 -> 1.35k | 1500000 -> 1.50m)
+function formatBits(num) {
+    if (num === undefined || num === null || isNaN(num)) return "0";
+    const abs = Math.abs(num);
+    if (abs >= 1000000) return (num / 1000000).toFixed(2) + 'm';
+    if (abs >= 1000) return (num / 1000).toFixed(1) + 'k';
+    return num.toFixed(0); 
+}
 
-    const ctx = canvas.getContext('2d');
-    bankrollChart = new Chart(ctx, {
+// Chart Builder (Fixes the Smearing)
+function createChartConfig(color) {
+    const bgRgba = color === '#0f0' ? 'rgba(0, 255, 0, 0.1)' : 'rgba(0, 229, 255, 0.1)';
+    return {
         type: 'line',
-        data: { 
-            labels: [], 
-            datasets: [{
-                label: 'Live PnL (Bits)',
-                data: [],
-                borderColor: '#0f0',
-                backgroundColor: 'rgba(0, 255, 0, 0.1)',
-                borderWidth: 2,
-                pointRadius: 0, 
-                fill: true
-            }]
-        },
+        data: { labels: [], datasets: [{ data: [], borderColor: color, backgroundColor: bgRgba, borderWidth: 2, pointRadius: 0, hitRadius: 0, hoverRadius: 0, fill: true }] },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false, animation: false,
+            plugins: { 
+                legend: { display: false }, 
+                tooltip: { enabled: false } // Kills tooltip ghosting smearing
+            },
             scales: {
                 x: { display: false }, 
-                y: { grid: { color: '#111' }, ticks: { color: '#888' } }
-            },
-            plugins: { legend: { display: false } },
-            animation: false 
+                y: { grid: { color: '#111' }, ticks: { color: '#888', maxTicksLimit: 6 } } // Limits labels to stop text smearing
+            }
         }
-    });
+    };
+}
+
+function initBustaCharts() {
+    const sCtx = document.getElementById('sessionChart');
+    if (!sCtx) return; 
+
+    sessionChart = new Chart(sCtx.getContext('2d'), createChartConfig('#0f0')); // Green
+    allTimeChart = new Chart(document.getElementById('allTimeChart').getContext('2d'), createChartConfig('#00E5FF')); // Cyan
 }
 
 async function fetchBustaData() {
@@ -4951,47 +4957,72 @@ async function fetchBustaData() {
         if (rawData.length === 0 || rawData.length === lastBustaSpinCount) return; 
         lastBustaSpinCount = rawData.length;
 
-        // Force Absolute Additive Spin Numbers (Ignores script resets)
+        let cumulativeAllTime = 0;
+        let allTimePnls = [];
+        let sessionStartIndex = 0;
+
+        // Force Absolute Additive Spin Numbers & Calculate All-Time
         const data = rawData.map((d, index) => {
             d.globalSpin = index + 1;
+            
+            // Calculate raw cumulative profit/loss based on Bustadice payout mechanics
+            const profit = (d.multiplier >= d.target) ? (d.wagerBits * (d.target - 1)) : -d.wagerBits;
+            cumulativeAllTime += profit;
+            allTimePnls.push(cumulativeAllTime);
+
+            // Detect if the script was restarted (totalSpins dropped down)
+            if (index > 0 && d.totalSpins <= rawData[index-1].totalSpins) {
+                sessionStartIndex = index; 
+            }
+
             return d;
         });
 
-        const latest = data[data.length - 1];
+        // Split data into current session
+        const sessionData = data.slice(sessionStartIndex);
+        const latest = sessionData[sessionData.length - 1];
+        
+        // Calculate Win Rate based on session
+        const sessionHits = sessionData.filter(d => d.multiplier >= d.target).length;
+        const winRate = ((sessionHits / sessionData.length) * 100).toFixed(2);
 
-        // Calculate Win Rate
-        const totalHits = data.filter(d => d.multiplier >= d.target).length;
-        const winRate = ((totalHits / data.length) * 100).toFixed(2);
-
-        // 1. Update HUD
-        document.getElementById('hud-pnl').innerText = (latest.pnlBits > 0 ? '+' : '') + latest.pnlBits.toFixed(1) + 'k';
-        document.getElementById('hud-drawdown').innerText = latest.maxDrawdownBits.toFixed(1) + 'k';
-        document.getElementById('hud-peak').innerText = latest.peakBits.toFixed(1) + 'k';
+        // 1. Update HUD (Using the new formatting function)
+        document.getElementById('hud-pnl').innerText = (latest.pnlBits > 0 ? '+' : '') + formatBits(latest.pnlBits);
+        document.getElementById('hud-drawdown').innerText = formatBits(latest.maxDrawdownBits);
+        document.getElementById('hud-peak').innerText = formatBits(latest.peakBits);
         document.getElementById('hud-winrate').innerText = winRate + '%';
         document.getElementById('hud-spins').innerText = data.length.toLocaleString();
 
-        // 2. Update Chart (Using Absolute Spins)
-        if (bankrollChart) {
-            bankrollChart.data.labels = data.map(d => d.globalSpin);
-            bankrollChart.data.datasets[0].data = data.map(d => parseFloat(d.pnlBits.toFixed(1)));
-            
-            bankrollChart.data.datasets[0].borderColor = latest.pnlBits >= 0 ? '#0f0' : '#ff003c';
-            bankrollChart.data.datasets[0].backgroundColor = latest.pnlBits >= 0 ? 'rgba(0, 255, 0, 0.1)' : 'rgba(255, 0, 60, 0.1)';
-            bankrollChart.update();
+        // 2. Update Session Chart
+        if (sessionChart) {
+            sessionChart.data.labels = sessionData.map(d => d.globalSpin);
+            sessionChart.data.datasets[0].data = sessionData.map(d => parseFloat(d.pnlBits.toFixed(1)));
+            sessionChart.data.datasets[0].borderColor = latest.pnlBits >= 0 ? '#0f0' : '#ff003c';
+            sessionChart.data.datasets[0].backgroundColor = latest.pnlBits >= 0 ? 'rgba(0, 255, 0, 0.1)' : 'rgba(255, 0, 60, 0.1)';
+            sessionChart.update();
         }
 
-        // 3. Update Standard Wins Table (Exclude Moonshots to save space)
+        // 3. Update All-Time Chart
+        if (allTimeChart) {
+            allTimeChart.data.labels = data.map(d => d.globalSpin);
+            allTimeChart.data.datasets[0].data = allTimePnls;
+            allTimeChart.data.datasets[0].borderColor = cumulativeAllTime >= 0 ? '#00E5FF' : '#ff003c';
+            allTimeChart.data.datasets[0].backgroundColor = cumulativeAllTime >= 0 ? 'rgba(0, 229, 255, 0.1)' : 'rgba(255, 0, 60, 0.1)';
+            allTimeChart.update();
+        }
+
+        // 4. Update Standard Wins Table (No more 'k' suffixes, just clean formatting)
         const winsBody = document.getElementById('wins-body');
         if (winsBody) {
             winsBody.innerHTML = ''; 
-            const hits = data.filter(d => d.multiplier >= d.target && d.multiplier < 1000).reverse().slice(0, 50); // Show last 50
+            const hits = data.filter(d => d.multiplier >= d.target && d.multiplier < 1000).reverse().slice(0, 50); 
             
             hits.forEach(hit => {
                 winsBody.innerHTML += `
                     <tr>
                         <td>#${hit.globalSpin}</td>
                         <td>${hit.timestamp}</td>
-                        <td>${hit.wagerBits}</td>
+                        <td>${formatBits(hit.wagerBits)}</td>
                         <td>${hit.target}x</td>
                         <td class="win-mult">${hit.multiplier}x</td>
                     </tr>
@@ -4999,26 +5030,27 @@ async function fetchBustaData() {
             });
         }
 
-        // 4. Update 1000x+ MOONSHOTS Table
+        // 5. Update 1000x+ MOONSHOTS Table
         const moonBody = document.getElementById('moon-body');
         if (moonBody) {
             moonBody.innerHTML = '';
             const moonshots = data.filter(d => d.multiplier >= 1000).reverse();
 
             moonshots.forEach(moon => {
+                const profit = (moon.wagerBits * (moon.target - 1));
                 moonBody.innerHTML += `
                     <tr>
                         <td style="color:#FFD700">#${moon.globalSpin}</td>
                         <td>${moon.timestamp}</td>
                         <td>${moon.target}x</td>
                         <td class="moon-mult">${moon.multiplier}x</td>
-                        <td>${(moon.pnlBits > 0 ? '+' : '')}${moon.pnlBits.toFixed(1)}k</td>
+                        <td>+${formatBits(profit)}</td>
                     </tr>
                 `;
             });
         }
 
-        // 5. Update Terminal Log
+        // 6. Update Terminal Log
         const terminal = document.getElementById('live-terminal');
         if (terminal) {
             const recentSpins = data.slice(-50).reverse(); 
@@ -5027,7 +5059,7 @@ async function fetchBustaData() {
                 let color = isHit ? '#0f0' : '#888';
                 if (d.multiplier >= 1000) color = '#FFD700';
 
-                return `[${d.timestamp}] Spin #${d.globalSpin} | Tgt: ${d.target}x | Hit: <span style="color:${color}; font-weight:${isHit ? 'bold' : 'normal'}">${d.multiplier}x</span> | PnL: ${d.pnlBits.toFixed(1)}k`;
+                return `[${d.timestamp}] Spin #${d.globalSpin} | Tgt: ${d.target}x | Hit: <span style="color:${color}; font-weight:${isHit ? 'bold' : 'normal'}">${d.multiplier}x</span> | PnL: ${formatBits(d.pnlBits)}`;
             }).join('<br>');
         }
 
@@ -5036,9 +5068,9 @@ async function fetchBustaData() {
     }
 }
 
-// Automatically start the engine
+// Automatically start the engine 1 second after app loads
 setTimeout(() => {
-    initBustaChart();
+    initBustaCharts();
     setInterval(fetchBustaData, 1000);
 }, 1000);
 

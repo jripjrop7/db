@@ -2015,7 +2015,15 @@ td { padding: 8px 0; border-bottom: 1px solid #111; }
         </div>
 
         <div class="panel chart-panel">
-            <canvas id="bankrollChart"></canvas>
+            <div class="panel-header">SESSION PNL (CURRENT SCRIPT RUN)</div>
+            <div style="flex: 1; position: relative; min-height: 0;">
+                <canvas id="sessionChart"></canvas>
+            </div>
+            
+            <div class="panel-header" style="margin-top: 15px; border-bottom-color: #00E5FF; color: #00E5FF;">ALL-TIME MACRO PNL</div>
+            <div style="flex: 1; position: relative; min-height: 0;">
+                <canvas id="allTimeChart"></canvas>
+            </div>
         </div>
 
         <div class="panel wins-panel">
