@@ -1994,19 +1994,23 @@ td { padding: 8px 0; border-bottom: 1px solid #111; }
         <div class="panel hud-panel">
             <div class="stat-box">
                 <span class="stat-label">LIVE PNL</span>
-                <span class="stat-value neon-green" id="hud-pnl">0.0k</span>
+                <span class="stat-value neon-green" id="hud-pnl">0</span>
             </div>
             <div class="stat-box">
                 <span class="stat-label">MAX DRAWDOWN</span>
-                <span class="stat-value neon-red" id="hud-drawdown">0.0k</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-label">PEAK BR</span>
-                <span class="stat-value" id="hud-peak">0.0k</span>
+                <span class="stat-value neon-red" id="hud-drawdown">0</span>
             </div>
             <div class="stat-box">
                 <span class="stat-label">WIN RATE</span>
                 <span class="stat-value" id="hud-winrate">0.0%</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">MAX DROUGHT</span>
+                <span class="stat-value" id="hud-max-drought">0</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">CURRENT DROUGHT</span>
+                <span class="stat-value" id="hud-current-drought" style="color: #aaa;">0</span>
             </div>
             <div class="stat-box">
                 <span class="stat-label">TOTAL SPINS</span>
@@ -2040,7 +2044,7 @@ td { padding: 8px 0; border-bottom: 1px solid #111; }
             <div class="panel-header" style="color:#FFD700; text-shadow: 0 0 5px #FFD700; border-bottom: 1px solid #FFD700;">1000x+ MOONSHOTS</div>
             <div class="table-container">
                 <table id="moon-table">
-                    <thead><tr><th>Spin #</th><th>Time</th><th>Tgt</th><th>Hit</th><th>PnL Snap</th></tr></thead>
+                    <thead><tr><th>Spin #</th><th>Time</th><th>Tgt</th><th>Hit</th><th>Result</th></tr></thead>
                     <tbody id="moon-body"></tbody>
                 </table>
             </div>

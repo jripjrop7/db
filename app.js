@@ -4912,7 +4912,7 @@ let sessionChart = null;
 let allTimeChart = null;
 let lastBustaSpinCount = 0;
 
-// Smart Number Formatter (666 -> 666 | 1350 -> 1.35k | 1500000 -> 1.50m)
+// Smart Number Formatter
 function formatBits(num) {
     if (num === undefined || num === null || isNaN(num)) return "0";
     const abs = Math.abs(num);
@@ -4921,21 +4921,65 @@ function formatBits(num) {
     return num.toFixed(0); 
 }
 
-// Chart Builder (Fixes the Smearing)
-function createChartConfig(color) {
+// Custom Plugin to draw text directly on Win Peaks
+const peakLabelPlugin = {
+    id: 'peakLabels',
+    afterDatasetsDraw(chart) {
+        const ctx = chart.ctx;
+        const meta = chart.getDatasetMeta(0);
+        const dataset = chart.data.datasets[0];
+        
+        if (!dataset.peakLabels) return;
+
+        ctx.save();
+        ctx.font = 'bold 11px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+
+        dataset.peakLabels.forEach((label, index) => {
+            if (label) {
+                const point = meta.data[index];
+                if (point) {
+                    ctx.fillStyle = label.color || '#0f0';
+                    ctx.fillText(label.text, point.x, point.y - 8); // Float text just above the dot
+                }
+            }
+        });
+        ctx.restore();
+    }
+};
+
+function createChartConfig(color, showPeaks = false) {
     const bgRgba = color === '#0f0' ? 'rgba(0, 255, 0, 0.1)' : 'rgba(0, 229, 255, 0.1)';
     return {
         type: 'line',
-        data: { labels: [], datasets: [{ data: [], borderColor: color, backgroundColor: bgRgba, borderWidth: 2, pointRadius: 0, hitRadius: 0, hoverRadius: 0, fill: true }] },
+        plugins: [peakLabelPlugin], 
+        data: { 
+            labels: [], 
+            datasets: [{ 
+                data: [], 
+                borderColor: color, 
+                backgroundColor: bgRgba, 
+                borderWidth: 2, 
+                pointRadius: [], // Dynamically sized
+                pointBackgroundColor: '#fff',
+                fill: true,
+                peakLabels: [] // Custom array for our plugin
+            }] 
+        },
         options: {
             responsive: true, maintainAspectRatio: false, animation: false,
-            plugins: { 
-                legend: { display: false }, 
-                tooltip: { enabled: false } // Kills tooltip ghosting smearing
-            },
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
             scales: {
-                x: { display: false }, 
-                y: { grid: { color: '#111' }, ticks: { color: '#888', maxTicksLimit: 6 } } // Limits labels to stop text smearing
+                x: { 
+                    display: true, // Turn on X-axis
+                    grid: { color: '#111' }, 
+                    ticks: { color: '#666', maxTicksLimit: 10 } 
+                }, 
+                y: { 
+                    grid: { color: '#111' }, 
+                    ticks: { color: '#888', maxTicksLimit: 8 } 
+                }
             }
         }
     };
@@ -4944,9 +4988,9 @@ function createChartConfig(color) {
 function initBustaCharts() {
     const sCtx = document.getElementById('sessionChart');
     if (!sCtx) return; 
-
-    sessionChart = new Chart(sCtx.getContext('2d'), createChartConfig('#0f0')); // Green
-    allTimeChart = new Chart(document.getElementById('allTimeChart').getContext('2d'), createChartConfig('#00E5FF')); // Cyan
+    Chart.register(peakLabelPlugin);
+    sessionChart = new Chart(sCtx.getContext('2d'), createChartConfig('#0f0', false)); 
+    allTimeChart = new Chart(document.getElementById('allTimeChart').getContext('2d'), createChartConfig('#00E5FF', true)); 
 }
 
 async function fetchBustaData() {
@@ -4959,38 +5003,64 @@ async function fetchBustaData() {
 
         let cumulativeAllTime = 0;
         let allTimePnls = [];
+        let allTimeRadii = [];
+        let allTimeLabels = [];
+        
         let sessionStartIndex = 0;
+        let currentDrought = 0;
+        let maxDrought = 0;
 
-        // Force Absolute Additive Spin Numbers & Calculate All-Time
+        // Process Global Data
         const data = rawData.map((d, index) => {
             d.globalSpin = index + 1;
             
-            // Calculate raw cumulative profit/loss based on Bustadice payout mechanics
-            const profit = (d.multiplier >= d.target) ? (d.wagerBits * (d.target - 1)) : -d.wagerBits;
+            const isWin = d.multiplier >= d.target;
+            const isRealTarget = d.target > 2;
+
+            // Drought Math (Only count real targets)
+            if (isRealTarget) {
+                if (isWin) {
+                    if (currentDrought > maxDrought) maxDrought = currentDrought;
+                    currentDrought = 0;
+                } else {
+                    currentDrought++;
+                }
+            }
+
+            const profit = isWin ? (d.wagerBits * (d.target - 1)) : -d.wagerBits;
             cumulativeAllTime += profit;
             allTimePnls.push(cumulativeAllTime);
 
-            // Detect if the script was restarted (totalSpins dropped down)
+            // Chart Peak Configuration
+            if (isWin && isRealTarget) {
+                allTimeRadii.push(4); // Big dot for win
+                const totalWinValue = d.wagerBits * d.target; // Wager * Target logic you requested
+                allTimeLabels.push({ text: '+' + formatBits(totalWinValue), color: '#0f0' });
+            } else {
+                allTimeRadii.push(0); // Invisible dot
+                allTimeLabels.push(null); // No text
+            }
+
             if (index > 0 && d.totalSpins <= rawData[index-1].totalSpins) {
                 sessionStartIndex = index; 
             }
-
             return d;
         });
 
-        // Split data into current session
         const sessionData = data.slice(sessionStartIndex);
         const latest = sessionData[sessionData.length - 1];
         
-        // Calculate Win Rate based on session
-        const sessionHits = sessionData.filter(d => d.multiplier >= d.target).length;
-        const winRate = ((sessionHits / sessionData.length) * 100).toFixed(2);
+        const sessionHits = sessionData.filter(d => d.multiplier >= d.target && d.target > 2).length;
+        const validSessionSpins = sessionData.filter(d => d.target > 2).length;
+        const winRate = validSessionSpins > 0 ? ((sessionHits / validSessionSpins) * 100).toFixed(2) : 0;
 
-        // 1. Update HUD (Using the new formatting function)
-        document.getElementById('hud-pnl').innerText = (latest.pnlBits > 0 ? '+' : '') + formatBits(latest.pnlBits);
+        // 1. Update HUD
+        document.getElementById('hud-pnl').innerText = (latest.pnlBits >= 0 ? '+' : '') + formatBits(latest.pnlBits);
         document.getElementById('hud-drawdown').innerText = formatBits(latest.maxDrawdownBits);
-        document.getElementById('hud-peak').innerText = formatBits(latest.peakBits);
         document.getElementById('hud-winrate').innerText = winRate + '%';
+        document.getElementById('hud-max-drought').innerText = maxDrought;
+        document.getElementById('hud-current-drought').innerText = currentDrought;
+        document.getElementById('hud-current-drought').style.color = currentDrought > (maxDrought * 0.8) ? '#ff003c' : '#aaa'; // Turns red if close to max drought
         document.getElementById('hud-spins').innerText = data.length.toLocaleString();
 
         // 2. Update Session Chart
@@ -5002,20 +5072,22 @@ async function fetchBustaData() {
             sessionChart.update();
         }
 
-        // 3. Update All-Time Chart
+        // 3. Update All-Time Chart with Peaks
         if (allTimeChart) {
             allTimeChart.data.labels = data.map(d => d.globalSpin);
             allTimeChart.data.datasets[0].data = allTimePnls;
             allTimeChart.data.datasets[0].borderColor = cumulativeAllTime >= 0 ? '#00E5FF' : '#ff003c';
             allTimeChart.data.datasets[0].backgroundColor = cumulativeAllTime >= 0 ? 'rgba(0, 229, 255, 0.1)' : 'rgba(255, 0, 60, 0.1)';
+            allTimeChart.data.datasets[0].pointRadius = allTimeRadii;
+            allTimeChart.data.datasets[0].peakLabels = allTimeLabels;
             allTimeChart.update();
         }
 
-        // 4. Update Standard Wins Table (No more 'k' suffixes, just clean formatting)
+        // 4. Standard Wins Table (>2x Targets Only)
         const winsBody = document.getElementById('wins-body');
         if (winsBody) {
             winsBody.innerHTML = ''; 
-            const hits = data.filter(d => d.multiplier >= d.target && d.multiplier < 1000).reverse().slice(0, 50); 
+            const hits = data.filter(d => d.multiplier >= d.target && d.target > 2 && d.multiplier < 1000).reverse().slice(0, 50); 
             
             hits.forEach(hit => {
                 winsBody.innerHTML += `
@@ -5030,27 +5102,31 @@ async function fetchBustaData() {
             });
         }
 
-        // 5. Update 1000x+ MOONSHOTS Table
+        // 5. 1000x MOONSHOTS Table (Shows Result instead of PnL)
         const moonBody = document.getElementById('moon-body');
         if (moonBody) {
             moonBody.innerHTML = '';
             const moonshots = data.filter(d => d.multiplier >= 1000).reverse();
 
             moonshots.forEach(moon => {
-                const profit = (moon.wagerBits * (moon.target - 1));
+                const isHit = moon.multiplier >= moon.target;
+                const resultBadge = isHit 
+                    ? `<span style="background:#0f0; color:#000; padding:2px 6px; border-radius:3px; font-weight:bold;">HIT</span>`
+                    : `<span style="background:#333; color:#888; padding:2px 6px; border-radius:3px;">MISSED</span>`;
+
                 moonBody.innerHTML += `
                     <tr>
                         <td style="color:#FFD700">#${moon.globalSpin}</td>
                         <td>${moon.timestamp}</td>
                         <td>${moon.target}x</td>
                         <td class="moon-mult">${moon.multiplier}x</td>
-                        <td>+${formatBits(profit)}</td>
+                        <td>${resultBadge}</td>
                     </tr>
                 `;
             });
         }
 
-        // 6. Update Terminal Log
+        // 6. Terminal Log
         const terminal = document.getElementById('live-terminal');
         if (terminal) {
             const recentSpins = data.slice(-50).reverse(); 
@@ -5068,14 +5144,7 @@ async function fetchBustaData() {
     }
 }
 
-// Automatically start the engine 1 second after app loads
 setTimeout(() => {
     initBustaCharts();
     setInterval(fetchBustaData, 1000);
 }, 1000);
-
-
-
-
-
-
