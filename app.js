@@ -4953,21 +4953,10 @@ async function fetchBustaData() {
 
         const latest = data[data.length - 1];
 
-        // --- SEED FAVORABILITY MATH ---
-        let totalMultipliers = 0;
-        let moonCount = 0;
-        data.forEach(d => {
-            totalMultipliers += parseFloat(d.multiplier);
-            if (parseFloat(d.multiplier) >= 10) moonCount++;
-        });
-        const avgMult = data.length > 0 ? (totalMultipliers / data.length).toFixed(2) : '0.00';
-
         // 1. Update HUD
         document.getElementById('hud-pnl').innerText = (latest.pnlBits > 0 ? '+' : '') + latest.pnlBits.toFixed(1) + 'k';
-        document.getElementById('hud-pnl').className = 'stat-value ' + (latest.pnlBits >= 0 ? 'neon-green' : 'neon-red');
         document.getElementById('hud-drawdown').innerText = latest.maxDrawdownBits.toFixed(1) + 'k';
-        document.getElementById('hud-avg-mult').innerText = avgMult + 'x';
-        document.getElementById('hud-moons').innerText = moonCount;
+        document.getElementById('hud-peak').innerText = latest.peakBits.toFixed(1) + 'k';
         document.getElementById('hud-spins').innerText = latest.totalSpins;
 
         // 2. Update Chart
@@ -4980,34 +4969,39 @@ async function fetchBustaData() {
             bankrollChart.update();
         }
 
-        // 3. Update Wins Table (Only hits)
+        // 3. Update Wins Table (Isolates and highlights hits)
         const winsBody = document.getElementById('wins-body');
         if (winsBody) {
             winsBody.innerHTML = ''; 
             const hits = data.filter(d => d.multiplier >= d.target).reverse();
             
             hits.forEach(hit => {
+                // If it's a massive hit (e.g. over 1000x), make it flash gold
+                let multStyle = hit.multiplier >= 1000 ? 'color: #FFD700; text-shadow: 0 0 8px #FFD700;' : '';
+                
                 winsBody.innerHTML += `
                     <tr>
                         <td>#${hit.totalSpins}</td>
                         <td>${hit.timestamp}</td>
                         <td>${hit.wagerBits}</td>
                         <td>${hit.target}x</td>
-                        <td class="win-mult">${hit.multiplier}x</td>
+                        <td class="win-mult" style="${multStyle}">${hit.multiplier}x</td>
                         <td>${(hit.pnlBits > 0 ? '+' : '')}${hit.pnlBits.toFixed(1)}k</td>
                     </tr>
                 `;
             });
         }
 
-        // 4. Update Terminal Log (ALL Spins, limits to last 100 to prevent browser lag)
+        // 4. Update Terminal Log
         const terminal = document.getElementById('live-terminal');
         if (terminal) {
-            const recentSpins = data.slice(-100).reverse();
+            const recentSpins = data.slice(-50).reverse(); // Keep last 50 to prevent lag
             terminal.innerHTML = recentSpins.map(d => {
-                const isHit = d.multiplier >= d.target;
-                const multColor = isHit ? '#0f0' : '#555';
-                return `[${d.timestamp}] ID: ${d.id} | Spin #${d.totalSpins} | Target: ${d.target}x | Hit: <span style="color:${multColor}; font-weight:bold;">${d.multiplier}x</span> | PnL: ${d.pnlBits.toFixed(1)}k`;
+                let isHit = d.multiplier >= d.target;
+                let color = isHit ? '#0f0' : '#888';
+                if (d.multiplier >= 1000) color = '#FFD700'; // Gold for massive multis
+
+                return `[${d.timestamp}] ID: ${d.id} | Spin #${d.totalSpins} | Tgt: ${d.target}x | Hit: <span style="color:${color}; font-weight:${isHit ? 'bold' : 'normal'}">${d.multiplier}x</span> | PnL: ${d.pnlBits.toFixed(1)}k`;
             }).join('<br>');
         }
 
@@ -5016,7 +5010,7 @@ async function fetchBustaData() {
     }
 }
 
-// Automatically start the engine 1 second after app load
+// Automatically start the engine 1 second after app loads
 setTimeout(() => {
     initBustaChart();
     setInterval(fetchBustaData, 1000);
