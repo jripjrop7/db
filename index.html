@@ -592,80 +592,149 @@
             font-family: 'Martian Mono', monospace; font-size: 0.8rem; color: #ccc;
         }
 /* ========================================== */
-/* --- MACBOOK NAV & STACKED MATRIX DASH  --- */
+/* --- MACBOOK DESKTOP TRANSFORMATION ---     */
 /* ========================================== */
 
 @media (min-width: 1024px) {
-    
-    /* 1. GLOBAL FIX: Bottom Nav Bar applies to ALL pages */
+    /* 1. Keep Nav at the Bottom, but make it sleeker */
     .nav {
-        position: fixed !important; bottom: 0 !important; left: 0 !important;
-        width: 100% !important; height: 70px !important;
-        flex-direction: row !important; justify-content: center !important;
-        gap: 30px; padding-top: 10px !important;
+        position: fixed !important; 
+        bottom: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 70px !important;
+        flex-direction: row !important;
+        justify-content: center !important;
+        gap: 30px;
+        padding-top: 10px !important;
         border-top: 1px solid #1a331a !important;
-        background-color: #050505 !important; z-index: 9999 !important;
-    }
-    .nav-item { width: auto !important; padding: 5px 20px !important; }
-
-    /* ========================================== */
-    /* 2. STRICTLY SCOPED MATRIX DASHBOARD        */
-    /* ========================================== */
-
-    /* Add padding for the nav, but only on the matrix page */
-    #view-matrix.container {
-        max-width: 100% !important; width: 100% !important;
-        padding: 15px 20px 90px 20px !important; margin: 0 !important;
+        background-color: #050505 !important;
+        z-index: 9999 !important;
     }
 
-    /* Stack everything in a column */
-    #view-matrix .busta-grid {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 20px;
+    .nav-item {
+        width: auto !important;
+        justify-content: center !important; 
+        padding: 5px 20px !important;
+        font-size: 14px !important; 
     }
 
-    /* Set fixed height for Charts */
-    #view-matrix .chart-panel { height: 280px; display: flex; flex-direction: column; }
+    /* 2. Container sizing to prevent cut-offs */
+    .container {
+        max-width: 100% !important;
+        width: 100% !important;
+        height: calc(100vh - 70px) !important; /* Account for bottom nav */
+        overflow-y: auto !important;
+        padding: 10px 20px 80px 20px !important; /* Breathing room */
+        margin: 0 !important;
+    }
+
+    /* 3. Widescreen Matrix Grid */
+    .busta-grid {
+        grid-template-columns: 2fr 1fr 1fr !important;
+        grid-template-rows: 90px 1fr 1fr !important;
+        grid-template-areas: 
+            "hud hud hud"
+            "chart wins terminal"
+            "chart moon terminal" !important;
+        height: 100%;
+    }
     
-    /* Lock Tables to a set size and make them scroll internally */
-    #view-matrix .table-container {
-        max-height: 350px; 
-        overflow-y: auto;
-        border: 1px solid #222; background: #0a0a0a;
+    /* 4. Fix Top Bar Flexbox */
+    .filter-bar, .top-header {
+        flex-shrink: 0; /* Prevents squishing */
     }
-    #view-matrix table { width: 100%; text-align: left; border-collapse: collapse; font-size: 12px; }
-    #view-matrix thead th {
-        position: sticky; top: 0; background: #111; color: #fff;
-        padding: 10px 5px; border-bottom: 2px solid #333; z-index: 10;
-    }
-    #view-matrix tbody td { padding: 8px 5px; border-bottom: 1px solid #1a1a1a; }
-    #view-matrix tbody tr:hover { background: #151515; }
+}
+/* ========================================== */
+/* --- BUSTA DASHBOARD GRID & FULLSCREEN ---  */
+/* ========================================== */
 
-    /* Ultra-Fancy HUD */
-    #view-matrix .hud-panel {
-        display: flex; flex-wrap: nowrap; gap: 15px; justify-content: space-between;
-        background: transparent; border: none; padding: 0;
-    }
-    #view-matrix .stat-box {
-        flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-        background: radial-gradient(circle at top, #1a1a1a 0%, #050505 100%);
-        border: 1px solid #333; border-top: 2px solid #555; border-radius: 8px;
-        padding: 15px 10px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1);
-        position: relative; overflow: hidden;
-    }
-    #view-matrix .stat-box::after { 
-        content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-        background: linear-gradient(to bottom right, rgba(255,255,255,0.03) 0%, transparent 40%, transparent 100%);
-        transform: rotate(30deg); pointer-events: none;
-    }
-    #view-matrix .stat-label { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; z-index: 1; }
-    #view-matrix .stat-value { font-size: 20px; font-weight: 700; font-family: monospace; z-index: 1; }
-    #view-matrix .neon-green { color: #00E676; text-shadow: 0 0 10px rgba(0,230,118,0.5); }
-    #view-matrix .neon-red { color: #FF3D00; text-shadow: 0 0 10px rgba(255,61,0,0.5); }
+/* THE FIX: Break out of the mobile container */
+#view-matrix.desktop-fullscreen {
+    max-width: 100% !important; 
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 15px !important;
+    height: calc(100vh - 80px) !important;
+    box-sizing: border-box;
+    background-color: #050505; 
+    color: #0f0; 
 }
 
+#view-matrix .busta-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+    height: 100%;
+}
+
+#view-matrix .panel {
+    background: #0a0a0a;
+    border: 1px solid #1a331a;
+    border-radius: 8px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#view-matrix .panel-header {
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: #555;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #222;
+    padding-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* --- PREMIUM HUD --- */
+#view-matrix .hud-panel {
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+    background: radial-gradient(circle at top, #111 0%, #050505 100%);
+    border-bottom: none;
+    border-top: 2px solid #00E676;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.8);
+}
+#view-matrix .stat-box { text-align: center; }
+#view-matrix .stat-label { font-size: 10px; color: #aaa; display: block; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;}
+#view-matrix .stat-value { font-size: 24px; font-weight: bold; font-family: monospace; }
+#view-matrix .neon-green { color: #00E676; text-shadow: 0 0 10px rgba(0,230,118,0.5); }
+#view-matrix .neon-red { color: #FF3D00; text-shadow: 0 0 10px rgba(255,61,0,0.5); }
+
+/* --- TERMINAL & TABLES --- */
+#view-matrix .table-container { 
+    overflow-y: auto; 
+    height: 100%; 
+    background: #080808;
+    border: 1px solid #111;
+}
+#view-matrix table { width: 100%; text-align: left; border-collapse: collapse; font-size: 12px; color: #ccc; }
+#view-matrix th { 
+    position: sticky; top: 0; background: #111; 
+    border-bottom: 1px solid #333; padding: 8px 5px; color: #888; z-index: 2;
+}
+#view-matrix td { padding: 8px 5px; border-bottom: 1px solid #111; }
+#view-matrix tbody tr:hover { background: #151515; }
+
+/* --- MACBOOK PRO WIDESCREEN OPTIMIZATION --- */
+@media (min-width: 1024px) {
+    #view-matrix .busta-grid {
+        grid-template-columns: 2fr 1fr 1fr; /* 3 Columns: Stacked Charts on left, 2 Tables on right */
+        grid-template-rows: 95px 1fr;
+        grid-template-areas: 
+            "hud hud hud"
+            "chart wins terminal";
+    }
+    #view-matrix .hud-panel { grid-area: hud; }
+    #view-matrix .chart-panel { grid-area: chart; }
+    #view-matrix .wins-panel { grid-area: wins; }
+    #view-matrix .terminal-panel { grid-area: terminal; }
+}
     </style>
 </head>
 <body>
@@ -1977,7 +2046,7 @@
         <div id="view-matrix" class="container desktop-fullscreen" style="display:none;">
     <div class="busta-grid">
         
-        <div class="hud-panel">
+        <div class="panel hud-panel">
             <div class="stat-box"><span class="stat-label">LIVE P/L</span><span class="stat-value neon-green" id="hud-pnl">0</span></div>
             <div class="stat-box"><span class="stat-label">EV P/L</span><span class="stat-value" id="hud-ev" style="color:#FFD700;">0</span></div>
             <div class="stat-box"><span class="stat-label">MAX DD</span><span class="stat-value neon-red" id="hud-dd">0</span></div>
@@ -1990,49 +2059,45 @@
         </div>
 
         <div class="panel chart-panel">
-            <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="panel-header">
                 <span>MACRO P/L</span>
-                <input type="number" id="offset-pnl" placeholder="Offset Base P/L" style="width:120px; height:24px; font-size:11px; background:#111; color:#fff; border:1px solid #333; padding:0 5px;" onchange="bustaTelemetry.updateOffsets()">
+                <input type="number" id="offset-pnl" placeholder="Offset Base P/L" style="width:120px; height:22px; font-size:11px; background:#111; color:#fff; border:1px solid #333; padding:0 5px;" onchange="bustaTelemetry.updateOffsets()">
             </div>
-            <div style="flex:1; position:relative;"><canvas id="allTimeChart"></canvas></div>
-        </div>
+            <div style="flex:1; position:relative; min-height: 150px; margin-bottom: 10px;"><canvas id="allTimeChart"></canvas></div>
 
-        <div class="panel chart-panel">
             <div class="panel-header">LAST 20 HITS P/L</div>
-            <div style="flex:1; position:relative;"><canvas id="sessionChart"></canvas></div>
-        </div>
+            <div style="flex:1; position:relative; min-height: 150px; margin-bottom: 10px;"><canvas id="sessionChart"></canvas></div>
 
-        <div class="panel chart-panel">
-            <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="panel-header">
                 <span id="mult-title">MULTIPLIERS (Last 100)</span>
                 <div style="display:flex; gap:10px; align-items:center;">
-                    <input type="number" id="mult-start" placeholder="Start Spin" style="width:80px; height:24px; font-size:11px; background:#111; color:#fff; border:1px solid #333; padding:0 5px;">
+                    <input type="number" id="mult-start" placeholder="Start" style="width:60px; height:22px; font-size:11px; background:#111; color:#fff; border:1px solid #333; padding:0 5px;">
                     <span style="color:#666;">to</span>
-                    <input type="number" id="mult-end" placeholder="End Spin" style="width:80px; height:24px; font-size:11px; background:#111; color:#fff; border:1px solid #333; padding:0 5px;">
-                    <button class="btn btn-sec" style="padding:2px 10px; margin:0;" onclick="bustaTelemetry.setMultCustom()">GO</button>
-                    <span style="color:#444; margin: 0 5px;">|</span>
-                    <button class="btn btn-sec" style="padding:2px 10px; margin:0;" onclick="bustaTelemetry.pageMults(1)">◀ OLDER</button>
-                    <button class="btn btn-sec" style="padding:2px 10px; margin:0;" onclick="bustaTelemetry.pageMults(-1)">NEWER ▶</button>
-                    <button class="btn btn-sec" style="padding:2px 10px; margin:0;" onclick="bustaTelemetry.resetMultView()">LIVE</button>
+                    <input type="number" id="mult-end" placeholder="End" style="width:60px; height:22px; font-size:11px; background:#111; color:#fff; border:1px solid #333; padding:0 5px;">
+                    <button class="btn btn-sec" style="padding:2px 8px; margin:0; font-size: 10px;" onclick="bustaTelemetry.setMultCustom()">GO</button>
+                    <span style="color:#444;">|</span>
+                    <button class="btn btn-sec" style="padding:2px 8px; margin:0; font-size: 10px;" onclick="bustaTelemetry.pageMults(1)">◀ OLD</button>
+                    <button class="btn btn-sec" style="padding:2px 8px; margin:0; font-size: 10px;" onclick="bustaTelemetry.pageMults(-1)">NEW ▶</button>
+                    <button class="btn btn-sec" style="padding:2px 8px; margin:0; font-size: 10px;" onclick="bustaTelemetry.resetMultView()">LIVE</button>
                 </div>
             </div>
-            <div style="flex:1; position:relative;"><canvas id="multChart"></canvas></div>
+            <div style="flex:1; position:relative; min-height: 150px;"><canvas id="multChart"></canvas></div>
         </div>
 
         <div class="panel wins-panel">
             <div class="panel-header">🎯 HITS & MEGA MULTIPLIERS</div>
             <div class="table-container">
                 <table id="hits-table">
-                    <thead><tr><th>🎰 Spin</th><th>Start Tgt</th><th>Hit Tgt</th><th>✖️ Mult</th><th>Spread</th><th>Result</th></tr></thead>
+                    <thead><tr><th>🎰 Spin</th><th>Start</th><th>Hit</th><th>✖️ Mult</th><th>Spread</th><th>Result</th></tr></thead>
                     <tbody id="hits-body"></tbody>
                 </table>
             </div>
         </div>
 
-        <div class="panel terminal-panel" style="margin-bottom: 20px;">
-            <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="panel terminal-panel">
+            <div class="panel-header">
                 <span>RAW TELEMETRY</span>
-                <input type="number" id="offset-spin" placeholder="Sync Global Spin #" style="width:120px; height:24px; font-size:11px; background:#111; color:#fff; border:1px solid #333; padding:0 5px;" onchange="bustaTelemetry.updateOffsets()">
+                <input type="number" id="offset-spin" placeholder="Sync Spin #" style="width:100px; height:22px; font-size:11px; background:#111; color:#fff; border:1px solid #333; padding:0 5px;" onchange="bustaTelemetry.updateOffsets()">
             </div>
             <div class="table-container">
                 <table id="raw-table">
