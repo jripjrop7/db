@@ -4906,245 +4906,246 @@ window.onload = app.init;
 
 
 // ==========================================
-// --- BUSTA DASHBOARD TELEMETRY ENGINE ---
+// --- NEW BUSTA TELEMETRY ENGINE ---
 // ==========================================
-let sessionChart = null;
-let allTimeChart = null;
-let lastBustaSpinCount = 0;
 
-// Smart Number Formatter
+// Smart Number Formatter (Whole numbers + k/m formatting)
 function formatBits(num) {
     if (num === undefined || num === null || isNaN(num)) return "0";
     const abs = Math.abs(num);
     if (abs >= 1000000) return (num / 1000000).toFixed(2) + 'm';
     if (abs >= 1000) return (num / 1000).toFixed(1) + 'k';
-    return num.toFixed(0); 
+    return Math.trunc(num).toString(); // Forces whole numbers only
 }
 
-// Custom Plugin to draw text directly on Win Peaks
-const peakLabelPlugin = {
-    id: 'peakLabels',
-    afterDatasetsDraw(chart) {
-        const ctx = chart.ctx;
-        const meta = chart.getDatasetMeta(0);
-        const dataset = chart.data.datasets[0];
+const bustaTelemetry = {
+    rawData: [],
+    sessionStartIndex: 0,
+    spinOffset: 0,
+    pnlOffset: 0,
+    chartInstance: null,
+    lastSpinCount: 0, 
+
+    init: async () => {
+        try {
+            const res = await fetch('http://localhost:8080/api/history'); 
+            if (res.ok) {
+                const history = await res.json();
+                
+                if (history.length !== bustaTelemetry.lastSpinCount) {
+                    bustaTelemetry.rawData = history;
+                    bustaTelemetry.lastSpinCount = history.length;
+                    bustaTelemetry.processData();
+                }
+            }
+        } catch (e) {
+            // Silently wait for the server/script to connect
+        }
+    },
+
+    updateOffsets: () => {
+        bustaTelemetry.spinOffset = parseInt(document.getElementById('offset-spin').value) || 0;
+        bustaTelemetry.pnlOffset = parseFloat(document.getElementById('offset-pnl').value) || 0;
+        bustaTelemetry.processData();
+    },
+
+    resetSeed: () => {
+        bustaTelemetry.sessionStartIndex = bustaTelemetry.rawData.length;
+        bustaTelemetry.processData();
+    },
+
+    processData: () => {
+        if (!bustaTelemetry.rawData.length) return;
+
+        const sessionData = bustaTelemetry.rawData.slice(bustaTelemetry.sessionStartIndex);
         
-        if (!dataset.peakLabels) return;
+        let livePnl = 0, peak = 0, maxDd = 0, wins = 0, totalSpins = sessionData.length;
+        let currentDrought = 0, maxDrought = 0, totalMult = 0, totalWagered = 0;
+        let evSum = 0;
 
-        ctx.save();
-        ctx.font = 'bold 11px monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
+        const chartLabels = [];
+        const chartData = [];
+        const hitsArray = [];
 
-        dataset.peakLabels.forEach((label, index) => {
-            if (label) {
-                const point = meta.data[index];
-                if (point) {
-                    ctx.fillStyle = label.color || '#0f0';
-                    ctx.fillText(label.text, point.x, point.y - 8); // Float text just above the dot
+        sessionData.forEach((spin, index) => {
+            const globalSpin = bustaTelemetry.spinOffset + index + 1;
+            const wager = spin.wagerBits || spin.wager || 0;
+            const mult = spin.multiplier || 0;
+            const target = spin.target || 0;
+            
+            const isHit = mult >= target;
+            const pnlChange = isHit ? (wager * target) - wager : -wager;
+            
+            livePnl += pnlChange;
+            totalWagered += wager;
+            totalMult += mult;
+
+            const winProb = target > 1 ? 99 / target / 100 : 0;
+            const spinEv = (winProb * ((wager * target) - wager)) - ((1 - winProb) * wager);
+            evSum += spinEv;
+
+            if (livePnl > peak) peak = livePnl;
+            const dd = peak - livePnl;
+            if (dd > maxDd) maxDd = dd;
+
+            if (isHit) {
+                wins++;
+                currentDrought = 0;
+            } else {
+                currentDrought++;
+                if (currentDrought > maxDrought) maxDrought = currentDrought;
+            }
+
+            chartLabels.push(globalSpin);
+            chartData.push(bustaTelemetry.pnlOffset + livePnl);
+
+            if ((isHit && target > 1.01) || mult >= 1000) {
+                hitsArray.push({
+                    spin: globalSpin,
+                    startTgt: spin.startingTarget || target,
+                    hitTgt: target,
+                    mult: mult,
+                    spread: isHit ? 0 : (target - mult),
+                    result: isHit ? 'HIT' : 'MISS'
+                });
+            }
+        });
+
+        // 1. UPDATE HUD (Using formatBits and stripping decimals)
+        document.getElementById('hud-pnl').innerText = (livePnl >= 0 ? '+' : '') + formatBits(livePnl);
+        document.getElementById('hud-pnl').className = `stat-value ${livePnl >= 0 ? 'neon-green' : 'neon-red'}`;
+        document.getElementById('hud-ev').innerText = formatBits(evSum);
+        document.getElementById('hud-dd').innerText = formatBits(maxDd);
+        document.getElementById('hud-winrate').innerText = totalSpins > 0 ? Math.trunc((wins / totalSpins) * 100) + '%' : '0%';
+        document.getElementById('hud-avgmult').innerText = totalSpins > 0 ? Math.trunc(totalMult / totalSpins) + 'x' : '0x';
+        document.getElementById('hud-drought').innerText = `${currentDrought} / ${maxDrought}`;
+        document.getElementById('hud-wagered').innerText = formatBits(totalWagered);
+        document.getElementById('hud-spins').innerText = totalSpins;
+
+        // 2. RENDER TABLES
+        bustaTelemetry.renderHitsTable(hitsArray);
+        bustaTelemetry.renderRawTelemetry(sessionData);
+
+        // 3. RENDER CHARTS
+        bustaTelemetry.renderCharts(chartLabels, chartData, hitsArray);
+    },
+
+    renderHitsTable: (hitsArray) => {
+        const html = [...hitsArray].reverse().map(h => {
+            const resColor = h.result === 'HIT' ? '#0f0' : '#888';
+            const multColor = h.mult >= 1000 ? '#FFD700' : (h.result === 'HIT' ? '#0f0' : '#fff');
+            return `
+                <tr style="cursor:pointer;" onclick="alert('Spin Record: ${h.spin}')">
+                    <td style="color:#777;">${h.spin}</td>
+                    <td>${Math.trunc(h.startTgt)}x</td>
+                    <td>${Math.trunc(h.hitTgt)}x</td>
+                    <td style="color:${multColor}; font-weight:bold;">${Math.trunc(h.mult)}x</td>
+                    <td style="color:#FF9100;">${h.spread > 0 ? Math.trunc(h.spread) : '-'}</td>
+                    <td><span style="background:#333; color:${resColor}; padding:2px 6px; border-radius:3px; font-weight:bold;">${h.result}</span></td>
+                </tr>
+            `;
+        }).join('');
+        document.getElementById('hits-body').innerHTML = html;
+    },
+
+    renderRawTelemetry: (sessionData) => {
+        const html = [...sessionData].reverse().map((spin, i) => {
+            const globalSpin = bustaTelemetry.spinOffset + sessionData.length - i;
+            const isHit = spin.multiplier >= spin.target;
+            
+            let pnlBits = spin.pnlBits !== undefined ? spin.pnlBits : (isHit ? (spin.wagerBits * spin.target) - spin.wagerBits : -spin.wagerBits);
+            let wagerBits = spin.wagerBits !== undefined ? spin.wagerBits : spin.wager;
+
+            const pnlStr = pnlBits >= 0 ? `+${formatBits(pnlBits)}` : `-${formatBits(Math.abs(pnlBits))}`;
+            const pnlColor = pnlBits >= 0 ? '#0f0' : '#D50000';
+            
+            return `
+                <tr style="cursor:pointer;" onclick="alert('Spin ID: ${spin.id || 'N/A'}');">
+                    <td style="color:#777;">${globalSpin}</td>
+                    <td>${Math.trunc(spin.target)}x</td>
+                    <td style="color:${isHit ? '#0f0' : '#888'};">${Math.trunc(spin.multiplier)}x</td>
+                    <td style="color:${pnlColor};">${pnlStr}</td>
+                    <td>${formatBits(wagerBits)}</td>
+                </tr>
+            `;
+        }).join('');
+        document.getElementById('raw-body').innerHTML = html;
+    },
+
+    renderCharts: (labels = null, data = null, hitsArray = null) => {
+        if (!labels) {
+            bustaTelemetry.processData();
+            return; 
+        }
+        
+        const filter = document.getElementById('chart-filter').value;
+        const ctx = document.getElementById('pnlChart').getContext('2d');
+
+        let displayLabels = labels;
+        let displayData = data;
+
+        if (filter === 'session' && hitsArray) {
+            const recentHits = hitsArray.slice(-20);
+            displayLabels = recentHits.map(h => h.spin);
+            displayData = displayLabels.map(spinNum => data[labels.indexOf(spinNum)]);
+        }
+
+        const segmentColor = (ctx) => {
+            if (!ctx.p0 || !ctx.p1) return '#FF3D00';
+            return ctx.p1.parsed.y >= 0 ? '#00E676' : '#D50000';
+        };
+
+        if (bustaTelemetry.chartInstance) {
+            bustaTelemetry.chartInstance.destroy();
+        }
+
+        bustaTelemetry.chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: displayLabels,
+                datasets: [{
+                    data: displayData,
+                    borderWidth: 1.5,
+                    fill: false,
+                    segment: { borderColor: ctx => segmentColor(ctx) },
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                elements: {
+                    point: { radius: 0, hitRadius: 10, hoverRadius: 5 }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: (c) => `Spin: ${c[0].label}`,
+                            label: (c) => `P/L: ${formatBits(c.raw)} bits`
+                        }
+                    }
+                },
+                scales: {
+                    x: { display: false },
+                    y: { 
+                        grid: { color: '#222' },
+                        ticks: { 
+                            font: { size: 10 }, 
+                            color: '#777',
+                            callback: function(value) { return formatBits(value); } // Formats the Y-axis labels
+                        }
+                    }
                 }
             }
         });
-        ctx.restore();
     }
 };
 
-function createChartConfig(color, showPeaks = false) {
-    const bgRgba = color === '#0f0' ? 'rgba(0, 255, 0, 0.1)' : 'rgba(0, 229, 255, 0.1)';
-    return {
-        type: 'line',
-        plugins: [peakLabelPlugin], 
-        data: { 
-            labels: [], 
-            datasets: [{ 
-                data: [], 
-                borderColor: color, 
-                backgroundColor: bgRgba, 
-                borderWidth: 2, 
-                pointRadius: [], // Dynamically sized
-                pointBackgroundColor: '#fff',
-                fill: true,
-                peakLabels: [] // Custom array for our plugin
-            }] 
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false, animation: false,
-            plugins: { legend: { display: false }, tooltip: { enabled: false } },
-            scales: {
-                x: { 
-                    display: true, // Turn on X-axis
-                    grid: { color: '#111' }, 
-                    ticks: { color: '#666', maxTicksLimit: 10 } 
-                }, 
-                y: { 
-                    grid: { color: '#111' }, 
-                    ticks: { color: '#888', maxTicksLimit: 8 } 
-                }
-            }
-        }
-    };
-}
-
-function initBustaCharts() {
-    const sCtx = document.getElementById('sessionChart');
-    if (!sCtx) return; 
-    Chart.register(peakLabelPlugin);
-    sessionChart = new Chart(sCtx.getContext('2d'), createChartConfig('#0f0', false)); 
-    allTimeChart = new Chart(document.getElementById('allTimeChart').getContext('2d'), createChartConfig('#00E5FF', true)); 
-}
-
-async function fetchBustaData() {
-    try {
-        const response = await fetch('http://localhost:8080/api/history');
-        const rawData = await response.json();
-        
-        if (rawData.length === 0 || rawData.length === lastBustaSpinCount) return; 
-        lastBustaSpinCount = rawData.length;
-
-        let cumulativeAllTime = 0;
-        let allTimePnls = [];
-        let allTimeRadii = [];
-        let allTimeLabels = [];
-        
-        let sessionStartIndex = 0;
-        let currentDrought = 0;
-        let maxDrought = 0;
-
-        // Process Global Data
-        const data = rawData.map((d, index) => {
-            d.globalSpin = index + 1;
-            
-            const isWin = d.multiplier >= d.target;
-            const isRealTarget = d.target > 2;
-
-            // Drought Math (Only count real targets)
-            if (isRealTarget) {
-                if (isWin) {
-                    if (currentDrought > maxDrought) maxDrought = currentDrought;
-                    currentDrought = 0;
-                } else {
-                    currentDrought++;
-                }
-            }
-
-            const profit = isWin ? (d.wagerBits * (d.target - 1)) : -d.wagerBits;
-            cumulativeAllTime += profit;
-            allTimePnls.push(cumulativeAllTime);
-
-            // Chart Peak Configuration
-            if (isWin && isRealTarget) {
-                allTimeRadii.push(4); // Big dot for win
-                const totalWinValue = d.wagerBits * d.target; // Wager * Target logic you requested
-                allTimeLabels.push({ text: '+' + formatBits(totalWinValue), color: '#0f0' });
-            } else {
-                allTimeRadii.push(0); // Invisible dot
-                allTimeLabels.push(null); // No text
-            }
-
-            if (index > 0 && d.totalSpins <= rawData[index-1].totalSpins) {
-                sessionStartIndex = index; 
-            }
-            return d;
-        });
-
-        const sessionData = data.slice(sessionStartIndex);
-        const latest = sessionData[sessionData.length - 1];
-        
-        const sessionHits = sessionData.filter(d => d.multiplier >= d.target && d.target > 2).length;
-        const validSessionSpins = sessionData.filter(d => d.target > 2).length;
-        const winRate = validSessionSpins > 0 ? ((sessionHits / validSessionSpins) * 100).toFixed(2) : 0;
-
-        // 1. Update HUD
-        document.getElementById('hud-pnl').innerText = (latest.pnlBits >= 0 ? '+' : '') + formatBits(latest.pnlBits);
-        document.getElementById('hud-drawdown').innerText = formatBits(latest.maxDrawdownBits);
-        document.getElementById('hud-winrate').innerText = winRate + '%';
-        document.getElementById('hud-max-drought').innerText = maxDrought;
-        document.getElementById('hud-current-drought').innerText = currentDrought;
-        document.getElementById('hud-current-drought').style.color = currentDrought > (maxDrought * 0.8) ? '#ff003c' : '#aaa'; // Turns red if close to max drought
-        document.getElementById('hud-spins').innerText = data.length.toLocaleString();
-
-        // 2. Update Session Chart
-        if (sessionChart) {
-            sessionChart.data.labels = sessionData.map(d => d.globalSpin);
-            sessionChart.data.datasets[0].data = sessionData.map(d => parseFloat(d.pnlBits.toFixed(1)));
-            sessionChart.data.datasets[0].borderColor = latest.pnlBits >= 0 ? '#0f0' : '#ff003c';
-            sessionChart.data.datasets[0].backgroundColor = latest.pnlBits >= 0 ? 'rgba(0, 255, 0, 0.1)' : 'rgba(255, 0, 60, 0.1)';
-            sessionChart.update();
-        }
-
-        // 3. Update All-Time Chart with Peaks
-        if (allTimeChart) {
-            allTimeChart.data.labels = data.map(d => d.globalSpin);
-            allTimeChart.data.datasets[0].data = allTimePnls;
-            allTimeChart.data.datasets[0].borderColor = cumulativeAllTime >= 0 ? '#00E5FF' : '#ff003c';
-            allTimeChart.data.datasets[0].backgroundColor = cumulativeAllTime >= 0 ? 'rgba(0, 229, 255, 0.1)' : 'rgba(255, 0, 60, 0.1)';
-            allTimeChart.data.datasets[0].pointRadius = allTimeRadii;
-            allTimeChart.data.datasets[0].peakLabels = allTimeLabels;
-            allTimeChart.update();
-        }
-
-        // 4. Standard Wins Table (>2x Targets Only)
-        const winsBody = document.getElementById('wins-body');
-        if (winsBody) {
-            winsBody.innerHTML = ''; 
-            const hits = data.filter(d => d.multiplier >= d.target && d.target > 2 && d.multiplier < 1000).reverse().slice(0, 50); 
-            
-            hits.forEach(hit => {
-                winsBody.innerHTML += `
-                    <tr>
-                        <td>#${hit.globalSpin}</td>
-                        <td>${hit.timestamp}</td>
-                        <td>${formatBits(hit.wagerBits)}</td>
-                        <td>${hit.target}x</td>
-                        <td class="win-mult">${hit.multiplier}x</td>
-                    </tr>
-                `;
-            });
-        }
-
-        // 5. 1000x MOONSHOTS Table (Shows Result instead of PnL)
-        const moonBody = document.getElementById('moon-body');
-        if (moonBody) {
-            moonBody.innerHTML = '';
-            const moonshots = data.filter(d => d.multiplier >= 1000).reverse();
-
-            moonshots.forEach(moon => {
-                const isHit = moon.multiplier >= moon.target;
-                const resultBadge = isHit 
-                    ? `<span style="background:#0f0; color:#000; padding:2px 6px; border-radius:3px; font-weight:bold;">HIT</span>`
-                    : `<span style="background:#333; color:#888; padding:2px 6px; border-radius:3px;">MISSED</span>`;
-
-                moonBody.innerHTML += `
-                    <tr>
-                        <td style="color:#FFD700">#${moon.globalSpin}</td>
-                        <td>${moon.timestamp}</td>
-                        <td>${moon.target}x</td>
-                        <td class="moon-mult">${moon.multiplier}x</td>
-                        <td>${resultBadge}</td>
-                    </tr>
-                `;
-            });
-        }
-
-        // 6. Terminal Log
-        const terminal = document.getElementById('live-terminal');
-        if (terminal) {
-            const recentSpins = data.slice(-50).reverse(); 
-            terminal.innerHTML = recentSpins.map(d => {
-                let isHit = d.multiplier >= d.target;
-                let color = isHit ? '#0f0' : '#888';
-                if (d.multiplier >= 1000) color = '#FFD700';
-
-                return `[${d.timestamp}] Spin #${d.globalSpin} | Tgt: ${d.target}x | Hit: <span style="color:${color}; font-weight:${isHit ? 'bold' : 'normal'}">${d.multiplier}x</span> | PnL: ${formatBits(d.pnlBits)}`;
-            }).join('<br>');
-        }
-
-    } catch (e) {
-        // Silently wait
-    }
-}
-
-setTimeout(() => {
-    initBustaCharts();
-    setInterval(fetchBustaData, 1000);
-}, 1000);
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => { 
+        bustaTelemetry.init(); 
+        setInterval(() => { bustaTelemetry.init(); }, 1000);
+    }, 500);
+});
