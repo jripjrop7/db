@@ -4909,38 +4909,34 @@ window.onload = app.init;
 // --- NEW BUSTA TELEMETRY ENGINE ---
 // ==========================================
 
-// Smart Number Formatter (Whole numbers + k/m formatting)
 function formatBits(num) {
     if (num === undefined || num === null || isNaN(num)) return "0";
     const abs = Math.abs(num);
     if (abs >= 1000000) return (num / 1000000).toFixed(2) + 'm';
     if (abs >= 1000) return (num / 1000).toFixed(1) + 'k';
-    return Math.trunc(num).toString(); // Forces whole numbers only
+    return Math.trunc(num).toString();
 }
 
 const bustaTelemetry = {
-    rawData: [],
-    sessionStartIndex: 0,
-    spinOffset: 0,
-    pnlOffset: 0,
-    chartInstance: null,
-    lastSpinCount: 0, 
+    rawData: [], sessionStartIndex: 0, spinOffset: 0, pnlOffset: 0,
+    allTimeInst: null, sessionInst: null, multInst: null, lastSpinCount: 0, 
+    
+    // Multiplier Chart State
+    multMode: 'rolling', // 'rolling' or 'custom'
+    multPageOffset: 0, // 0 = last 100. 1 = 100-200, etc.
 
     init: async () => {
         try {
             const res = await fetch('http://localhost:8080/api/history'); 
             if (res.ok) {
                 const history = await res.json();
-                
                 if (history.length !== bustaTelemetry.lastSpinCount) {
                     bustaTelemetry.rawData = history;
                     bustaTelemetry.lastSpinCount = history.length;
                     bustaTelemetry.processData();
                 }
             }
-        } catch (e) {
-            // Silently wait for the server/script to connect
-        }
+        } catch (e) {}
     },
 
     updateOffsets: () => {
@@ -4954,18 +4950,35 @@ const bustaTelemetry = {
         bustaTelemetry.processData();
     },
 
+    // Multiplier Chart Navigation
+    pageMults: (direction) => {
+        bustaTelemetry.multMode = 'rolling';
+        bustaTelemetry.multPageOffset += direction;
+        if (bustaTelemetry.multPageOffset < 0) bustaTelemetry.multPageOffset = 0;
+        bustaTelemetry.processData();
+    },
+    resetMultView: () => {
+        bustaTelemetry.multMode = 'rolling';
+        bustaTelemetry.multPageOffset = 0;
+        document.getElementById('mult-start').value = '';
+        document.getElementById('mult-end').value = '';
+        bustaTelemetry.processData();
+    },
+    setMultCustom: () => {
+        bustaTelemetry.multMode = 'custom';
+        bustaTelemetry.processData();
+    },
+
     processData: () => {
         if (!bustaTelemetry.rawData.length) return;
-
         const sessionData = bustaTelemetry.rawData.slice(bustaTelemetry.sessionStartIndex);
         
         let livePnl = 0, peak = 0, maxDd = 0, wins = 0, totalSpins = sessionData.length;
         let currentDrought = 0, maxDrought = 0, totalMult = 0, totalWagered = 0;
         let evSum = 0;
 
-        const chartLabels = [];
-        const chartData = [];
-        const hitsArray = [];
+        const allTimeLabels = [], allTimeData = [], hitsArray = [];
+        let allMultDataObj = []; // Store everything so we can slice it for the UI
 
         sessionData.forEach((spin, index) => {
             const globalSpin = bustaTelemetry.spinOffset + index + 1;
@@ -4975,43 +4988,35 @@ const bustaTelemetry = {
             
             const isHit = mult >= target;
             const pnlChange = isHit ? (wager * target) - wager : -wager;
-            
-            livePnl += pnlChange;
-            totalWagered += wager;
-            totalMult += mult;
+            livePnl += pnlChange; totalWagered += wager; totalMult += mult;
 
             const winProb = target > 1 ? 99 / target / 100 : 0;
-            const spinEv = (winProb * ((wager * target) - wager)) - ((1 - winProb) * wager);
-            evSum += spinEv;
+            evSum += (winProb * ((wager * target) - wager)) - ((1 - winProb) * wager);
 
             if (livePnl > peak) peak = livePnl;
-            const dd = peak - livePnl;
-            if (dd > maxDd) maxDd = dd;
+            if ((peak - livePnl) > maxDd) maxDd = (peak - livePnl);
 
-            if (isHit) {
-                wins++;
-                currentDrought = 0;
-            } else {
-                currentDrought++;
-                if (currentDrought > maxDrought) maxDrought = currentDrought;
-            }
+            if (isHit) { wins++; currentDrought = 0; } 
+            else { currentDrought++; if (currentDrought > maxDrought) maxDrought = currentDrought; }
 
-            chartLabels.push(globalSpin);
-            chartData.push(bustaTelemetry.pnlOffset + livePnl);
+            // Chart 1 Arrays
+            allTimeLabels.push(globalSpin);
+            allTimeData.push(bustaTelemetry.pnlOffset + livePnl);
 
+            // Store Mults
+            allMultDataObj.push({ spin: globalSpin, mult: Math.trunc(mult), hit: isHit });
+
+            // Hits Table Arrays
             if ((isHit && target > 1.01) || mult >= 1000) {
                 hitsArray.push({
-                    spin: globalSpin,
-                    startTgt: spin.startingTarget || target,
-                    hitTgt: target,
-                    mult: mult,
-                    spread: isHit ? 0 : (target - mult),
-                    result: isHit ? 'HIT' : 'MISS'
+                    spin: globalSpin, startTgt: spin.startingTarget || target,
+                    hitTgt: target, mult: mult, pnlAtHit: livePnl,
+                    spread: isHit ? 0 : (target - mult), result: isHit ? 'HIT' : 'MISS'
                 });
             }
         });
 
-        // 1. UPDATE HUD (Using formatBits and stripping decimals)
+        // UPDATE HUD
         document.getElementById('hud-pnl').innerText = (livePnl >= 0 ? '+' : '') + formatBits(livePnl);
         document.getElementById('hud-pnl').className = `stat-value ${livePnl >= 0 ? 'neon-green' : 'neon-red'}`;
         document.getElementById('hud-ev').innerText = formatBits(evSum);
@@ -5022,28 +5027,45 @@ const bustaTelemetry = {
         document.getElementById('hud-wagered').innerText = formatBits(totalWagered);
         document.getElementById('hud-spins').innerText = totalSpins;
 
-        // 2. RENDER TABLES
+        // HANDLE MULTIPLIER CHART SLICING
+        let finalMLabels = [], finalMData = [];
+        let titleText = "";
+
+        if (bustaTelemetry.multMode === 'custom') {
+            const startStr = parseInt(document.getElementById('mult-start').value);
+            const endStr = parseInt(document.getElementById('mult-end').value);
+            const filtered = allMultDataObj.filter(m => m.spin >= startStr && m.spin <= endStr);
+            finalMLabels = filtered.map(m => m.spin);
+            finalMData = filtered.map(m => m.mult);
+            titleText = `MULTIPLIERS (Spins ${startStr} to ${endStr})`;
+        } else {
+            // Rolling / Paginated logic
+            const chunkSize = 100;
+            const endIndex = allMultDataObj.length - (bustaTelemetry.multPageOffset * chunkSize);
+            const startIndex = Math.max(0, endIndex - chunkSize);
+            const sliced = allMultDataObj.slice(startIndex, endIndex);
+            
+            finalMLabels = sliced.map(m => m.spin);
+            finalMData = sliced.map(m => m.mult);
+            
+            if (bustaTelemetry.multPageOffset === 0) {
+                titleText = `MULTIPLIERS (Live Last 100)`;
+            } else {
+                titleText = `MULTIPLIERS (100 Spins ending at #${sliced[sliced.length-1]?.spin || 0})`;
+            }
+        }
+        document.getElementById('mult-title').innerText = titleText;
+
         bustaTelemetry.renderHitsTable(hitsArray);
         bustaTelemetry.renderRawTelemetry(sessionData);
-
-        // 3. RENDER CHARTS
-        bustaTelemetry.renderCharts(chartLabels, chartData, hitsArray);
+        bustaTelemetry.renderAllCharts(allTimeLabels, allTimeData, hitsArray, finalMLabels, finalMData);
     },
 
     renderHitsTable: (hitsArray) => {
         const html = [...hitsArray].reverse().map(h => {
-            const resColor = h.result === 'HIT' ? '#0f0' : '#888';
-            const multColor = h.mult >= 1000 ? '#FFD700' : (h.result === 'HIT' ? '#0f0' : '#fff');
-            return `
-                <tr style="cursor:pointer;" onclick="alert('Spin Record: ${h.spin}')">
-                    <td style="color:#777;">${h.spin}</td>
-                    <td>${Math.trunc(h.startTgt)}x</td>
-                    <td>${Math.trunc(h.hitTgt)}x</td>
-                    <td style="color:${multColor}; font-weight:bold;">${Math.trunc(h.mult)}x</td>
-                    <td style="color:#FF9100;">${h.spread > 0 ? Math.trunc(h.spread) : '-'}</td>
-                    <td><span style="background:#333; color:${resColor}; padding:2px 6px; border-radius:3px; font-weight:bold;">${h.result}</span></td>
-                </tr>
-            `;
+            const resColor = h.result === 'HIT' ? '#00E676' : '#888';
+            const multColor = h.mult >= 1000 ? '#FFD700' : (h.result === 'HIT' ? '#00E676' : '#fff');
+            return `<tr><td style="color:#777;">${h.spin}</td><td>${Math.trunc(h.startTgt)}x</td><td>${Math.trunc(h.hitTgt)}x</td><td style="color:${multColor}; font-weight:bold;">${Math.trunc(h.mult)}x</td><td style="color:#FF9100;">${h.spread > 0 ? Math.trunc(h.spread) : '-'}</td><td><span style="color:${resColor}; font-weight:bold;">${h.result}</span></td></tr>`;
         }).join('');
         document.getElementById('hits-body').innerHTML = html;
     },
@@ -5052,100 +5074,51 @@ const bustaTelemetry = {
         const html = [...sessionData].reverse().map((spin, i) => {
             const globalSpin = bustaTelemetry.spinOffset + sessionData.length - i;
             const isHit = spin.multiplier >= spin.target;
-            
             let pnlBits = spin.pnlBits !== undefined ? spin.pnlBits : (isHit ? (spin.wagerBits * spin.target) - spin.wagerBits : -spin.wagerBits);
-            let wagerBits = spin.wagerBits !== undefined ? spin.wagerBits : spin.wager;
-
             const pnlStr = pnlBits >= 0 ? `+${formatBits(pnlBits)}` : `-${formatBits(Math.abs(pnlBits))}`;
-            const pnlColor = pnlBits >= 0 ? '#0f0' : '#D50000';
-            
-            return `
-                <tr style="cursor:pointer;" onclick="alert('Spin ID: ${spin.id || 'N/A'}');">
-                    <td style="color:#777;">${globalSpin}</td>
-                    <td>${Math.trunc(spin.target)}x</td>
-                    <td style="color:${isHit ? '#0f0' : '#888'};">${Math.trunc(spin.multiplier)}x</td>
-                    <td style="color:${pnlColor};">${pnlStr}</td>
-                    <td>${formatBits(wagerBits)}</td>
-                </tr>
-            `;
+            return `<tr><td style="color:#777;">${globalSpin}</td><td>${Math.trunc(spin.target)}x</td><td style="color:${isHit ? '#00E676' : '#888'};">${Math.trunc(spin.multiplier)}x</td><td style="color:${pnlBits >= 0 ? '#00E676' : '#FF3D00'};">${pnlStr}</td><td>${formatBits(spin.wagerBits || spin.wager)}</td></tr>`;
         }).join('');
         document.getElementById('raw-body').innerHTML = html;
     },
 
-    renderCharts: (labels = null, data = null, hitsArray = null) => {
-        if (!labels) {
-            bustaTelemetry.processData();
-            return; 
-        }
-        
-        const filter = document.getElementById('chart-filter').value;
-        const ctx = document.getElementById('pnlChart').getContext('2d');
+    renderAllCharts: (atLabels, atData, hitsArray, mLabels, mData) => {
+        Chart.defaults.color = '#777';
+        Chart.defaults.font.size = 10;
 
-        let displayLabels = labels;
-        let displayData = data;
-
-        if (filter === 'session' && hitsArray) {
-            const recentHits = hitsArray.slice(-20);
-            displayLabels = recentHits.map(h => h.spin);
-            displayData = displayLabels.map(spinNum => data[labels.indexOf(spinNum)]);
-        }
-
-        const segmentColor = (ctx) => {
-            if (!ctx.p0 || !ctx.p1) return '#FF3D00';
-            return ctx.p1.parsed.y >= 0 ? '#00E676' : '#D50000';
+        const commonOptions = {
+            responsive: true, maintainAspectRatio: false, animation: false,
+            elements: { point: { radius: 0, hitRadius: 10, hoverRadius: 5 } },
+            plugins: { legend: { display: false } },
+            scales: { x: { display: false }, y: { grid: { color: '#222' }, ticks: { callback: v => formatBits(v) } } }
         };
 
-        if (bustaTelemetry.chartInstance) {
-            bustaTelemetry.chartInstance.destroy();
-        }
-
-        bustaTelemetry.chartInstance = new Chart(ctx, {
+        // 1. All-Time Chart
+        if (bustaTelemetry.allTimeInst) bustaTelemetry.allTimeInst.destroy();
+        bustaTelemetry.allTimeInst = new Chart(document.getElementById('allTimeChart'), {
             type: 'line',
-            data: {
-                labels: displayLabels,
-                datasets: [{
-                    data: displayData,
-                    borderWidth: 1.5,
-                    fill: false,
-                    segment: { borderColor: ctx => segmentColor(ctx) },
-                    tension: 0.1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: false,
-                elements: {
-                    point: { radius: 0, hitRadius: 10, hoverRadius: 5 }
-                },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            title: (c) => `Spin: ${c[0].label}`,
-                            label: (c) => `P/L: ${formatBits(c.raw)} bits`
-                        }
-                    }
-                },
-                scales: {
-                    x: { display: false },
-                    y: { 
-                        grid: { color: '#222' },
-                        ticks: { 
-                            font: { size: 10 }, 
-                            color: '#777',
-                            callback: function(value) { return formatBits(value); } // Formats the Y-axis labels
-                        }
-                    }
-                }
-            }
+            data: { labels: atLabels, datasets: [{ data: atData, borderWidth: 1.5, fill: false, segment: { borderColor: ctx => (!ctx.p0 || !ctx.p1) ? '#FF3D00' : ctx.p1.parsed.y >= 0 ? '#00E676' : '#FF3D00' }, tension: 0.1 }] },
+            options: commonOptions
+        });
+
+        // 2. Session 20 Hits Chart
+        const recentHits = hitsArray.slice(-20);
+        if (bustaTelemetry.sessionInst) bustaTelemetry.sessionInst.destroy();
+        bustaTelemetry.sessionInst = new Chart(document.getElementById('sessionChart'), {
+            type: 'line',
+            data: { labels: recentHits.map(h => h.spin), datasets: [{ data: recentHits.map(h => h.pnlAtHit), borderWidth: 2, borderColor: '#00E5FF', backgroundColor: 'rgba(0, 229, 255, 0.1)', fill: true, tension: 0.1 }] },
+            options: commonOptions
+        });
+
+        // 3. Multiplier Line Graph (Logarithmic scale so 10,000x doesn't crush 2x)
+        if (bustaTelemetry.multInst) bustaTelemetry.multInst.destroy();
+        bustaTelemetry.multInst = new Chart(document.getElementById('multChart'), {
+            type: 'line',
+            data: { labels: mLabels, datasets: [{ data: mData, borderWidth: 1.5, borderColor: '#FFD700', tension: 0 }] }, // Tension 0 makes sharp spikes
+            options: { ...commonOptions, scales: { x: { display: false }, y: { type: 'logarithmic', grid: { color: '#222' }, ticks: { callback: v => formatBits(v) + 'x' } } } }
         });
     }
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => { 
-        bustaTelemetry.init(); 
-        setInterval(() => { bustaTelemetry.init(); }, 1000);
-    }, 500);
+    setTimeout(() => { bustaTelemetry.init(); setInterval(() => { bustaTelemetry.init(); }, 1000); }, 500);
 });
